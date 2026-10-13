@@ -11,6 +11,7 @@ const ALLOWED_ORIGINS = new Set([
 const MAX_ITEMS = 80;
 const MAX_KEYWORD = 120;
 const MAX_FOCUS = 200;
+const MAX_PROJECTS = 4000;
 const MAX_TEXT = 700;
 const BATCH = 8;
 const CONCURRENCY = 3;
@@ -182,7 +183,15 @@ function pickProfile(keyword) {
   return best;
 }
 
-function buildPrompt(keyword, items, focus, strict, strong) {
+function buildPrompt(
+  keyword,
+  items,
+  focus,
+  strict,
+  strong,
+  projects,
+  applyAll,
+) {
   const lines = items
     .map(
       (it, i) =>
@@ -196,6 +205,14 @@ function buildPrompt(keyword, items, focus, strict, strong) {
   const focusLine = focus
     ? `\nExtra emphasis requested by the user (prioritize when the facts support it): ${focus}.`
     : "";
+  const projectsLine = projects
+    ? `\nCandidate's REAL project material (authoritative source of tools, systems, and outcomes -- reflect these in the bullets):\n${projects}\n`
+    : "";
+  const keys = projectKeys(projects);
+  const applyAllLine =
+    applyAll && keys.length
+      ? `\nThe candidate CONFIRMS this project spanned every role below. Therefore EVERY bullet MUST explicitly name at least one of these exact items: ${keys.slice(0, 14).join(", ")}. This is confirmed real work, not an invention.`
+      : "";
   const strictLine = strict
     ? "\nCRITICAL: A previous attempt barely changed the bullets. You MUST fully restructure them now: new opening verb, new clause order, role-native wording. Output that closely mirrors the input is a failure."
     : "";
@@ -203,11 +220,12 @@ function buildPrompt(keyword, items, focus, strict, strong) {
     ? `\nRewrite intensity: STRONG. Re-describe each bullet in the target role's terminology while keeping the SAME underlying system and facts. Faithful re-descriptions are encouraged, for example: a governed tool/contract layer -> a semantic/modeling layer; retrieval and vector stores -> data serving/retrieval layers; orchestration workflows -> pipelines; access control and governance -> data governance. Keep every proper technology name, metric, and scope. Never add a technology, team, client, or number that is not in the input bullet.`
     : "";
   return `Target role: "${keyword}".
-What a "${keyword}" owns (use this as the lens for emphasis): ${lens}${focusLine}${strictLine}${strongLine}
+What a "${keyword}" owns (use this as the lens for emphasis): ${lens}${focusLine}${projectsLine}${applyAllLine}${strictLine}${strongLine}
 
 Rewrite each numbered resume bullet into ONE strong, natural resume bullet that a hiring manager for "${keyword}" would expect to read.
 Rules:
 - Ground every bullet in the candidate's actual work below. Preserve every fact, technology, metric, number, and scope exactly. Never invent employers, tools, metrics, or outcomes.
+- When project material is provided, EVERY bullet MUST explicitly incorporate at least one specific tool, system, or outcome from that material (name it). Re-emphasize each bullet around that project work. Never add tools, numbers, or outcomes beyond the bullet text and the provided project material.
 - Reframe the phrasing and emphasis toward what a "${keyword}" owns (the lens above), but only where the underlying facts support it. Do not claim work that is not in the original bullet.
 - Never reuse a three-word (or longer) phrase from the input; fully paraphrase while keeping the facts. Only proper nouns and exact technology names may repeat.
 - Every output bullet MUST be re-worded relative to its input. Copying the input verbatim is a failure, even when the input is already well written.
@@ -244,6 +262,46 @@ function similarity(a, b) {
   let inter = 0;
   for (const x of A) if (B.has(x)) inter++;
   return inter / Math.min(A.size, B.size);
+}
+
+// Distinctive tokens from the project material (tools, systems, numbers).
+const STOP = new Set([
+  "project",
+  "projects",
+  "tools",
+  "outcomes",
+  "with",
+  "that",
+  "this",
+  "from",
+  "data",
+  "platform",
+  "using",
+  "across",
+  "into",
+  "team",
+  "teams",
+  "business",
+  "delivered",
+  "delivery",
+  "built",
+  "and",
+  "for",
+  "the",
+  "cost",
+  "cut",
+  "built",
+]);
+function projectKeys(projects) {
+  const toks =
+    String(projects || "")
+      .toLowerCase()
+      .match(/[a-z0-9%]+/g) || [];
+  const set = new Set();
+  for (const t of toks) {
+    if (t.length >= 4 && !STOP.has(t)) set.add(t);
+  }
+  return [...set];
 }
 
 // Run async tasks with limited concurrency, preserving result order.
@@ -341,6 +399,10 @@ export default {
       String(body.strength ?? "")
         .trim()
         .toLowerCase() === "strong";
+    const projects = String(body.projects ?? "")
+      .trim()
+      .slice(0, MAX_PROJECTS);
+    const applyAll = body.applyAll === true || body.applyAll === "true";
     const rawItems = Array.isArray(body.items) ? body.items : [];
     if (!keyword || rawItems.length === 0) {
       return jsonResponse({ error: "missing_input" }, 400, headers);
@@ -360,7 +422,7 @@ export default {
       const parts = await mapLimit(chunks, CONCURRENCY, (chunk) =>
         callDeepSeek(
           env.DEEPSEEK_API_KEY,
-          buildPrompt(keyword, chunk, focus, false, strong),
+          buildPrompt(keyword, chunk, focus, false, strong, projects, applyAll),
         ),
       );
       const revised = parts.flat();
@@ -378,7 +440,15 @@ export default {
         try {
           const fixed = await callDeepSeek(
             env.DEEPSEEK_API_KEY,
-            buildPrompt(keyword, retryItems, focus, true, strong),
+            buildPrompt(
+              keyword,
+              retryItems,
+              focus,
+              true,
+              strong,
+              projects,
+              applyAll,
+            ),
           );
           if (fixed.length === retryItems.length) {
             shallow.forEach((idx, k) => {

@@ -79,6 +79,21 @@
                 border-color: var(--ink);
                 box-shadow: 0 0 0 3px rgba(31, 48, 87, 0.12);
             }
+            textarea {
+                width: 100%;
+                padding: 12px 14px;
+                font-size: 14px;
+                font-family: inherit;
+                border: 1px solid var(--line);
+                border-radius: 8px;
+                resize: vertical;
+                min-height: 90px;
+            }
+            textarea:focus {
+                outline: none;
+                border-color: var(--ink);
+                box-shadow: 0 0 0 3px rgba(31, 48, 87, 0.12);
+            }
             button {
                 border: 0;
                 border-radius: 8px;
@@ -199,7 +214,7 @@
             <p>
                 Enter one keyword. Companies and dates stay the same; job titles
                 and every bullet are rewritten to match it. Download as DOCX or
-                PDF. <span id="build">build 20261013g</span>
+                PDF. <span id="build">build 20261013i</span>
             </p>
         </header>
 
@@ -237,6 +252,24 @@
                     placeholder="Optional: what should the bullets emphasize?"
                     autocomplete="off"
                 />
+                <label class="kw" for="projects"
+                    >Your projects / experience &mdash; tools and outcomes to
+                    reflect in every bullet (saved per keyword in this browser).
+                    Example: "Enterprise data platform on Snowflake. Tools:
+                    Snowflake, Snowpark, Cortex Analyst, dbt, Airflow. Outcomes:
+                    cut warehouse cost 30%, delivered 120 governed
+                    metrics."</label
+                >
+                <textarea
+                    id="projects"
+                    rows="4"
+                    placeholder="Paste your real project details: project, tools, outcomes/metrics."
+                ></textarea>
+                <label class="chk"
+                    ><input id="applyall" type="checkbox" /> This project spans
+                    every role below &mdash; name a project tool/outcome in
+                    every bullet</label
+                >
                 <label class="kw" for="strength">Rewrite intensity</label>
                 <select id="strength">
                     <option value="balanced" selected>
@@ -263,8 +296,8 @@
 
         <script src="vendor/jszip.min.js"></script>
         <script src="vendor/jspdf.umd.min.js"></script>
-        <script src="config.js?v=20261013g"></script>
-        <script src="resume-data.js?v=20261013g"></script>
-        <script src="app.js?v=20261013g"></script>
+        <script src="config.js?v=20261013i"></script>
+        <script src="resume-data.js?v=20261013i"></script>
+        <script src="app.js?v=20261013i"></script>
     </body>
 </html>

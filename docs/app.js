@@ -149,7 +149,7 @@
   }
 
   // Ask the worker to rewrite every bullet; returns revised[ei][bi] or null.
-  function aiRewrite(keyword, items, focus, strength) {
+  function aiRewrite(keyword, items, focus, strength, projects, applyAll) {
     var url = window.WORKER_URL;
     if (!url) return Promise.resolve(null);
     return fetch(url, {
@@ -159,6 +159,8 @@
         keyword: keyword,
         focus: focus || "",
         strength: strength || "balanced",
+        projects: projects || "",
+        applyAll: applyAll === true,
         items: items.map(function (it) {
           return { company: it.company, title: it.title, text: it.text };
         }),
@@ -511,17 +513,23 @@
   ready(function () {
     var input = document.getElementById("kw");
     var focusInput = document.getElementById("focus");
+    var projectsInput = document.getElementById("projects");
+    var applyAllBox = document.getElementById("applyall");
     var strengthSel = document.getElementById("strength");
     var weaveBox = document.getElementById("weave");
     var preview = document.getElementById("preview");
     var status = document.getElementById("status");
 
-    // Cache of the last AI result, keyed by keyword + focus + strength + weave.
+    // Cache of the last AI result, keyed by keyword + focus + strength + projects + weave.
     var aiCache = { key: null, grid: null };
     var aiSeq = 0;
     var aiTimer = null;
+    var kwSettleTimer = null;
+    var projSaveTimer = null;
+    var lastKw = "";
+    var STORE = "resumeTailor.projects.";
 
-    function cacheKey(kw, weave, focus, strength) {
+    function cacheKey(kw, weave, focus, strength, projects, applyAll) {
       return (
         (weave ? "1" : "0") +
         "|" +
@@ -529,7 +537,11 @@
         "|" +
         (focus || "") +
         "|" +
-        (strength || "")
+        (strength || "") +
+        "|" +
+        (projects || "") +
+        "|" +
+        (applyAll ? "1" : "0")
       );
     }
 
@@ -539,6 +551,43 @@
 
     function strengthValue() {
       return strengthSel ? strengthSel.value : "balanced";
+    }
+
+    function projectsValue() {
+      return projectsInput ? projectsInput.value : "";
+    }
+
+    function applyAllValue() {
+      return applyAllBox ? applyAllBox.checked : false;
+    }
+
+    function loadProjectsFor(kw) {
+      try {
+        return kw ? localStorage.getItem(STORE + kw) || "" : "";
+      } catch (e) {
+        return "";
+      }
+    }
+
+    function saveProjectsFor(kw, val) {
+      try {
+        if (kw) localStorage.setItem(STORE + kw, val);
+      } catch (e) {
+        /* storage unavailable */
+      }
+    }
+
+    // When the keyword settles, restore any project text saved for it.
+    function onKeywordSettled() {
+      var kw = input.value.trim();
+      if (kw === lastKw) return;
+      if (lastKw) saveProjectsFor(lastKw, projectsValue());
+      lastKw = kw;
+      var saved = loadProjectsFor(kw);
+      if (projectsInput && saved) {
+        projectsInput.value = saved;
+      }
+      refresh();
     }
 
     function showPreview(grid) {
@@ -553,7 +602,15 @@
       var kw = input.value.trim();
       var weave = weaveBox.checked;
       var cached =
-        aiCache.key === cacheKey(kw, weave, focusValue(), strengthValue())
+        aiCache.key ===
+        cacheKey(
+          kw,
+          weave,
+          focusValue(),
+          strengthValue(),
+          projectsValue(),
+          applyAllValue(),
+        )
           ? aiCache.grid
           : null;
       showPreview(cached);
@@ -575,14 +632,29 @@
       var weave = weaveBox.checked;
       var focus = focusValue();
       var strength = strengthValue();
+      var projects = projectsValue();
+      var applyAll = applyAllValue();
       if (!kw || !weave || !window.WORKER_URL) return;
-      if (aiCache.key === cacheKey(kw, weave, focus, strength)) return;
+      if (
+        aiCache.key === cacheKey(kw, weave, focus, strength, projects, applyAll)
+      )
+        return;
       aiTimer = setTimeout(function () {
         var seq = ++aiSeq;
         status.textContent = "Improving preview with AI\u2026";
-        aiRewrite(kw, collectItems(kw), focus, strength).then(function (grid) {
+        aiRewrite(
+          kw,
+          collectItems(kw),
+          focus,
+          strength,
+          projects,
+          applyAll,
+        ).then(function (grid) {
           if (seq !== aiSeq) return; // superseded by newer input
-          aiCache = { key: cacheKey(kw, weave, focus, strength), grid: grid };
+          aiCache = {
+            key: cacheKey(kw, weave, focus, strength, projects, applyAll),
+            grid: grid,
+          };
           showPreview(grid);
           status.textContent = grid
             ? "Preview updated with AI."
@@ -597,24 +669,28 @@
       var weave = weaveBox.checked;
       var focus = focusValue();
       var strength = strengthValue();
+      var projects = projectsValue();
+      var applyAll = applyAllValue();
       if (!kw || !weave || !window.WORKER_URL) {
         cb(null);
         return;
       }
-      var key = cacheKey(kw, weave, focus, strength);
+      var key = cacheKey(kw, weave, focus, strength, projects, applyAll);
       if (aiCache.key === key) {
         cb(aiCache.grid);
         return;
       }
       status.textContent = "Improving bullets with AI\u2026";
-      aiRewrite(kw, collectItems(kw), focus, strength).then(function (grid) {
-        if (!grid) {
-          status.textContent =
-            "AI unavailable \u2014 download will use the original bullets.";
-        }
-        aiCache = { key: key, grid: grid };
-        cb(grid);
-      });
+      aiRewrite(kw, collectItems(kw), focus, strength, projects, applyAll).then(
+        function (grid) {
+          if (!grid) {
+            status.textContent =
+              "AI unavailable \u2014 download will use the original bullets.";
+          }
+          aiCache = { key: key, grid: grid };
+          cb(grid);
+        },
+      );
     }
 
     document.getElementById("btn-docx").addEventListener("click", function () {
@@ -656,9 +732,22 @@
         refresh();
       });
 
-    input.addEventListener("input", refresh);
+    input.addEventListener("input", function () {
+      if (kwSettleTimer) clearTimeout(kwSettleTimer);
+      kwSettleTimer = setTimeout(onKeywordSettled, 800);
+      refresh();
+    });
     if (focusInput) focusInput.addEventListener("input", refresh);
     if (strengthSel) strengthSel.addEventListener("change", refresh);
+    if (projectsInput)
+      projectsInput.addEventListener("input", function () {
+        if (projSaveTimer) clearTimeout(projSaveTimer);
+        projSaveTimer = setTimeout(function () {
+          saveProjectsFor(input.value.trim(), projectsValue());
+        }, 700);
+        refresh();
+      });
+    if (applyAllBox) applyAllBox.addEventListener("change", refresh);
     weaveBox.addEventListener("change", refresh);
     input.addEventListener("keydown", function (e) {
       if (e.key === "Enter") {
