@@ -70,7 +70,7 @@
     return v || "original";
   }
 
-  function tailored(keyword, weaveBullets) {
+  function tailored(keyword, weaveBullets, revised) {
     var data = window.RESUME_DATA;
     var kw = (keyword || "").trim();
     var weave = weaveBullets !== false;
@@ -79,18 +79,73 @@
       contact: data.contact,
       summary: data.summary,
       skills: data.skills,
-      experience: data.experience.map(function (e) {
+      experience: data.experience.map(function (e, ei) {
         return {
           company: e.company,
           location: e.location,
           dates: e.dates,
           title: transformTitle(e.title, kw),
-          bullets: e.bullets.map(function (b) {
+          bullets: e.bullets.map(function (b, bi) {
+            if (revised && revised[ei] && typeof revised[ei][bi] === "string") {
+              return revised[ei][bi];
+            }
             return weave ? rewriteBullet(b, kw) : b;
           }),
         };
       }),
     };
+  }
+
+  // Flatten experience bullets into request items for the AI worker.
+  function collectItems(keyword) {
+    var data = window.RESUME_DATA;
+    var items = [];
+    data.experience.forEach(function (e, ei) {
+      e.bullets.forEach(function (b, bi) {
+        items.push({
+          ei: ei,
+          bi: bi,
+          company: e.company,
+          title: transformTitle(e.title, keyword),
+          text: b,
+        });
+      });
+    });
+    return items;
+  }
+
+  // Ask the worker to rewrite every bullet; returns revised[ei][bi] or null.
+  function aiRewrite(keyword, items) {
+    var url = window.WORKER_URL;
+    if (!url) return Promise.resolve(null);
+    return fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        keyword: keyword,
+        items: items.map(function (it) {
+          return { company: it.company, title: it.title, text: it.text };
+        }),
+      }),
+    })
+      .then(function (r) {
+        if (!r.ok) throw new Error("worker_" + r.status);
+        return r.json();
+      })
+      .then(function (data) {
+        if (!data || !Array.isArray(data.revised)) throw new Error("bad_shape");
+        var grid = [];
+        items.forEach(function (it, i) {
+          var text = data.revised[i];
+          if (typeof text !== "string") return;
+          if (!grid[it.ei]) grid[it.ei] = [];
+          grid[it.ei][it.bi] = text;
+        });
+        return grid;
+      })
+      .catch(function () {
+        return null;
+      });
   }
 
   // Make a bullet "match" the keyword by leading it with the keyword label.
@@ -190,8 +245,8 @@
     return "<w:p>" + ppr + runsXml + "</w:p>";
   }
 
-  function buildDocxBlob(keyword, weaveBullets, cb) {
-    var r = tailored(keyword, weaveBullets);
+  function buildDocxBlob(keyword, weaveBullets, revised, cb) {
+    var r = tailored(keyword, weaveBullets, revised);
     var kw = (keyword || "").trim();
     var body = [];
     var B = 22; // body half-points (11pt)
@@ -287,8 +342,8 @@
   }
 
   // ---------------- PDF ----------------
-  function buildPdfBlob(keyword, weaveBullets) {
-    var r = tailored(keyword, weaveBullets);
+  function buildPdfBlob(keyword, weaveBullets, revised) {
+    var r = tailored(keyword, weaveBullets, revised);
     var jsPDF = window.jspdf.jsPDF;
     var doc = new jsPDF({ unit: "pt", format: "letter" });
     var M = 52,
@@ -422,32 +477,59 @@
     function refresh() {
       preview.innerHTML = renderPreview(input.value, weaveBox.checked);
       var kw = input.value.trim();
+      var ai = window.WORKER_URL ? " AI rewrites each bullet." : "";
       status.textContent = kw
-        ? 'Titles + every bullet rewritten to match "' +
+        ? 'Titles + every bullet matching "' +
           kw +
-          '". Companies and dates unchanged.'
+          '".' +
+          ai +
+          " Companies and dates unchanged."
         : "Showing original titles and bullets. Enter a keyword, then generate.";
     }
 
+    // Optionally get AI-revised bullets, then run cb(revisedOrNull).
+    function withBullets(cb) {
+      var kw = input.value.trim();
+      var weave = weaveBox.checked;
+      if (!kw || !weave || !window.WORKER_URL) {
+        cb(null);
+        return;
+      }
+      status.textContent = "Improving bullets with AI\u2026";
+      aiRewrite(kw, collectItems(kw)).then(function (grid) {
+        if (!grid) {
+          status.textContent =
+            "AI unavailable \u2014 using local keyword rewrite instead.";
+        }
+        cb(grid);
+      });
+    }
+
     document.getElementById("btn-docx").addEventListener("click", function () {
-      status.textContent = "Generating DOCX\u2026";
-      buildDocxBlob(input.value, weaveBox.checked, function (blob) {
-        download(blob, "Corderio_Vonner_Resume_" + slug(input.value) + ".docx");
-        status.textContent = "DOCX downloaded.";
+      var kw = input.value.trim();
+      withBullets(function (revised) {
+        status.textContent = "Generating DOCX\u2026";
+        buildDocxBlob(kw, weaveBox.checked, revised, function (blob) {
+          download(blob, "Corderio_Vonner_Resume_" + slug(kw) + ".docx");
+          status.textContent = "DOCX downloaded.";
+        });
       });
     });
 
     document.getElementById("btn-pdf").addEventListener("click", function () {
-      status.textContent = "Generating PDF\u2026";
-      try {
-        download(
-          buildPdfBlob(input.value, weaveBox.checked),
-          "Corderio_Vonner_Resume_" + slug(input.value) + ".pdf",
-        );
-        status.textContent = "PDF downloaded.";
-      } catch (e) {
-        status.textContent = "PDF failed: " + e.message;
-      }
+      var kw = input.value.trim();
+      withBullets(function (revised) {
+        status.textContent = "Generating PDF\u2026";
+        try {
+          download(
+            buildPdfBlob(kw, weaveBox.checked, revised),
+            "Corderio_Vonner_Resume_" + slug(kw) + ".pdf",
+          );
+          status.textContent = "PDF downloaded.";
+        } catch (e) {
+          status.textContent = "PDF failed: " + e.message;
+        }
+      });
     });
 
     document
