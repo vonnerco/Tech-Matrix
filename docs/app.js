@@ -30,21 +30,27 @@
       .replace(/'/g, "&apos;");
   }
 
-  // Replace the discipline in a title with the keyword, keeping the seniority prefix.
-  function transformTitle(original, keyword) {
+  // Seniority rungs, lowest to highest, used to show career progression.
+  var LADDER = ["Junior", "Senior", "Staff", "Lead", "Principal"];
+
+  // Ascending seniority per role (oldest -> newest), aligned to data order (newest first).
+  function progressionLadder(count) {
+    var out = [];
+    for (var i = 0; i < count; i++) {
+      var pos = count - 1 - i; // 0 = oldest role
+      var idx =
+        count === 1
+          ? LADDER.length - 1
+          : Math.round((pos * (LADDER.length - 1)) / (count - 1));
+      out.push(LADDER[idx]);
+    }
+    return out;
+  }
+
+  // Title = <progression seniority> + keyword (keyword replaced as the discipline).
+  function transformTitle(original, keyword, seniority) {
     var kw = (keyword || "").trim();
     if (!kw) return original;
-    var seniority = "";
-    for (var i = 0; i < SENIORITY.length; i++) {
-      var re = new RegExp(
-        "^" + SENIORITY[i].replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\b",
-        "i",
-      );
-      if (re.test(original)) {
-        seniority = SENIORITY[i];
-        break;
-      }
-    }
     var kwHasSeniority = SENIORITY.some(function (s) {
       return new RegExp(
         "^" + s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\b",
@@ -52,7 +58,19 @@
       ).test(kw);
     });
     if (kwHasSeniority) return kw;
-    return seniority ? seniority + " " + kw : kw;
+    if (seniority) return seniority + " " + kw;
+    var inherited = "";
+    for (var i = 0; i < SENIORITY.length; i++) {
+      var re = new RegExp(
+        "^" + SENIORITY[i].replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\b",
+        "i",
+      );
+      if (re.test(original)) {
+        inherited = SENIORITY[i];
+        break;
+      }
+    }
+    return inherited ? inherited + " " + kw : kw;
   }
 
   function titleCase(s) {
@@ -74,6 +92,7 @@
     var data = window.RESUME_DATA;
     var kw = (keyword || "").trim();
     var weave = weaveBullets !== false;
+    var ladder = kw ? progressionLadder(data.experience.length) : null;
     return {
       name: data.name,
       contact: data.contact,
@@ -84,7 +103,7 @@
           company: e.company,
           location: e.location,
           dates: e.dates,
-          title: transformTitle(e.title, kw),
+          title: transformTitle(e.title, kw, ladder ? ladder[ei] : null),
           bullets: e.bullets.map(function (b, bi) {
             if (revised && revised[ei] && typeof revised[ei][bi] === "string") {
               return revised[ei][bi];
@@ -99,6 +118,8 @@
   // Flatten experience bullets into request items for the AI worker.
   function collectItems(keyword) {
     var data = window.RESUME_DATA;
+    var kw = (keyword || "").trim();
+    var ladder = kw ? progressionLadder(data.experience.length) : null;
     var items = [];
     data.experience.forEach(function (e, ei) {
       e.bullets.forEach(function (b, bi) {
@@ -106,7 +127,7 @@
           ei: ei,
           bi: bi,
           company: e.company,
-          title: transformTitle(e.title, keyword),
+          title: transformTitle(e.title, kw, ladder ? ladder[ei] : null),
           text: b,
         });
       });
