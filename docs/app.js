@@ -70,9 +70,10 @@
     return v || "original";
   }
 
-  function tailored(keyword) {
+  function tailored(keyword, weaveBullets) {
     var data = window.RESUME_DATA;
     var kw = (keyword || "").trim();
+    var weave = weaveBullets !== false;
     return {
       name: data.name,
       contact: data.contact,
@@ -84,15 +85,33 @@
           location: e.location,
           dates: e.dates,
           title: transformTitle(e.title, kw),
-          bullets: e.bullets,
+          bullets: e.bullets.map(function (b) {
+            return weave ? rewriteBullet(b, kw) : b;
+          }),
         };
       }),
     };
   }
 
+  // Make a bullet "match" the keyword by leading it with the keyword label.
+  function rewriteBullet(b, kw) {
+    if (!kw) return b;
+    if (b.toLowerCase().indexOf(kw.toLowerCase()) !== -1) return b;
+    return kw + ": " + b;
+  }
+
+  // Split a rewritten bullet into an optional bold keyword label + the rest.
+  function splitBullet(b, kw) {
+    if (kw && b.indexOf(kw + ": ") === 0) {
+      return { label: kw + ": ", rest: b.slice(kw.length + 2) };
+    }
+    return { label: "", rest: b };
+  }
+
   // ---------------- Preview ----------------
-  function renderPreview(keyword) {
-    var r = tailored(keyword);
+  function renderPreview(keyword, weaveBullets) {
+    var r = tailored(keyword, weaveBullets);
+    var kw = (keyword || "").trim();
     var h = [];
     h.push('<div class="doc-name">' + escapeHtml(r.name) + "</div>");
     h.push('<div class="doc-contact">' + escapeHtml(r.contact) + "</div>");
@@ -125,7 +144,15 @@
       );
       h.push("<ul>");
       e.bullets.forEach(function (b) {
-        h.push("<li>" + escapeHtml(b) + "</li>");
+        var s = splitBullet(b, kw);
+        h.push(
+          "<li>" +
+            (s.label
+              ? '<span class="kw">' + escapeHtml(s.label) + "</span>"
+              : "") +
+            escapeHtml(s.rest) +
+            "</li>",
+        );
       });
       h.push("</ul></div>");
     });
@@ -163,8 +190,9 @@
     return "<w:p>" + ppr + runsXml + "</w:p>";
   }
 
-  function buildDocxBlob(keyword, cb) {
-    var r = tailored(keyword);
+  function buildDocxBlob(keyword, weaveBullets, cb) {
+    var r = tailored(keyword, weaveBullets);
+    var kw = (keyword || "").trim();
     var body = [];
     var B = 22; // body half-points (11pt)
 
@@ -211,9 +239,11 @@
         ),
       );
       e.bullets.forEach(function (b) {
-        body.push(
-          docxPara(docxRun("\u2022  " + b, { size: B }), { indent: true }),
-        );
+        var s = splitBullet(b, kw);
+        var runs = docxRun("\u2022  ", { size: B });
+        if (s.label) runs += docxRun(s.label, { bold: true, size: B });
+        runs += docxRun(s.rest, { size: B });
+        body.push(docxPara(runs, { indent: true }));
       });
     });
 
@@ -257,8 +287,8 @@
   }
 
   // ---------------- PDF ----------------
-  function buildPdfBlob(keyword) {
-    var r = tailored(keyword);
+  function buildPdfBlob(keyword, weaveBullets) {
+    var r = tailored(keyword, weaveBullets);
     var jsPDF = window.jspdf.jsPDF;
     var doc = new jsPDF({ unit: "pt", format: "letter" });
     var M = 52,
@@ -385,22 +415,23 @@
 
   ready(function () {
     var input = document.getElementById("kw");
+    var weaveBox = document.getElementById("weave");
     var preview = document.getElementById("preview");
     var status = document.getElementById("status");
 
     function refresh() {
-      preview.innerHTML = renderPreview(input.value);
+      preview.innerHTML = renderPreview(input.value, weaveBox.checked);
       var kw = input.value.trim();
       status.textContent = kw
-        ? 'Titles rewritten to match "' +
+        ? 'Titles + every bullet rewritten to match "' +
           kw +
           '". Companies and dates unchanged.'
-        : "Showing original titles. Enter a keyword, then generate.";
+        : "Showing original titles and bullets. Enter a keyword, then generate.";
     }
 
     document.getElementById("btn-docx").addEventListener("click", function () {
       status.textContent = "Generating DOCX\u2026";
-      buildDocxBlob(input.value, function (blob) {
+      buildDocxBlob(input.value, weaveBox.checked, function (blob) {
         download(blob, "Corderio_Vonner_Resume_" + slug(input.value) + ".docx");
         status.textContent = "DOCX downloaded.";
       });
@@ -410,7 +441,7 @@
       status.textContent = "Generating PDF\u2026";
       try {
         download(
-          buildPdfBlob(input.value),
+          buildPdfBlob(input.value, weaveBox.checked),
           "Corderio_Vonner_Resume_" + slug(input.value) + ".pdf",
         );
         status.textContent = "PDF downloaded.";
@@ -427,6 +458,7 @@
       });
 
     input.addEventListener("input", refresh);
+    weaveBox.addEventListener("change", refresh);
     input.addEventListener("keydown", function (e) {
       if (e.key === "Enter") {
         document.getElementById("btn-docx").click();
