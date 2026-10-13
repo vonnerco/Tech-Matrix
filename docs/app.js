@@ -88,10 +88,10 @@
     return v || "original";
   }
 
-  function tailored(keyword, weaveBullets, revised) {
+  // mode: "ai" (use revised grid) | "local" (prefix keyword) | "original"
+  function tailored(keyword, mode, revised) {
     var data = window.RESUME_DATA;
     var kw = (keyword || "").trim();
-    var weave = weaveBullets !== false;
     var ladder = kw ? progressionLadder(data.experience.length) : null;
     return {
       name: data.name,
@@ -105,14 +105,27 @@
           dates: e.dates,
           title: transformTitle(e.title, kw, ladder ? ladder[ei] : null),
           bullets: e.bullets.map(function (b, bi) {
-            if (revised && revised[ei] && typeof revised[ei][bi] === "string") {
+            if (
+              mode === "ai" &&
+              revised &&
+              revised[ei] &&
+              typeof revised[ei][bi] === "string"
+            ) {
               return revised[ei][bi];
             }
-            return weave ? rewriteBullet(b, kw) : b;
+            return mode === "local" ? rewriteBullet(b, kw) : b;
           }),
         };
       }),
     };
+  }
+
+  // Which bullet mode to render: AI only when we have a grid; local prefix
+  // only when no worker is configured; otherwise leave bullets original.
+  function resolveMode(weaveBullets, revised) {
+    if (weaveBullets === false) return "original";
+    if (revised) return "ai";
+    return window.WORKER_URL ? "original" : "local";
   }
 
   // Flatten experience bullets into request items for the AI worker.
@@ -185,8 +198,8 @@
   }
 
   // ---------------- Preview ----------------
-  function renderPreview(keyword, weaveBullets, revised) {
-    var r = tailored(keyword, weaveBullets, revised);
+  function renderPreview(keyword, mode, revised) {
+    var r = tailored(keyword, mode, revised);
     var kw = (keyword || "").trim();
     var h = [];
     h.push('<div class="doc-name">' + escapeHtml(r.name) + "</div>");
@@ -266,8 +279,8 @@
     return "<w:p>" + ppr + runsXml + "</w:p>";
   }
 
-  function buildDocxBlob(keyword, weaveBullets, revised, cb) {
-    var r = tailored(keyword, weaveBullets, revised);
+  function buildDocxBlob(keyword, mode, revised, cb) {
+    var r = tailored(keyword, mode, revised);
     var kw = (keyword || "").trim();
     var body = [];
     var B = 22; // body half-points (11pt)
@@ -363,8 +376,8 @@
   }
 
   // ---------------- PDF ----------------
-  function buildPdfBlob(keyword, weaveBullets, revised) {
-    var r = tailored(keyword, weaveBullets, revised);
+  function buildPdfBlob(keyword, mode, revised) {
+    var r = tailored(keyword, mode, revised);
     var jsPDF = window.jspdf.jsPDF;
     var doc = new jsPDF({ unit: "pt", format: "letter" });
     var M = 52,
@@ -482,6 +495,7 @@
     buildDocxBlob: buildDocxBlob,
     buildPdfBlob: buildPdfBlob,
     renderPreview: renderPreview,
+    resolveMode: resolveMode,
     collectItems: collectItems,
     aiRewrite: aiRewrite,
     slug: slug,
@@ -510,7 +524,7 @@
     function showPreview(grid) {
       preview.innerHTML = renderPreview(
         input.value.trim(),
-        weaveBox.checked,
+        resolveMode(weaveBox.checked, grid),
         grid,
       );
     }
@@ -547,7 +561,7 @@
           showPreview(grid);
           status.textContent = grid
             ? "Preview updated with AI."
-            : "AI unavailable \u2014 showing local keyword rewrite.";
+            : "AI unavailable \u2014 showing original bullets.";
         });
       }, 700);
     }
@@ -569,7 +583,7 @@
       aiRewrite(kw, collectItems(kw)).then(function (grid) {
         if (!grid) {
           status.textContent =
-            "AI unavailable \u2014 using local keyword rewrite instead.";
+            "AI unavailable \u2014 download will use the original bullets.";
         }
         aiCache = { key: key, grid: grid };
         cb(grid);
@@ -580,10 +594,15 @@
       var kw = input.value.trim();
       withBullets(function (revised) {
         status.textContent = "Generating DOCX\u2026";
-        buildDocxBlob(kw, weaveBox.checked, revised, function (blob) {
-          download(blob, "Corderio_Vonner_Resume_" + slug(kw) + ".docx");
-          status.textContent = "DOCX downloaded.";
-        });
+        buildDocxBlob(
+          kw,
+          resolveMode(weaveBox.checked, revised),
+          revised,
+          function (blob) {
+            download(blob, "Corderio_Vonner_Resume_" + slug(kw) + ".docx");
+            status.textContent = "DOCX downloaded.";
+          },
+        );
       });
     });
 
@@ -593,7 +612,7 @@
         status.textContent = "Generating PDF\u2026";
         try {
           download(
-            buildPdfBlob(kw, weaveBox.checked, revised),
+            buildPdfBlob(kw, resolveMode(weaveBox.checked, revised), revised),
             "Corderio_Vonner_Resume_" + slug(kw) + ".pdf",
           );
           status.textContent = "PDF downloaded.";
