@@ -42,8 +42,10 @@ Rewrite EACH numbered resume bullet so it reads as if the candidate did that wor
 Rules:
 - Preserve every fact, technology, metric, and number exactly. Do NOT invent anything.
 - Keep each bullet to one sentence and roughly the same length as the original.
-- Naturally include the target role terms; do not just prepend a label.
+- Reframe so the bullet clearly reads as "${keyword}" work: lead with the role (e.g. "As a ${keyword}, ..." or "${keyword} role: ...") or weave the role terms in where they fit grammatically.
+- Never stack the keyword as an adjective before another noun (avoid phrasing like "${keyword} RAG pipelines").
 - Keep the original tense and voice.
+- If you lead with a label, keep sentence case: capitalize the first word of the actual bullet text.
 Return JSON only, shaped exactly: {"revised": ["...", "..."]}, with ${items.length} strings in the same order.
 
 ${lines}`;
@@ -118,7 +120,9 @@ export default {
       return jsonResponse({ error: "invalid_json" }, 400, headers);
     }
 
-    const keyword = String(body.keyword ?? "").trim().slice(0, MAX_KEYWORD);
+    const keyword = String(body.keyword ?? "")
+      .trim()
+      .slice(0, MAX_KEYWORD);
     const rawItems = Array.isArray(body.items) ? body.items : [];
     if (!keyword || rawItems.length === 0) {
       return jsonResponse({ error: "missing_input" }, 400, headers);
