@@ -2,7 +2,13 @@
 
 Software technology matrix for Corderio Vonner.
 
-## Download Resume
+## Build a Tailored Resume (1 keyword)
+
+[![Build a Tailored Resume](https://img.shields.io/badge/Build_a_Tailored_Resume-Open_Generator-1f3057?style=for-the-badge&logo=googledocs&logoColor=white)](https://vonnerco.github.io/Tech-Matrix/)
+
+Open the generator, type one keyword (e.g. _Snowflake Data Engineer_), and download a resume whose **job titles are rewritten to match the keyword** while **companies and dates stay the same**. Get it as DOCX or PDF. Leave the keyword blank for the original.
+
+## Download Resume (originals)
 
 ATS-friendly, ready to download:
 
