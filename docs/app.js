@@ -185,8 +185,8 @@
   }
 
   // ---------------- Preview ----------------
-  function renderPreview(keyword, weaveBullets) {
-    var r = tailored(keyword, weaveBullets);
+  function renderPreview(keyword, weaveBullets, revised) {
+    var r = tailored(keyword, weaveBullets, revised);
     var kw = (keyword || "").trim();
     var h = [];
     h.push('<div class="doc-name">' + escapeHtml(r.name) + "</div>");
@@ -481,6 +481,9 @@
     tailored: tailored,
     buildDocxBlob: buildDocxBlob,
     buildPdfBlob: buildPdfBlob,
+    renderPreview: renderPreview,
+    collectItems: collectItems,
+    aiRewrite: aiRewrite,
     slug: slug,
   };
 
@@ -495,9 +498,28 @@
     var preview = document.getElementById("preview");
     var status = document.getElementById("status");
 
+    // Cache of the last AI result, keyed by keyword + weave toggle.
+    var aiCache = { key: null, grid: null };
+    var aiSeq = 0;
+    var aiTimer = null;
+
+    function cacheKey(kw, weave) {
+      return (weave ? "1" : "0") + "|" + kw;
+    }
+
+    function showPreview(grid) {
+      preview.innerHTML = renderPreview(
+        input.value.trim(),
+        weaveBox.checked,
+        grid,
+      );
+    }
+
     function refresh() {
-      preview.innerHTML = renderPreview(input.value, weaveBox.checked);
       var kw = input.value.trim();
+      var weave = weaveBox.checked;
+      var cached = aiCache.key === cacheKey(kw, weave) ? aiCache.grid : null;
+      showPreview(cached);
       var ai = window.WORKER_URL ? " AI rewrites each bullet." : "";
       status.textContent = kw
         ? 'Titles + every bullet matching "' +
@@ -506,6 +528,28 @@
           ai +
           " Companies and dates unchanged."
         : "Showing original titles and bullets. Enter a keyword, then generate.";
+      scheduleAiPreview();
+    }
+
+    // Debounced AI preview so the preview matches the downloaded output.
+    function scheduleAiPreview() {
+      if (aiTimer) clearTimeout(aiTimer);
+      var kw = input.value.trim();
+      var weave = weaveBox.checked;
+      if (!kw || !weave || !window.WORKER_URL) return;
+      if (aiCache.key === cacheKey(kw, weave)) return;
+      aiTimer = setTimeout(function () {
+        var seq = ++aiSeq;
+        status.textContent = "Improving preview with AI\u2026";
+        aiRewrite(kw, collectItems(kw)).then(function (grid) {
+          if (seq !== aiSeq) return; // superseded by newer input
+          aiCache = { key: cacheKey(kw, weave), grid: grid };
+          showPreview(grid);
+          status.textContent = grid
+            ? "Preview updated with AI."
+            : "AI unavailable \u2014 showing local keyword rewrite.";
+        });
+      }, 700);
     }
 
     // Optionally get AI-revised bullets, then run cb(revisedOrNull).
@@ -516,12 +560,18 @@
         cb(null);
         return;
       }
+      var key = cacheKey(kw, weave);
+      if (aiCache.key === key) {
+        cb(aiCache.grid);
+        return;
+      }
       status.textContent = "Improving bullets with AI\u2026";
       aiRewrite(kw, collectItems(kw)).then(function (grid) {
         if (!grid) {
           status.textContent =
             "AI unavailable \u2014 using local keyword rewrite instead.";
         }
+        aiCache = { key: key, grid: grid };
         cb(grid);
       });
     }
