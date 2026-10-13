@@ -149,7 +149,7 @@
   }
 
   // Ask the worker to rewrite every bullet; returns revised[ei][bi] or null.
-  function aiRewrite(keyword, items, focus) {
+  function aiRewrite(keyword, items, focus, strength) {
     var url = window.WORKER_URL;
     if (!url) return Promise.resolve(null);
     return fetch(url, {
@@ -158,6 +158,7 @@
       body: JSON.stringify({
         keyword: keyword,
         focus: focus || "",
+        strength: strength || "balanced",
         items: items.map(function (it) {
           return { company: it.company, title: it.title, text: it.text };
         }),
@@ -510,21 +511,34 @@
   ready(function () {
     var input = document.getElementById("kw");
     var focusInput = document.getElementById("focus");
+    var strengthSel = document.getElementById("strength");
     var weaveBox = document.getElementById("weave");
     var preview = document.getElementById("preview");
     var status = document.getElementById("status");
 
-    // Cache of the last AI result, keyed by keyword + focus + weave toggle.
+    // Cache of the last AI result, keyed by keyword + focus + strength + weave.
     var aiCache = { key: null, grid: null };
     var aiSeq = 0;
     var aiTimer = null;
 
-    function cacheKey(kw, weave, focus) {
-      return (weave ? "1" : "0") + "|" + kw + "|" + (focus || "");
+    function cacheKey(kw, weave, focus, strength) {
+      return (
+        (weave ? "1" : "0") +
+        "|" +
+        kw +
+        "|" +
+        (focus || "") +
+        "|" +
+        (strength || "")
+      );
     }
 
     function focusValue() {
       return focusInput ? focusInput.value.trim() : "";
+    }
+
+    function strengthValue() {
+      return strengthSel ? strengthSel.value : "balanced";
     }
 
     function showPreview(grid) {
@@ -539,7 +553,9 @@
       var kw = input.value.trim();
       var weave = weaveBox.checked;
       var cached =
-        aiCache.key === cacheKey(kw, weave, focusValue()) ? aiCache.grid : null;
+        aiCache.key === cacheKey(kw, weave, focusValue(), strengthValue())
+          ? aiCache.grid
+          : null;
       showPreview(cached);
       var ai = window.WORKER_URL ? " AI rewrites each bullet." : "";
       status.textContent = kw
@@ -558,14 +574,15 @@
       var kw = input.value.trim();
       var weave = weaveBox.checked;
       var focus = focusValue();
+      var strength = strengthValue();
       if (!kw || !weave || !window.WORKER_URL) return;
-      if (aiCache.key === cacheKey(kw, weave, focus)) return;
+      if (aiCache.key === cacheKey(kw, weave, focus, strength)) return;
       aiTimer = setTimeout(function () {
         var seq = ++aiSeq;
         status.textContent = "Improving preview with AI\u2026";
-        aiRewrite(kw, collectItems(kw), focus).then(function (grid) {
+        aiRewrite(kw, collectItems(kw), focus, strength).then(function (grid) {
           if (seq !== aiSeq) return; // superseded by newer input
-          aiCache = { key: cacheKey(kw, weave, focus), grid: grid };
+          aiCache = { key: cacheKey(kw, weave, focus, strength), grid: grid };
           showPreview(grid);
           status.textContent = grid
             ? "Preview updated with AI."
@@ -579,17 +596,18 @@
       var kw = input.value.trim();
       var weave = weaveBox.checked;
       var focus = focusValue();
+      var strength = strengthValue();
       if (!kw || !weave || !window.WORKER_URL) {
         cb(null);
         return;
       }
-      var key = cacheKey(kw, weave, focus);
+      var key = cacheKey(kw, weave, focus, strength);
       if (aiCache.key === key) {
         cb(aiCache.grid);
         return;
       }
       status.textContent = "Improving bullets with AI\u2026";
-      aiRewrite(kw, collectItems(kw), focus).then(function (grid) {
+      aiRewrite(kw, collectItems(kw), focus, strength).then(function (grid) {
         if (!grid) {
           status.textContent =
             "AI unavailable \u2014 download will use the original bullets.";
@@ -640,6 +658,7 @@
 
     input.addEventListener("input", refresh);
     if (focusInput) focusInput.addEventListener("input", refresh);
+    if (strengthSel) strengthSel.addEventListener("change", refresh);
     weaveBox.addEventListener("change", refresh);
     input.addEventListener("keydown", function (e) {
       if (e.key === "Enter") {

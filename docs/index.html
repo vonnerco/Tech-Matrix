@@ -199,7 +199,7 @@
             <p>
                 Enter one keyword. Companies and dates stay the same; job titles
                 and every bullet are rewritten to match it. Download as DOCX or
-                PDF. <span id="build">build 20261013f</span>
+                PDF. <span id="build">build 20261013g</span>
             </p>
         </header>
 
@@ -237,6 +237,15 @@
                     placeholder="Optional: what should the bullets emphasize?"
                     autocomplete="off"
                 />
+                <label class="kw" for="strength">Rewrite intensity</label>
+                <select id="strength">
+                    <option value="balanced" selected>
+                        Balanced — reword and re-emphasize
+                    </option>
+                    <option value="strong">
+                        Strong — recast into the role's framing
+                    </option>
+                </select>
                 <div id="status"></div>
                 <div class="hint">
                     Your keyword becomes the role, and job titles show a career
@@ -254,8 +263,8 @@
 
         <script src="vendor/jszip.min.js"></script>
         <script src="vendor/jspdf.umd.min.js"></script>
-        <script src="config.js?v=20261013f"></script>
-        <script src="resume-data.js?v=20261013f"></script>
-        <script src="app.js?v=20261013f"></script>
+        <script src="config.js?v=20261013g"></script>
+        <script src="resume-data.js?v=20261013g"></script>
+        <script src="app.js?v=20261013g"></script>
     </body>
 </html>

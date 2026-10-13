@@ -182,7 +182,7 @@ function pickProfile(keyword) {
   return best;
 }
 
-function buildPrompt(keyword, items, focus, strict) {
+function buildPrompt(keyword, items, focus, strict, strong) {
   const lines = items
     .map(
       (it, i) =>
@@ -197,16 +197,21 @@ function buildPrompt(keyword, items, focus, strict) {
     ? `\nExtra emphasis requested by the user (prioritize when the facts support it): ${focus}.`
     : "";
   const strictLine = strict
-    ? "\nCRITICAL: A previous attempt copied bullets verbatim. You MUST substantially reword every bullet now. An output bullet identical to its input is a failure."
+    ? "\nCRITICAL: A previous attempt barely changed the bullets. You MUST fully restructure them now: new opening verb, new clause order, role-native wording. Output that closely mirrors the input is a failure."
+    : "";
+  const strongLine = strong
+    ? `\nRewrite intensity: STRONG. Re-describe each bullet in the target role's terminology while keeping the SAME underlying system and facts. Faithful re-descriptions are encouraged, for example: a governed tool/contract layer -> a semantic/modeling layer; retrieval and vector stores -> data serving/retrieval layers; orchestration workflows -> pipelines; access control and governance -> data governance. Keep every proper technology name, metric, and scope. Never add a technology, team, client, or number that is not in the input bullet.`
     : "";
   return `Target role: "${keyword}".
-What a "${keyword}" owns (use this as the lens for emphasis): ${lens}${focusLine}${strictLine}
+What a "${keyword}" owns (use this as the lens for emphasis): ${lens}${focusLine}${strictLine}${strongLine}
 
 Rewrite each numbered resume bullet into ONE strong, natural resume bullet that a hiring manager for "${keyword}" would expect to read.
 Rules:
 - Ground every bullet in the candidate's actual work below. Preserve every fact, technology, metric, number, and scope exactly. Never invent employers, tools, metrics, or outcomes.
 - Reframe the phrasing and emphasis toward what a "${keyword}" owns (the lens above), but only where the underlying facts support it. Do not claim work that is not in the original bullet.
+- Never reuse a three-word (or longer) phrase from the input; fully paraphrase while keeping the facts. Only proper nouns and exact technology names may repeat.
 - Every output bullet MUST be re-worded relative to its input. Copying the input verbatim is a failure, even when the input is already well written.
+- Restructure each bullet so it does NOT share the input's sentence shape: change the opening verb, the clause order, and the emphasis. Re-express the same work in how a "${keyword}" would describe it (use that role's nouns and framing), while keeping the exact technology names, metrics, and scope.
 - Rewrite confidently: you may substantially re-word, re-order, and re-emphasize, as long as no fact, tool, number, or scope changes.
 - Prefer concrete ownership and outcome language over generic description.
 - Do NOT start a bullet with "As a ${keyword}", "${keyword}:", or any role label. Write the accomplishment directly.
@@ -221,6 +226,24 @@ Output: "Built and tuned Snowflake data pipelines with embedding-based retrieval
 Return JSON only, shaped exactly: {"revised": ["...", "..."]}, with ${items.length} strings in the same order.
 
 ${lines}`;
+}
+
+// Word-overlap heuristic: 1.0 = identical wording, 0 = no shared words.
+function similarity(a, b) {
+  const A = new Set(
+    String(a)
+      .toLowerCase()
+      .match(/[a-z0-9]+/g) || [],
+  );
+  const B = new Set(
+    String(b)
+      .toLowerCase()
+      .match(/[a-z0-9]+/g) || [],
+  );
+  if (A.size === 0 || B.size === 0) return 0;
+  let inter = 0;
+  for (const x of A) if (B.has(x)) inter++;
+  return inter / Math.min(A.size, B.size);
 }
 
 // Run async tasks with limited concurrency, preserving result order.
@@ -260,7 +283,7 @@ async function callDeepSeek(apiKey, prompt) {
           { role: "user", content: prompt },
         ],
         response_format: { type: "json_object" },
-        temperature: 0.6,
+        temperature: 0.85,
         max_tokens: 4000,
       }),
       signal: controller.signal,
@@ -314,6 +337,10 @@ export default {
     const focus = String(body.focus ?? "")
       .trim()
       .slice(0, MAX_FOCUS);
+    const strong =
+      String(body.strength ?? "")
+        .trim()
+        .toLowerCase() === "strong";
     const rawItems = Array.isArray(body.items) ? body.items : [];
     if (!keyword || rawItems.length === 0) {
       return jsonResponse({ error: "missing_input" }, 400, headers);
@@ -331,27 +358,30 @@ export default {
         chunks.push(items.slice(i, i + BATCH));
       }
       const parts = await mapLimit(chunks, CONCURRENCY, (chunk) =>
-        callDeepSeek(env.DEEPSEEK_API_KEY, buildPrompt(keyword, chunk, focus)),
+        callDeepSeek(
+          env.DEEPSEEK_API_KEY,
+          buildPrompt(keyword, chunk, focus, false, strong),
+        ),
       );
       const revised = parts.flat();
       if (revised.length !== items.length) {
         throw new Error("length_mismatch");
       }
 
-      // Second pass for any bullet the model returned verbatim.
-      const unchanged = [];
+      // Second pass for any bullet that barely changed.
+      const shallow = [];
       revised.forEach((r, i) => {
-        if (String(r).trim() === items[i].text.trim()) unchanged.push(i);
+        if (similarity(r, items[i].text) >= 0.85) shallow.push(i);
       });
-      if (unchanged.length > 0) {
-        const retryItems = unchanged.map((i) => items[i]);
+      if (shallow.length > 0) {
+        const retryItems = shallow.map((i) => items[i]);
         try {
           const fixed = await callDeepSeek(
             env.DEEPSEEK_API_KEY,
-            buildPrompt(keyword, retryItems, focus, true),
+            buildPrompt(keyword, retryItems, focus, true, strong),
           );
           if (fixed.length === retryItems.length) {
-            unchanged.forEach((idx, k) => {
+            shallow.forEach((idx, k) => {
               if (fixed[k] && String(fixed[k]).trim())
                 revised[idx] = String(fixed[k]);
             });
