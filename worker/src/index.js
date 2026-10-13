@@ -12,6 +12,8 @@ const MAX_ITEMS = 80;
 const MAX_KEYWORD = 120;
 const MAX_FOCUS = 200;
 const MAX_TEXT = 700;
+const BATCH = 8;
+const CONCURRENCY = 3;
 const UPSTREAM_TIMEOUT_MS = 30000;
 
 function corsHeaders(origin) {
@@ -180,7 +182,7 @@ function pickProfile(keyword) {
   return best;
 }
 
-function buildPrompt(keyword, items, focus) {
+function buildPrompt(keyword, items, focus, strict) {
   const lines = items
     .map(
       (it, i) =>
@@ -194,22 +196,47 @@ function buildPrompt(keyword, items, focus) {
   const focusLine = focus
     ? `\nExtra emphasis requested by the user (prioritize when the facts support it): ${focus}.`
     : "";
+  const strictLine = strict
+    ? "\nCRITICAL: A previous attempt copied bullets verbatim. You MUST substantially reword every bullet now. An output bullet identical to its input is a failure."
+    : "";
   return `Target role: "${keyword}".
-What a "${keyword}" owns (use this as the lens for emphasis): ${lens}${focusLine}
+What a "${keyword}" owns (use this as the lens for emphasis): ${lens}${focusLine}${strictLine}
 
 Rewrite each numbered resume bullet into ONE strong, natural resume bullet that a hiring manager for "${keyword}" would expect to read.
 Rules:
 - Ground every bullet in the candidate's actual work below. Preserve every fact, technology, metric, number, and scope exactly. Never invent employers, tools, metrics, or outcomes.
 - Reframe the phrasing and emphasis toward what a "${keyword}" owns (the lens above), but only where the underlying facts support it. Do not claim work that is not in the original bullet.
+- Every output bullet MUST be re-worded relative to its input. Copying the input verbatim is a failure, even when the input is already well written.
 - Rewrite confidently: you may substantially re-word, re-order, and re-emphasize, as long as no fact, tool, number, or scope changes.
 - Prefer concrete ownership and outcome language over generic description.
 - Do NOT start a bullet with "As a ${keyword}", "${keyword}:", or any role label. Write the accomplishment directly.
 - Start with a strong action verb (Led, Architected, Built, Delivered, Automated, Modeled, Optimized, Partnered, ...). Vary the openings; never reuse one template across bullets.
 - One sentence, roughly the same length as the original, no first-person pronouns.
 - Keep the original tense and voice.
+
+Example of the transformation (facts preserved, role lens applied):
+Input:  "Built RAG pipelines over Postgres, Snowflake, and vector stores with embeddings and retrieval tuning."
+Output: "Built and tuned Snowflake data pipelines with embedding-based retrieval, refining transformations and indexes to serve governed, low-latency data to downstream consumers."
+
 Return JSON only, shaped exactly: {"revised": ["...", "..."]}, with ${items.length} strings in the same order.
 
 ${lines}`;
+}
+
+// Run async tasks with limited concurrency, preserving result order.
+async function mapLimit(items, limit, fn) {
+  const out = new Array(items.length);
+  let next = 0;
+  async function worker() {
+    while (next < items.length) {
+      const i = next++;
+      out[i] = await fn(items[i], i);
+    }
+  }
+  await Promise.all(
+    Array.from({ length: Math.min(limit, items.length) }, worker),
+  );
+  return out;
 }
 
 async function callDeepSeek(apiKey, prompt) {
@@ -233,7 +260,7 @@ async function callDeepSeek(apiKey, prompt) {
           { role: "user", content: prompt },
         ],
         response_format: { type: "json_object" },
-        temperature: 0.3,
+        temperature: 0.6,
         max_tokens: 4000,
       }),
       signal: controller.signal,
@@ -299,10 +326,41 @@ export default {
     }));
 
     try {
-      const revised = await callDeepSeek(
-        env.DEEPSEEK_API_KEY,
-        buildPrompt(keyword, items, focus),
+      const chunks = [];
+      for (let i = 0; i < items.length; i += BATCH) {
+        chunks.push(items.slice(i, i + BATCH));
+      }
+      const parts = await mapLimit(chunks, CONCURRENCY, (chunk) =>
+        callDeepSeek(env.DEEPSEEK_API_KEY, buildPrompt(keyword, chunk, focus)),
       );
+      const revised = parts.flat();
+      if (revised.length !== items.length) {
+        throw new Error("length_mismatch");
+      }
+
+      // Second pass for any bullet the model returned verbatim.
+      const unchanged = [];
+      revised.forEach((r, i) => {
+        if (String(r).trim() === items[i].text.trim()) unchanged.push(i);
+      });
+      if (unchanged.length > 0) {
+        const retryItems = unchanged.map((i) => items[i]);
+        try {
+          const fixed = await callDeepSeek(
+            env.DEEPSEEK_API_KEY,
+            buildPrompt(keyword, retryItems, focus, true),
+          );
+          if (fixed.length === retryItems.length) {
+            unchanged.forEach((idx, k) => {
+              if (fixed[k] && String(fixed[k]).trim())
+                revised[idx] = String(fixed[k]);
+            });
+          }
+        } catch {
+          // keep the first-pass result if the retry fails
+        }
+      }
+
       return jsonResponse({ revised }, 200, headers);
     } catch (err) {
       return jsonResponse(
