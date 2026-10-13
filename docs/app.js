@@ -149,7 +149,7 @@
   }
 
   // Ask the worker to rewrite every bullet; returns revised[ei][bi] or null.
-  function aiRewrite(keyword, items) {
+  function aiRewrite(keyword, items, focus) {
     var url = window.WORKER_URL;
     if (!url) return Promise.resolve(null);
     return fetch(url, {
@@ -157,6 +157,7 @@
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         keyword: keyword,
+        focus: focus || "",
         items: items.map(function (it) {
           return { company: it.company, title: it.title, text: it.text };
         }),
@@ -508,17 +509,22 @@
 
   ready(function () {
     var input = document.getElementById("kw");
+    var focusInput = document.getElementById("focus");
     var weaveBox = document.getElementById("weave");
     var preview = document.getElementById("preview");
     var status = document.getElementById("status");
 
-    // Cache of the last AI result, keyed by keyword + weave toggle.
+    // Cache of the last AI result, keyed by keyword + focus + weave toggle.
     var aiCache = { key: null, grid: null };
     var aiSeq = 0;
     var aiTimer = null;
 
-    function cacheKey(kw, weave) {
-      return (weave ? "1" : "0") + "|" + kw;
+    function cacheKey(kw, weave, focus) {
+      return (weave ? "1" : "0") + "|" + kw + "|" + (focus || "");
+    }
+
+    function focusValue() {
+      return focusInput ? focusInput.value.trim() : "";
     }
 
     function showPreview(grid) {
@@ -532,7 +538,8 @@
     function refresh() {
       var kw = input.value.trim();
       var weave = weaveBox.checked;
-      var cached = aiCache.key === cacheKey(kw, weave) ? aiCache.grid : null;
+      var cached =
+        aiCache.key === cacheKey(kw, weave, focusValue()) ? aiCache.grid : null;
       showPreview(cached);
       var ai = window.WORKER_URL ? " AI rewrites each bullet." : "";
       status.textContent = kw
@@ -550,14 +557,15 @@
       if (aiTimer) clearTimeout(aiTimer);
       var kw = input.value.trim();
       var weave = weaveBox.checked;
+      var focus = focusValue();
       if (!kw || !weave || !window.WORKER_URL) return;
-      if (aiCache.key === cacheKey(kw, weave)) return;
+      if (aiCache.key === cacheKey(kw, weave, focus)) return;
       aiTimer = setTimeout(function () {
         var seq = ++aiSeq;
         status.textContent = "Improving preview with AI\u2026";
-        aiRewrite(kw, collectItems(kw)).then(function (grid) {
+        aiRewrite(kw, collectItems(kw), focus).then(function (grid) {
           if (seq !== aiSeq) return; // superseded by newer input
-          aiCache = { key: cacheKey(kw, weave), grid: grid };
+          aiCache = { key: cacheKey(kw, weave, focus), grid: grid };
           showPreview(grid);
           status.textContent = grid
             ? "Preview updated with AI."
@@ -570,17 +578,18 @@
     function withBullets(cb) {
       var kw = input.value.trim();
       var weave = weaveBox.checked;
+      var focus = focusValue();
       if (!kw || !weave || !window.WORKER_URL) {
         cb(null);
         return;
       }
-      var key = cacheKey(kw, weave);
+      var key = cacheKey(kw, weave, focus);
       if (aiCache.key === key) {
         cb(aiCache.grid);
         return;
       }
       status.textContent = "Improving bullets with AI\u2026";
-      aiRewrite(kw, collectItems(kw)).then(function (grid) {
+      aiRewrite(kw, collectItems(kw), focus).then(function (grid) {
         if (!grid) {
           status.textContent =
             "AI unavailable \u2014 download will use the original bullets.";
@@ -630,6 +639,7 @@
       });
 
     input.addEventListener("input", refresh);
+    if (focusInput) focusInput.addEventListener("input", refresh);
     weaveBox.addEventListener("change", refresh);
     input.addEventListener("keydown", function (e) {
       if (e.key === "Enter") {

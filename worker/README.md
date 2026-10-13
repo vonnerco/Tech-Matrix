@@ -11,11 +11,20 @@ never exposed to the browser.
 ```json
 {
   "keyword": "Snowflake Data Engineer",
+  "focus": "semantic layers, Cortex Analyst",
   "items": [
-    { "company": "Cox Enterprises", "title": "Principal AI Agentic Engineer", "text": "Built RAG pipelines..." }
+    {
+      "company": "Cox Enterprises",
+      "title": "Principal AI Agentic Engineer",
+      "text": "Built RAG pipelines..."
+    }
   ]
 }
 ```
+
+`focus` is optional and steers emphasis. The worker matches the keyword to a
+built-in role profile (see `ROLE_PROFILES` in `src/index.js`) and uses it as the
+lens, so bullets read like the role's real work without inventing facts.
 
 Response:
 
