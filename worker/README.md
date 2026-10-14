@@ -1,8 +1,9 @@
 # Resume-Tailor API (Cloudflare Worker)
 
-Server-side proxy that rewrites resume bullets to match a recruiters' keyword
-using the DeepSeek API. The API key is stored only as a Worker secret and is
-never exposed to the browser.
+Server-side proxy that (1) rewrites resume bullets to match a recruiter's
+keyword and (2) scores a candidate resume's fit against a role, using the
+DeepSeek API. Secrets are stored only as Worker secrets and never reach the
+browser. Scored results are saved to a Cloudflare D1 database.
 
 ## Endpoints
 
@@ -39,12 +40,14 @@ Response:
 ```json
 {
   "role": "Senior Snowflake Data Engineer (dbt, Airflow, Cortex Analyst)",
+  "resumeName": "jane_doe.pdf",
   "resume": "<candidate resume text>"
 }
 ```
 
 `role` is the target role or pasted job description (<=6000 chars); `resume`
-is the parsed resume text (<=20000 chars). Response:
+is the parsed resume text (<=20000 chars); `resumeName` is optional. The
+result is persisted to D1 and the response echoes it plus `id` and `recorded`:
 
 ```json
 {
@@ -53,11 +56,25 @@ is the parsed resume text (<=20000 chars). Response:
   "summary": "...",
   "dimensions": [{ "name": "Core skills match", "score": 8, "note": "..." }],
   "strengths": ["..."],
-  "gaps": ["..."]
+  "gaps": ["..."],
+  "id": 1,
+  "recorded": true
 }
 ```
 
 The resume PDF/DOCX is parsed in the browser; only the extracted text is sent.
+
+### `GET /records` — list saved records
+
+Requires `Authorization: Bearer <RECORDS_TOKEN>`. Optional `?limit=` (1-500,
+default 100). Returns `{ "count": n, "records": [ ... ] }`, newest first.
+
+### `DELETE /records?id=<id>` — delete one record
+
+Requires the same bearer token. Returns `{ "deleted": 1 }`.
+
+Both fail closed: a missing/incorrect token returns `401`, and an unset
+`RECORDS_TOKEN` or missing DB binding returns `500`.
 
 ## Deploy
 
@@ -67,8 +84,13 @@ npm install
 # one-time auth (opens browser)
 npx wrangler login
 
-# store the API key as a secret (paste value at the prompt; never commit it)
+# store secrets (paste values at the prompt; never commit them)
 npx wrangler secret put DEEPSEEK_API_KEY
+npx wrangler secret put RECORDS_TOKEN   # shared token for the records viewer
+
+# one-time: create the D1 database, then apply the migration
+npx wrangler d1 create resume-tailor-records
+npx wrangler d1 migrations apply resume-tailor-records --remote
 
 # deploy
 npm run deploy
@@ -80,14 +102,20 @@ Put that URL in `../docs/config.js` as `window.WORKER_URL`.
 ## Local dev
 
 ```sh
-# .dev.vars (git-ignored):  DEEPSEEK_API_KEY=...
+# .dev.vars (git-ignored):  DEEPSEEK_API_KEY=...  RECORDS_TOKEN=...
+# apply the schema locally too:
+npx wrangler d1 migrations apply resume-tailor-records --local
 npm run dev
 ```
 
 ## Security notes
 
 - CORS is limited to the allowed origins in `src/index.js`.
-- Input is length-capped (`MAX_ITEMS`, `MAX_TEXT`).
+- Input is length-capped (`MAX_ITEMS`, `MAX_TEXT`, `MAX_ROLE`, `MAX_RESUME`).
 - Upstream calls have a 30s timeout.
-- This is a public endpoint that spends API credits; consider adding Cloudflare
-  Turnstile and/or a rate-limit rule before heavy public traffic.
+- `GET`/`DELETE /records` require the `RECORDS_TOKEN` bearer secret and fail
+  closed; DB errors return a generic message (no internal detail leaked).
+- Stored records contain candidate resumes (PII). Keep the token private, set
+  a retention policy, and delete records you no longer need.
+- `/score` is a public endpoint that spends API credits; consider adding
+  Cloudflare Turnstile and/or a rate-limit rule before heavy public traffic.

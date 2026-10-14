@@ -4,6 +4,14 @@
   "main": "src/index.js",
   "compatibility_date": "2026-10-01",
   "observability": {
-    "enabled": true
-  }
+    "enabled": true,
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "resume-tailor-records",
+      "database_id": "b39e7014-c46c-4a50-98ff-24ac296aced2",
+      "migrations_dir": "migrations",
+    },
+  ],
 }

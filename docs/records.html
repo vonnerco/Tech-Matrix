@@ -1,0 +1,315 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Candidate Match Records</title>
+        <style>
+            :root {
+                --ink: #1f3057;
+                --muted: #5b6472;
+                --line: #d9dee7;
+                --good: #2ea44f;
+                --mid: #b8860b;
+                --bad: #b31b1b;
+            }
+            * {
+                box-sizing: border-box;
+            }
+            body {
+                margin: 0;
+                font-family:
+                    -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+                color: #17202a;
+                background: #f4f6f9;
+            }
+            header {
+                background: var(--ink);
+                color: #fff;
+                padding: 24px 20px;
+            }
+            header h1 {
+                margin: 0 0 4px;
+                font-size: 20px;
+            }
+            header p {
+                margin: 0;
+                color: #c8d0dd;
+                font-size: 13px;
+            }
+            header a {
+                color: #9dc4ff;
+                text-decoration: none;
+            }
+            header a:hover {
+                text-decoration: underline;
+            }
+            .wrap {
+                max-width: 900px;
+                margin: 0 auto;
+                padding: 20px;
+            }
+            .card {
+                background: #fff;
+                border: 1px solid var(--line);
+                border-radius: 12px;
+                padding: 20px;
+                box-shadow: 0 1px 3px rgba(20, 30, 50, 0.06);
+            }
+            .controls {
+                display: flex;
+                gap: 10px;
+                flex-wrap: wrap;
+                align-items: center;
+            }
+            label.kw {
+                font-size: 13px;
+                font-weight: 600;
+                color: var(--muted);
+                width: 100%;
+                margin-bottom: 6px;
+                display: block;
+            }
+            input[type="password"] {
+                flex: 1 1 280px;
+                padding: 12px 14px;
+                font-size: 14px;
+                border: 1px solid var(--line);
+                border-radius: 8px;
+                outline: none;
+            }
+            input[type="password"]:focus {
+                border-color: var(--ink);
+                box-shadow: 0 0 0 3px rgba(31, 48, 87, 0.12);
+            }
+            button {
+                border: 0;
+                border-radius: 8px;
+                padding: 11px 16px;
+                font-size: 14px;
+                font-weight: 600;
+                cursor: pointer;
+                color: #fff;
+                background: var(--ink);
+            }
+            button:hover {
+                filter: brightness(1.06);
+            }
+            button:disabled {
+                opacity: 0.6;
+                cursor: default;
+            }
+            button.grey {
+                background: #6b7280;
+            }
+            button.danger {
+                background: var(--bad);
+            }
+            .small {
+                padding: 7px 12px;
+                font-size: 12.5px;
+            }
+            #status {
+                font-size: 13px;
+                color: var(--ink);
+                margin-top: 12px;
+                font-weight: 600;
+            }
+            .hint {
+                font-size: 12px;
+                color: var(--muted);
+                margin-top: 10px;
+            }
+            #tools {
+                display: flex;
+                gap: 10px;
+                align-items: center;
+                flex-wrap: wrap;
+                margin: 20px 0 10px;
+            }
+            #count {
+                font-size: 13px;
+                color: var(--muted);
+                margin-left: auto;
+            }
+            details.rec {
+                border: 1px solid var(--line);
+                border-left: 6px solid var(--ink);
+                border-radius: 10px;
+                margin-bottom: 8px;
+                background: #fff;
+                overflow: hidden;
+            }
+            details.rec.good {
+                border-left-color: var(--good);
+            }
+            details.rec.mid {
+                border-left-color: var(--mid);
+            }
+            details.rec.bad {
+                border-left-color: var(--bad);
+            }
+            details.rec > summary {
+                cursor: pointer;
+                list-style: none;
+                padding: 12px 14px;
+                display: flex;
+                gap: 12px;
+                align-items: center;
+                font-size: 13.5px;
+            }
+            details.rec > summary::-webkit-details-marker {
+                display: none;
+            }
+            .rscore {
+                font-weight: 800;
+                color: var(--ink);
+                min-width: 42px;
+            }
+            .rverdict {
+                font-weight: 600;
+                min-width: 110px;
+            }
+            .rresume {
+                font-weight: 600;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+                flex: 0 1 auto;
+            }
+            .rrole {
+                color: var(--muted);
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+                flex: 1 1 auto;
+            }
+            .rwhen {
+                color: var(--muted);
+                font-size: 12px;
+                white-space: nowrap;
+            }
+            .rbody {
+                padding: 0 16px 16px;
+                border-top: 1px solid #eef1f6;
+            }
+            h3.sec {
+                font-size: 12px;
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+                color: var(--muted);
+                margin: 16px 0 6px;
+            }
+            .dims {
+                display: grid;
+                gap: 8px;
+            }
+            .dim-head {
+                display: flex;
+                justify-content: space-between;
+                font-size: 12.5px;
+                font-weight: 600;
+                margin-bottom: 3px;
+            }
+            .bar {
+                height: 7px;
+                background: #eef1f6;
+                border-radius: 999px;
+                overflow: hidden;
+            }
+            .bar span {
+                display: block;
+                height: 100%;
+                background: var(--ink);
+            }
+            ul.chips {
+                list-style: none;
+                margin: 0;
+                padding: 0;
+                display: flex;
+                flex-wrap: wrap;
+                gap: 6px;
+            }
+            ul.chips li {
+                font-size: 12px;
+                padding: 4px 9px;
+                border-radius: 999px;
+                border: 1px solid var(--line);
+            }
+            ul.chips.good li {
+                border-color: rgba(46, 164, 79, 0.4);
+                background: rgba(46, 164, 79, 0.08);
+            }
+            ul.chips.bad li {
+                border-color: rgba(179, 27, 27, 0.35);
+                background: rgba(179, 27, 27, 0.07);
+            }
+            pre.resume {
+                white-space: pre-wrap;
+                word-break: break-word;
+                background: #f7f8fb;
+                border: 1px solid var(--line);
+                border-radius: 8px;
+                padding: 12px;
+                font-size: 12px;
+                max-height: 320px;
+                overflow: auto;
+                margin: 0;
+            }
+            .summary {
+                font-size: 13.5px;
+                color: #26303d;
+                margin: 4px 0 0;
+            }
+        </style>
+    </head>
+    <body>
+        <header>
+            <h1>Candidate Match Records</h1>
+            <p>
+                Saved fit scores from the skill match tool.
+                <a href="candidate-match.html">&larr; Candidate skill match</a>
+                &nbsp;&middot;&nbsp; <a href="./">Resume generator</a>
+            </p>
+        </header>
+
+        <div class="wrap">
+            <div class="card">
+                <label class="kw" for="token">Access token</label>
+                <div class="controls">
+                    <input
+                        id="token"
+                        type="password"
+                        placeholder="Paste the records token"
+                        autocomplete="off"
+                    />
+                    <button id="btn-load" type="button">Load records</button>
+                    <button id="btn-forget" type="button" class="grey">
+                        Forget token
+                    </button>
+                </div>
+                <div id="status"></div>
+                <div class="hint">
+                    The token is stored only in this browser and sent as a
+                    bearer credential. Records contain candidate resumes (PII)
+                    — keep the token private and delete records when no longer
+                    needed.
+                </div>
+            </div>
+
+            <div id="tools" hidden>
+                <button id="btn-csv" type="button" class="small">
+                    Export CSV
+                </button>
+                <button id="btn-json" type="button" class="small">
+                    Export JSON
+                </button>
+                <span id="count"></span>
+            </div>
+            <div id="list"></div>
+        </div>
+
+        <script src="config.js?v=20261014b"></script>
+        <script src="records.js?v=20261014b"></script>
+    </body>
+</html>

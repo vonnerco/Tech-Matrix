@@ -242,6 +242,69 @@
                 font-size: 13px;
                 color: var(--muted);
             }
+            #history-card {
+                margin-top: 20px;
+            }
+            #history-card[hidden] {
+                display: none;
+            }
+            .hrow {
+                display: grid;
+                grid-template-columns: 52px 1.2fr 1.6fr auto;
+                gap: 10px;
+                align-items: center;
+                padding: 8px 4px;
+                border-top: 1px solid #eef1f6;
+                font-size: 13px;
+            }
+            .hscore {
+                font-weight: 700;
+                color: var(--ink);
+            }
+            .hscore.good {
+                color: var(--good);
+            }
+            .hscore.mid {
+                color: var(--mid);
+            }
+            .hscore.bad {
+                color: var(--bad);
+            }
+            .hname {
+                font-weight: 600;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+            .hrole {
+                color: var(--muted);
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+            .hwhen {
+                color: var(--muted);
+                font-size: 12px;
+                white-space: nowrap;
+            }
+            #history-card .controls {
+                margin-bottom: 10px;
+            }
+            #history-card button {
+                background: var(--ink);
+            }
+            #btn-hclear {
+                background: #6b7280;
+            }
+            @media (max-width: 620px) {
+                .hrow {
+                    grid-template-columns: 44px 1fr;
+                }
+                .hrole,
+                .hwhen {
+                    grid-column: 2;
+                }
+            }
             @media (max-width: 620px) {
                 .scorecard {
                     flex-direction: column;
@@ -259,7 +322,8 @@
             <p>
                 Upload a candidate's resume (PDF or DOCX) and get a fit score
                 out of 10 for the role. <a href="./">&larr; Tailored resume generator</a>
-                &nbsp;&middot;&nbsp; <span id="build">build 20261014a</span>
+                &nbsp;&middot;&nbsp; <a href="records.html">All records &rarr;</a>
+                &nbsp;&middot;&nbsp; <span id="build">build 20261014b</span>
             </p>
         </header>
 
@@ -296,12 +360,24 @@
             </div>
 
             <div id="result" hidden></div>
+
+            <section id="history-card" class="card" hidden>
+                <h2 class="section" style="margin-top: 0">
+                    Recent match results (this browser)
+                </h2>
+                <div class="controls">
+                    <button id="btn-csv" type="button">Export CSV</button>
+                    <button id="btn-json" type="button">Export JSON</button>
+                    <button id="btn-hclear" type="button">Clear history</button>
+                </div>
+                <div id="history-list"></div>
+            </section>
         </div>
 
         <script src="vendor/jszip.min.js"></script>
         <script src="vendor/pdf.min.js"></script>
-        <script src="config.js?v=20261014a"></script>
-        <script src="candidate-match.js?v=20261014a"></script>
+        <script src="config.js?v=20261014b"></script>
+        <script src="candidate-match.js?v=20261014b"></script>
     </body>
 </html>
 </title></h1>

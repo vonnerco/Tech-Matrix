@@ -1,8 +1,11 @@
 // Resume-tailor API (Cloudflare Worker).
 //   POST /        rewrites resume bullets to match a target-role keyword.
-//   POST /score   scores a candidate resume's fit against a role (0-10).
-// The DeepSeek API key lives only in the Worker secret store
-// (DEEPSEEK_API_KEY) and is never sent to the browser.
+//   POST /score   scores a candidate resume's fit against a role (0-10) and
+//                 saves the result to D1.
+//   GET /records  lists saved fit records (requires RECORDS_TOKEN).
+//   DELETE /records?id=  removes one saved record (requires RECORDS_TOKEN).
+// The DeepSeek API key and the records token live only in the Worker secret
+// store (DEEPSEEK_API_KEY, RECORDS_TOKEN) and never reach the browser.
 
 const ALLOWED_ORIGINS = new Set([
   "https://vonnerco.github.io",
@@ -17,6 +20,7 @@ const MAX_PROJECTS = 4000;
 const MAX_TEXT = 700;
 const MAX_ROLE = 6000;
 const MAX_RESUME = 20000;
+const MAX_NAME = 200;
 const BATCH = 8;
 const CONCURRENCY = 3;
 const UPSTREAM_TIMEOUT_MS = 30000;
@@ -28,8 +32,8 @@ function corsHeaders(origin) {
       : "https://vonnerco.github.io";
   return {
     "Access-Control-Allow-Origin": allow,
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type",
+    "Access-Control-Allow-Methods": "POST, GET, DELETE, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization",
     Vary: "Origin",
   };
 }
@@ -460,6 +464,108 @@ async function callDeepSeek(apiKey, prompt) {
   }
 }
 
+// Constant-time-ish string compare for the records token.
+function safeEqual(a, b) {
+  const A = new TextEncoder().encode(String(a));
+  const B = new TextEncoder().encode(String(b));
+  if (A.length !== B.length) return false;
+  let out = 0;
+  for (let i = 0; i < A.length; i++) out |= A[i] ^ B[i];
+  return out === 0;
+}
+
+function parseRecord(r) {
+  const j = (v, d) => {
+    try {
+      return JSON.parse(v) ?? d;
+    } catch {
+      return d;
+    }
+  };
+  return {
+    id: r.id,
+    created_at: r.created_at,
+    resume_name: r.resume_name,
+    role: r.role,
+    resume: r.resume,
+    score: r.score,
+    verdict: r.verdict,
+    summary: r.summary,
+    dimensions: j(r.dimensions, []),
+    strengths: j(r.strengths, []),
+    gaps: j(r.gaps, []),
+    source: r.source,
+  };
+}
+
+// Persist a scored result. Best-effort: never blocks the score response.
+async function recordMatch(env, role, resume, resumeName, result, source) {
+  if (!env.DB) return null;
+  try {
+    const info = await env.DB.prepare(
+      "INSERT INTO matches (created_at, resume_name, role, resume, score, verdict, summary, dimensions, strengths, gaps, source) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+    )
+      .bind(
+        new Date().toISOString(),
+        resumeName,
+        role,
+        resume,
+        Number(result.score) || 0,
+        String(result.verdict ?? "").slice(0, 40),
+        String(result.summary ?? "").slice(0, 600),
+        JSON.stringify(result.dimensions ?? []),
+        JSON.stringify(result.strengths ?? []),
+        JSON.stringify(result.gaps ?? []),
+        String(source ?? "ai").slice(0, 20),
+      )
+      .run();
+    return info?.meta?.last_row_id ?? null;
+  } catch {
+    return null;
+  }
+}
+
+// Token-protected read/delete of saved records. Fails closed.
+async function handleRecords(request, env, url, headers) {
+  if (!env.RECORDS_TOKEN || !env.DB) {
+    return jsonResponse({ error: "server_misconfigured" }, 500, headers);
+  }
+  const auth = request.headers.get("Authorization") || "";
+  const token = auth.startsWith("Bearer ") ? auth.slice(7).trim() : "";
+  if (!token || !safeEqual(token, env.RECORDS_TOKEN)) {
+    return jsonResponse({ error: "unauthorized" }, 401, headers);
+  }
+  try {
+    if (request.method === "GET") {
+      const raw = parseInt(url.searchParams.get("limit") || "100", 10);
+      const limit = Math.min(
+        500,
+        Math.max(1, Number.isFinite(raw) ? raw : 100),
+      );
+      const { results } = await env.DB.prepare(
+        "SELECT id, created_at, resume_name, role, resume, score, verdict, summary, dimensions, strengths, gaps, source FROM matches ORDER BY id DESC LIMIT ?",
+      )
+        .bind(limit)
+        .all();
+      const records = (results || []).map(parseRecord);
+      return jsonResponse({ count: records.length, records }, 200, headers);
+    }
+    if (request.method === "DELETE") {
+      const id = parseInt(url.searchParams.get("id") || "", 10);
+      if (!Number.isInteger(id) || id <= 0) {
+        return jsonResponse({ error: "invalid_id" }, 400, headers);
+      }
+      const info = await env.DB.prepare("DELETE FROM matches WHERE id = ?")
+        .bind(id)
+        .run();
+      return jsonResponse({ deleted: info?.meta?.changes ?? 0 }, 200, headers);
+    }
+    return jsonResponse({ error: "method_not_allowed" }, 405, headers);
+  } catch {
+    return jsonResponse({ error: "db_failed" }, 502, headers);
+  }
+}
+
 export default {
   async fetch(request, env) {
     const origin = request.headers.get("Origin");
@@ -472,11 +578,21 @@ export default {
     if (request.method === "OPTIONS") {
       return new Response(null, { status: 204, headers });
     }
-    if (request.method !== "POST") {
-      return jsonResponse({ error: "method_not_allowed" }, 405, headers);
-    }
     if (origin && !ALLOWED_ORIGINS.has(origin)) {
       return jsonResponse({ error: "forbidden_origin" }, 403, headers);
+    }
+
+    const url = new URL(request.url);
+    const path = url.pathname.replace(/\/+$/, "");
+
+    // Saved candidate fit records (token-protected).
+    if (path.endsWith("/records")) {
+      return handleRecords(request, env, url, headers);
+    }
+
+    // Scoring and rewrite are POST-only.
+    if (request.method !== "POST") {
+      return jsonResponse({ error: "method_not_allowed" }, 405, headers);
     }
     if (!env.DEEPSEEK_API_KEY) {
       return jsonResponse({ error: "server_misconfigured" }, 500, headers);
@@ -489,8 +605,7 @@ export default {
       return jsonResponse({ error: "invalid_json" }, 400, headers);
     }
 
-    // Candidate fit scoring.
-    const path = new URL(request.url).pathname.replace(/\/+$/, "");
+    // Candidate fit scoring (persisted to D1).
     if (path.endsWith("/score")) {
       const role = String(body.role ?? "")
         .trim()
@@ -498,12 +613,27 @@ export default {
       const resume = String(body.resume ?? "")
         .trim()
         .slice(0, MAX_RESUME);
+      const resumeName = String(body.resumeName ?? "")
+        .trim()
+        .slice(0, MAX_NAME);
       if (!role || !resume) {
         return jsonResponse({ error: "missing_input" }, 400, headers);
       }
       try {
         const result = await scoreWithModel(env.DEEPSEEK_API_KEY, role, resume);
-        return jsonResponse(result, 200, headers);
+        const id = await recordMatch(
+          env,
+          role,
+          resume,
+          resumeName,
+          result,
+          "ai",
+        );
+        return jsonResponse(
+          { ...result, id, recorded: id != null },
+          200,
+          headers,
+        );
       } catch (err) {
         return jsonResponse(
           { error: "upstream_failed", detail: String(err?.message ?? err) },
