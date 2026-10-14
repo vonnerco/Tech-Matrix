@@ -1,26 +1,29 @@
-# Tech Matrix
+# Resume & Matrix Builder
 
-Software technology matrix for Corderio Vonner.
+Strapped for time?
+<br> _Take 1 minute to confirm if a candidate is a fit for the role_
+<br><br> If candidate is good fit...
+<br> _Take 2 minutes to build a custom resume & skills matrix_
 
-## Build a Tailored Resume (1 keyword)
+## Build a Tailored Resume
 
-[![Build a Tailored Resume](https://img.shields.io/badge/Build_a_Tailored_Resume-Open_Generator-1f3057?style=for-the-badge&logo=googledocs&logoColor=white)](https://vonnerco.github.io/Tech-Matrix/)
+[![Build a Tailored Resume](https://img.shields.io/badge/Build_a_Tailored_Resume-1_keyword-1f3057?style=for-the-badge&logo=googledocs&logoColor=white&labelColor=1f3057)](https://vonnerco.github.io/Tech-Matrix/)
+<br><br>Leave the keyword blank to download the original.
+<br><br>_Three simple steps to download a new resume_.
 
-Open the generator, type one keyword (e.g. _Snowflake Data Engineer_), and download a resume whose **job titles are rewritten to match the keyword** while **companies and dates stay the same**. Get it as DOCX or PDF. Leave the keyword blank for the original.
+1. _Open the generator._
+2. _Type one keyword (e.g. Snowflake Data Engineer)._
+3. _Download it as PDF or DOCX._
 
-## Download Resume (originals)
+**Job titles rewritten to match the keyword** while **Companies and dates stay the same**
+<br> **PDF** (view & send)
+<br> **DOCX** (edit to pass ATS)
 
-ATS-friendly, ready to download:
+## Build a Tailored Tech Matrix
 
-[![Download Resume — DOCX](https://img.shields.io/badge/Download_Resume-DOCX-2ea44f?style=for-the-badge&logo=microsoftword&logoColor=white)](https://github.com/vonnerco/Tech-Matrix/raw/main/resume/Corderio_Vonner_Resume.docx)
-[![Download Resume — PDF](https://img.shields.io/badge/Download_Resume-PDF-b31b1b?style=for-the-badge&logo=adobeacrobatreader&logoColor=white)]
+[![Tech Matrix Workbook — XLSX](https://img.shields.io/badge/Tech_Matrix_Workbook-Download_XLSX-217346?style=for-the-badge&logo=microsoftexcel&logoColor=white&labelColor=217346)](https://github.com/vonnerco/Tech-Matrix/raw/main/Corderio%20Vonner%20-%20Software%20Tech%20Matrix.xlsx)
 
-- **DOCX** (edit / ATS parsing): [`resume/Corderio_Vonner_Resume.docx`](resume/Corderio_Vonner_Resume.docx)
-- **PDF** (view / send): [`resume/Corderio_Vonner_Resume.pdf`](resume/Corderio_Vonner_Resume.pdf)
+**Tabs Generated**
 
-## Tech Matrix Workbook
-
-`Corderio Vonner - Software Tech Matrix.xlsx`
-
-- `JD Fit Matrix` — target-role (Senior Forward-Deployed AI Engineer, Discover International) requirements mapped to proficiency and evidence.
+- `JD Fit Matrix` — target-role requirements mapped to proficiency and evidence.
 - `Full Tech Stack` — full grouped technical stack with self-assessed proficiency.
