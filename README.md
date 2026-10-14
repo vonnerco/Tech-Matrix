@@ -13,7 +13,7 @@ Open the generator, type one keyword (e.g. _Snowflake Data Engineer_), and downl
 ATS-friendly, ready to download:
 
 [![Download Resume — DOCX](https://img.shields.io/badge/Download_Resume-DOCX-2ea44f?style=for-the-badge&logo=microsoftword&logoColor=white)](https://github.com/vonnerco/Tech-Matrix/raw/main/resume/Corderio_Vonner_Resume.docx)
-[![Download Resume — PDF](https://img.shields.io/badge/Download_Resume-PDF-b31b1b?style=for-the-badge&logo=adobeacrobatreader&logoColor=white)](https://github.com/vonnerco/Tech-Matrix/raw/main/resume/Corderio_Vonner_Resume.pdf)
+[![Download Resume — PDF](https://img.shields.io/badge/Download_Resume-PDF-b31b1b?style=for-the-badge&logo=adobeacrobatreader&logoColor=white)]
 
 - **DOCX** (edit / ATS parsing): [`resume/Corderio_Vonner_Resume.docx`](resume/Corderio_Vonner_Resume.docx)
 - **PDF** (view / send): [`resume/Corderio_Vonner_Resume.pdf`](resume/Corderio_Vonner_Resume.pdf)
