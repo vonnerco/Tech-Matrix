@@ -5,6 +5,16 @@ Strapped for time?
 <br><br> If candidate is good fit...
 <br> _Take 2 minutes to build a custom resume & skills matrix_
 
+## Candidate Skill Match
+
+[![Candidate Skill Match](https://img.shields.io/badge/Candidate_Skill_Match-Upload_Resume-1f3057?style=for-the-badge&logo=googledrive&logoColor=white&labelColor=1f3057)](https://vonnerco.github.io/Tech-Matrix/)
+<br><br>_Upload a candidate's resume and score their fit for the role out of 10._
+<br><br>_Three simple steps to check the fit_.
+
+1. _Open the matcher._
+2. _Upload the candidate's resume as PDF or DOCX._
+3. _Get the candidate's skill match score out of 10._
+
 ## Build a Tailored Resume
 
 [![Build a Tailored Resume](https://img.shields.io/badge/Build_a_Tailored_Resume-1_keyword-1f3057?style=for-the-badge&logo=googledocs&logoColor=white&labelColor=1f3057)](https://vonnerco.github.io/Tech-Matrix/)
@@ -21,7 +31,7 @@ Strapped for time?
 
 ## Build a Tailored Tech Matrix
 
-[![Tech Matrix Workbook — XLSX](https://img.shields.io/badge/Tech_Matrix_Workbook-Download_XLSX-217346?style=for-the-badge&logo=microsoftexcel&logoColor=white&labelColor=217346)](https://github.com/vonnerco/Tech-Matrix/raw/main/Corderio%20Vonner%20-%20Software%20Tech%20Matrix.xlsx)
+[![Tech Matrix Workbook — XLSX](https://img.shields.io/badge/Tech_Matrix_Workbook-Download_XLSX-1f3057?style=for-the-badge&logo=microsoftexcel&logoColor=white&labelColor=1f3057)](https://github.com/vonnerco/Tech-Matrix/raw/main/Corderio%20Vonner%20-%20Software%20Tech%20Matrix.xlsx)
 
 **Tabs Generated**
 
