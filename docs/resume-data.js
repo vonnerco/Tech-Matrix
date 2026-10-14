@@ -4,7 +4,7 @@ window.RESUME_DATA = {
   name: "Corderio Vonner",
   contact: "Corderio.Vonner@outlook.com  |  linkedin.com/in/corderiovonner  |  github.com/vonnerco",
   summary:
-    "Senior AI Agentic Engineer with 4+ years designing and implementing enterprise-grade security architectures, threat detection pipelines, and automated response systems \u2014 now centered on Agentic AI, GenAI, and multi-agent systems built with LangChain, LangGraph, and Model Context Protocol (MCP). Built Cox's Agentic AI Center of Excellence; design and orchestrate multi-agent systems\u2014tool/function calling, agent identity and least privilege, RAG, agent handoffs, and human-in-the-loop control\u2014across Claude, Gemini, GPT, Meta Llama, Mistral, DeepSeek, Grok, and Azure OpenAI on AKS.",
+    "Principal AI Agentic Engineer with 8+ years security/DevSecOps, with the last 2+ years focused on Agentic AI, LLM systems built with LangChain, LangGraph, and Model Context Protocol (MCP). Built Cox's Agentic AI Center of Excellence; design and orchestrate multi-agent systems\u2014tool/function calling, agent identity and least privilege, RAG, agent handoffs, and human-in-the-loop control\u2014across Claude, Gemini, GPT, Meta Llama, Mistral, DeepSeek, Grok, and Azure OpenAI on AKS.",
   skills: [
     { label: "Agentic & Multi-Agent AI", value: "LangChain, LangGraph, Model Context Protocol (MCP) Servers/Clients, Tool & Function Calling, Supervisor/Hierarchical/Swarm Orchestration, Agent Handoff, Human-in-the-Loop, Agent2Agent (A2A)" },
     { label: "GenAI & LLM Engineering", value: "RAG, Prompt Engineering, Fine-Tuning & PEFT, Embeddings & Vector Search, Reranking, LangSmith, LangServe, LLM Evaluation (Evals), Structured Outputs, Memory" },
