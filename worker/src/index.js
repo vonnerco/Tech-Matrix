@@ -1,6 +1,8 @@
-// Resume-tailor API: rewrites resume bullets to match a target-role keyword.
-// Deployed as a Cloudflare Worker. The DeepSeek API key lives only in the
-// Worker secret store (DEEPSEEK_API_KEY) and is never sent to the browser.
+// Resume-tailor API (Cloudflare Worker).
+//   POST /        rewrites resume bullets to match a target-role keyword.
+//   POST /score   scores a candidate resume's fit against a role (0-10).
+// The DeepSeek API key lives only in the Worker secret store
+// (DEEPSEEK_API_KEY) and is never sent to the browser.
 
 const ALLOWED_ORIGINS = new Set([
   "https://vonnerco.github.io",
@@ -13,6 +15,8 @@ const MAX_KEYWORD = 120;
 const MAX_FOCUS = 200;
 const MAX_PROJECTS = 4000;
 const MAX_TEXT = 700;
+const MAX_ROLE = 6000;
+const MAX_RESUME = 20000;
 const BATCH = 8;
 const CONCURRENCY = 3;
 const UPSTREAM_TIMEOUT_MS = 30000;
@@ -246,6 +250,102 @@ Return JSON only, shaped exactly: {"revised": ["...", "..."]}, with ${items.leng
 ${lines}`;
 }
 
+// --- Candidate fit scoring (POST /score) ---
+
+function verdictFor(score) {
+  if (score >= 8) return "Strong fit";
+  if (score >= 5.5) return "Moderate fit";
+  return "Weak fit";
+}
+
+function clampScore(v) {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return 0;
+  return Math.max(0, Math.min(10, Math.round(n * 10) / 10));
+}
+
+function scorePrompt(role, resume) {
+  return `Rate how well this candidate fits the TARGET ROLE for a hiring manager.
+
+TARGET ROLE / JOB DESCRIPTION:
+${role}
+
+CANDIDATE RESUME:
+${resume}
+
+Scoring rules:
+- Judge only on evidence in the resume. Do NOT assume unlisted experience.
+- Weigh must-have skills, depth of relevant experience, recency, scope/seniority, and domain match.
+- Overall score is 0-10, whole or half points. Be discriminating: 8+ only for clear, well-evidenced fit.
+- Cover 3-5 dimensions such as Core skills match, Relevant experience depth, Seniority/scope, Domain fit, Tools/tech overlap. Each dimension scores 0-10.
+- The overall score must be consistent with the dimensions.
+- Strengths and gaps must cite concrete resume evidence (name the skill, tool, or role).
+
+Return JSON only, shaped exactly:
+{"score": <0-10>,
+ "verdict": "Strong fit" | "Moderate fit" | "Weak fit",
+ "summary": "<2-3 sentence rationale>",
+ "dimensions": [{"name": "<dimension>", "score": <0-10>, "note": "<one line of evidence>"}],
+ "strengths": ["<concrete strength>"],
+ "gaps": ["<concrete gap or risk>"]}`;
+}
+
+function normalizeScore(parsed) {
+  const strArr = (a, n, m) =>
+    Array.isArray(a) ? a.slice(0, n).map((s) => String(s).slice(0, m)) : [];
+  const score = clampScore(parsed?.score);
+  const dimensions = Array.isArray(parsed?.dimensions)
+    ? parsed.dimensions.slice(0, 6).map((d) => ({
+        name: String(d?.name ?? "").slice(0, 60),
+        score: clampScore(d?.score),
+        note: String(d?.note ?? "").slice(0, 240),
+      }))
+    : [];
+  return {
+    score,
+    verdict: String(parsed?.verdict ?? "").slice(0, 40) || verdictFor(score),
+    summary: String(parsed?.summary ?? "").slice(0, 600),
+    dimensions,
+    strengths: strArr(parsed?.strengths, 6, 240),
+    gaps: strArr(parsed?.gaps, 6, 240),
+  };
+}
+
+async function scoreWithModel(apiKey, role, resume) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), UPSTREAM_TIMEOUT_MS);
+  try {
+    const res = await fetch("https://api.deepseek.com/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: "deepseek-chat",
+        messages: [
+          {
+            role: "system",
+            content:
+              "You are a senior technical recruiter. You assess candidate-role fit strictly from resume evidence, never inventing experience. You respond only with valid JSON.",
+          },
+          { role: "user", content: scorePrompt(role, resume) },
+        ],
+        response_format: { type: "json_object" },
+        temperature: 0.3,
+        max_tokens: 1500,
+      }),
+      signal: controller.signal,
+    });
+    if (!res.ok) throw new Error(`deepseek_http_${res.status}`);
+    const data = await res.json();
+    const content = data?.choices?.[0]?.message?.content ?? "{}";
+    return normalizeScore(JSON.parse(content));
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 // Word-overlap heuristic: 1.0 = identical wording, 0 = no shared words.
 function similarity(a, b) {
   const A = new Set(
@@ -387,6 +487,30 @@ export default {
       body = await request.json();
     } catch {
       return jsonResponse({ error: "invalid_json" }, 400, headers);
+    }
+
+    // Candidate fit scoring.
+    const path = new URL(request.url).pathname.replace(/\/+$/, "");
+    if (path.endsWith("/score")) {
+      const role = String(body.role ?? "")
+        .trim()
+        .slice(0, MAX_ROLE);
+      const resume = String(body.resume ?? "")
+        .trim()
+        .slice(0, MAX_RESUME);
+      if (!role || !resume) {
+        return jsonResponse({ error: "missing_input" }, 400, headers);
+      }
+      try {
+        const result = await scoreWithModel(env.DEEPSEEK_API_KEY, role, resume);
+        return jsonResponse(result, 200, headers);
+      } catch (err) {
+        return jsonResponse(
+          { error: "upstream_failed", detail: String(err?.message ?? err) },
+          502,
+          headers,
+        );
+      }
     }
 
     const keyword = String(body.keyword ?? "")

@@ -4,9 +4,9 @@ Server-side proxy that rewrites resume bullets to match a recruiters' keyword
 using the DeepSeek API. The API key is stored only as a Worker secret and is
 never exposed to the browser.
 
-## Endpoint
+## Endpoints
 
-`POST /`
+### `POST /` — bullet rewrite
 
 ```json
 {
@@ -33,6 +33,31 @@ Response:
 ```
 
 `revised` has the same length and order as `items`.
+
+### `POST /score` — candidate fit scoring
+
+```json
+{
+  "role": "Senior Snowflake Data Engineer (dbt, Airflow, Cortex Analyst)",
+  "resume": "<candidate resume text>"
+}
+```
+
+`role` is the target role or pasted job description (<=6000 chars); `resume`
+is the parsed resume text (<=20000 chars). Response:
+
+```json
+{
+  "score": 7.5,
+  "verdict": "Moderate fit",
+  "summary": "...",
+  "dimensions": [{ "name": "Core skills match", "score": 8, "note": "..." }],
+  "strengths": ["..."],
+  "gaps": ["..."]
+}
+```
+
+The resume PDF/DOCX is parsed in the browser; only the extracted text is sent.
 
 ## Deploy
 
