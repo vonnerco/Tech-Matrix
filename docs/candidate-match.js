@@ -23,11 +23,20 @@
   const resultEl = document.getElementById("result");
   const historyCard = document.getElementById("history-card");
   const historyList = document.getElementById("history-list");
+  const historyNote = document.getElementById("history-note");
 
   // Job titles come from the shared helper in job-title.js; if it didn't load,
   // fall back to the first line of the role box.
   const jobTitle =
     (window.JobTitle && window.JobTitle.from) || ((role) => roleTitle(role));
+
+  // Match history lives on the signed-in account (Supabase `matches`, one row per
+  // scored resume), so it follows the user to any device. The browser copy stays
+  // as the offline / signed-out fallback.
+  const AUTH = window.Auth;
+  const SUPABASE = !!(AUTH && AUTH.enabled);
+  let historyRows = []; // what the panel is showing right now
+  let historyAccount = false; // those rows came from the account, not this browser
 
   function setStatus(msg, kind) {
     statusEl.textContent = msg || "";
@@ -385,14 +394,69 @@
     }
   }
 
+  // A saved `matches` row, in the shape the panel renders.
+  function remoteRow(r) {
+    return {
+      id: r.id,
+      ts: r.created_at ? Date.parse(r.created_at) : Date.now(),
+      name: r.resume_name || "resume",
+      role: r.role || "",
+      score: Number(r.score) || 0,
+      verdict: r.verdict || null,
+      summary: r.summary || null,
+      dimensions: r.dimensions || [],
+      strengths: r.strengths || [],
+      gaps: r.gaps || [],
+      source: r.source || "ai",
+      recorded: true,
+    };
+  }
+
+  // The account's rows when signed in, plus any offline estimate that never
+  // reached the server; the browser copy otherwise.
+  async function refreshHistory() {
+    if (SUPABASE && AUTH.userId != null) {
+      try {
+        const { data, error } = await AUTH.client
+          .from("matches")
+          .select(
+            "id,created_at,resume_name,role,score,verdict,summary,dimensions,strengths,gaps,source",
+          )
+          .order("created_at", { ascending: false })
+          .limit(HISTORY_MAX);
+        if (!error && Array.isArray(data)) {
+          historyAccount = true;
+          historyRows = [
+            ...data.map(remoteRow),
+            ...loadHistory().filter((h) => !h.recorded),
+          ]
+            .sort((a, b) => (b.ts || 0) - (a.ts || 0))
+            .slice(0, HISTORY_MAX);
+          renderHistory();
+          return;
+        }
+      } catch {
+        /* fall through to the browser copy */
+      }
+    }
+    historyAccount = false;
+    historyRows = loadHistory();
+    renderHistory();
+  }
+
   function renderHistory() {
-    const arr = loadHistory();
+    const arr = historyRows;
     if (!arr.length) {
       historyCard.hidden = true;
       historyList.innerHTML = "";
       return;
     }
     historyCard.hidden = false;
+    if (historyNote) {
+      historyNote.textContent = historyAccount
+        ? "Saved to your account, so it follows you to any device you sign in to. Manage or delete records on the All records page."
+        : "Saved in this browser only. Sign in to keep match history on your account.";
+    }
     historyList.innerHTML = arr
       .map((h, i) => {
         const s = Number(h.score) || 0;
@@ -450,7 +514,7 @@
       "strengths",
       "gaps",
     ];
-    const rows = loadHistory().map((h) =>
+    const rows = historyRows.map((h) =>
       [
         new Date(h.ts).toISOString(),
         h.name || "",
@@ -530,7 +594,7 @@
         source: result.local ? "local" : "ai",
         recorded: recorded,
       });
-      renderHistory();
+      await refreshHistory();
       setStatus("");
     } catch (err) {
       setStatus(err && err.message ? err.message : String(err), "err");
@@ -553,31 +617,60 @@
     download(
       "candidate-matches.json",
       JSON.stringify(
-        loadHistory().map((h) => ({ ...h, job_title: jobTitle(h.role) })),
+        historyRows.map((h) => ({ ...h, job_title: jobTitle(h.role) })),
         null,
         2,
       ),
       "application/json",
     );
   });
-  document.getElementById("btn-hclear").addEventListener("click", () => {
-    if (window.confirm("Clear this browser's match history?")) {
-      try {
-        localStorage.removeItem(HISTORY_KEY);
-      } catch {
-        /* ignore */
+  document.getElementById("btn-hclear").addEventListener("click", async () => {
+    const n = historyRows.length;
+    if (historyAccount) {
+      if (
+        !window.confirm(
+          "Delete all " +
+            n +
+            " saved match record(s) from your account? This cannot be undone.",
+        )
+      )
+        return;
+      const { error } = await AUTH.client
+        .from("matches")
+        .delete()
+        .eq("user_id", AUTH.userId);
+      if (error) {
+        setStatus(
+          "Could not delete records: " + (error.message || "error"),
+          "err",
+        );
+        return;
       }
-      renderHistory();
+    } else if (!window.confirm("Clear this browser's match history?")) {
+      return;
     }
+    try {
+      localStorage.removeItem(HISTORY_KEY);
+    } catch {
+      /* ignore */
+    }
+    await refreshHistory();
   });
 
   // Click a stored result to re-open it in the result panel.
   historyList.addEventListener("click", (e) => {
     const row = e.target.closest("button.hrow");
     if (!row) return;
-    const h = loadHistory()[Number(row.dataset.i)];
+    const h = historyRows[Number(row.dataset.i)];
     if (h) openHistory(h);
   });
 
-  renderHistory();
+  if (SUPABASE) {
+    // Wait for the auth gate to resolve the session before reading the account.
+    if (AUTH.token) refreshHistory();
+    else
+      document.addEventListener("auth:ready", refreshHistory, { once: true });
+  } else {
+    refreshHistory();
+  }
 })();
