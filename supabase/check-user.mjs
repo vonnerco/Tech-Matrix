@@ -16,6 +16,7 @@
 //   node check-user.mjs you@example.com --invite --to=http://localhost:3000/login.html
 //   node check-user.mjs you@example.com --set-password     # set a random password
 //   node check-user.mjs you@example.com <password> --set-password
+//   node check-user.mjs you@example.com --recover          # email a reset link
 //
 // Exit codes: 0 ok/found, 3 no such account, 4 sign-in failed, 1 config error.
 
@@ -48,9 +49,11 @@ const args = process.argv.slice(2);
 const create = args.includes("--create");
 const invite = args.includes("--invite");
 const setPw = args.includes("--set-password");
+const recover = args.includes("--recover");
 const toArg = args.find((a) => a.startsWith("--to="));
 const redirectTo =
-  (toArg && toArg.slice(5)) || "http://localhost:3000/login.html";
+  (toArg && toArg.slice(5)) ||
+  "https://vonnerco.github.io/Tech-Matrix/login.html";
 const positional = args.filter((a) => !a.startsWith("-"));
 const email = positional[0];
 let password = positional[1];
@@ -85,6 +88,22 @@ async function main() {
     console.log("invite email sent to " + email);
     console.log("  link lands on: " + redirectTo);
     console.log("  (open it, then set a password on that page)\n");
+  }
+
+  if (recover) {
+    // Uses the anon key (no admin rights). Always returns 2xx, even for an
+    // unknown address, so it does not leak whether an account exists.
+    const res = await fetch(url + "/auth/v1/recover", {
+      method: "POST",
+      headers: { apikey: anon, "Content-Type": "application/json" },
+      body: JSON.stringify({ email, redirect_to: redirectTo }),
+    });
+    if (!res.ok)
+      return die(
+        "recover failed: HTTP " + res.status + " " + (await res.text()),
+      );
+    console.log("reset email sent to " + email);
+    console.log("  link lands on: " + redirectTo + "\n");
   }
 
   const listRes = await fetch(
