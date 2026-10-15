@@ -12,6 +12,7 @@
 //
 // Args (all optional, in order):
 //   <project-ref> <site-url> [redirect-url ...]
+//   --disable-signup   also turn off public sign-up (invite-only)
 // Defaults: ref from ../supabase/Notes.md, the deployed login page, and the
 // GitHub Pages + localhost redirect patterns.
 //
@@ -41,7 +42,9 @@ function refFromNotes() {
 }
 
 const token = (process.env.SUPABASE_ACCESS_TOKEN || "").trim();
-const positional = process.argv.slice(2).filter((a) => !a.startsWith("-"));
+const argv = process.argv.slice(2);
+const disableSignup = argv.includes("--disable-signup");
+const positional = argv.filter((a) => !a.startsWith("-"));
 const ref = positional[0] || refFromNotes();
 const siteUrl =
   positional[1] || "https://vonnerco.github.io/Tech-Matrix/login.html";
@@ -76,6 +79,7 @@ async function main() {
   for (const r of redirects) if (!merged.includes(r)) merged.push(r);
 
   const payload = { site_url: siteUrl, uri_allow_list: merged.join(",") };
+  if (disableSignup) payload.disable_signup = true;
   const patchRes = await fetch(api + "/projects/" + ref + "/config/auth", {
     method: "PATCH",
     headers: auth,
@@ -87,6 +91,13 @@ async function main() {
 
   console.log("project:   " + ref);
   console.log("site_url:  " + (before.site_url || "-") + "  ->  " + siteUrl);
+  if (disableSignup)
+    console.log(
+      "signup:    " +
+        (before.disable_signup
+          ? "already off"
+          : "off (public sign-up disabled)"),
+    );
   for (const r of redirects)
     console.log((current.includes(r) ? "kept:      " : "added:     ") + r);
 
@@ -107,6 +118,10 @@ async function main() {
     .filter(Boolean);
 
   console.log("\npersisted site_url:  " + (after.site_url || "-"));
+  console.log(
+    "persisted signup:    " +
+      (after.disable_signup ? "disabled (invite-only)" : "OPEN"),
+  );
   console.log("persisted redirects:");
   for (const r of persisted) console.log("  " + r);
 }
