@@ -24,6 +24,11 @@
   const historyCard = document.getElementById("history-card");
   const historyList = document.getElementById("history-list");
 
+  // Job titles come from the shared helper in job-title.js; if it didn't load,
+  // fall back to the first line of the role box.
+  const jobTitle =
+    (window.JobTitle && window.JobTitle.from) || ((role) => roleTitle(role));
+
   function setStatus(msg, kind) {
     statusEl.textContent = msg || "";
     statusEl.style.color = kind === "err" ? "#b31b1b" : "#1f3057";
@@ -400,7 +405,7 @@
         return `<button type="button" class="hrow" data-i="${i}" title="Open this result">
                     <span class="hscore ${cls}">${s.toFixed(1)}</span>
                     <span class="hname">${esc(h.name || "resume")}</span>
-                    <span class="hrole">${esc(h.role || "")}</span>
+                    <span class="hrole" title="${esc(h.role || "")}">${esc(jobTitle(h.role))}</span>
                     <span class="hwhen">${esc(when)}${h.source === "local" ? " (local)" : ""}</span>
                 </button>`;
       })
@@ -441,6 +446,7 @@
     const cols = [
       "created_at",
       "resume_name",
+      "job_title",
       "score",
       "verdict",
       "role",
@@ -452,6 +458,7 @@
       [
         new Date(h.ts).toISOString(),
         h.name || "",
+        jobTitle(h.role),
         h.score,
         h.verdict || "",
         h.role || "",
@@ -549,7 +556,11 @@
   document.getElementById("btn-json").addEventListener("click", () => {
     download(
       "candidate-matches.json",
-      JSON.stringify(loadHistory(), null, 2),
+      JSON.stringify(
+        loadHistory().map((h) => ({ ...h, job_title: jobTitle(h.role) })),
+        null,
+        2,
+      ),
       "application/json",
     );
   });

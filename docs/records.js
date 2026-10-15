@@ -54,6 +54,17 @@
     return s >= 8 ? "good" : s >= 5.5 ? "mid" : "bad";
   }
 
+  // Job title from the shared helper in job-title.js; falls back to the first
+  // line of the pasted role text.
+  const jobTitle =
+    (window.JobTitle && window.JobTitle.from) ||
+    ((role) =>
+      String(role || "")
+        .trim()
+        .split(/\r?\n/)[0]
+        .trim()
+        .slice(0, 120));
+
   // ---- loading ----
 
   async function loadFromSupabase() {
@@ -160,7 +171,7 @@
                         <span class="rscore">${s.toFixed(1)}</span>
                         <span class="rverdict">${esc(r.verdict || "")}</span>
                         <span class="rresume">${esc(r.resume_name || "resume")}</span>
-                        <span class="rrole">${esc((r.role || "").slice(0, 120))}</span>
+                        <span class="rrole" title="${esc((r.role || "").slice(0, 400))}">${esc(jobTitle(r.role))}</span>
                         <span class="rwhen">${esc(when)}</span>
                     </summary>
                     <div class="rbody">
@@ -251,6 +262,7 @@
     const cols = [
       "created_at",
       "resume_name",
+      "job_title",
       "score",
       "verdict",
       "role",
@@ -263,6 +275,7 @@
       [
         r.created_at || "",
         r.resume_name || "",
+        jobTitle(r.role),
         r.score,
         r.verdict || "",
         r.role || "",
@@ -285,7 +298,11 @@
   document.getElementById("btn-json").addEventListener("click", () => {
     download(
       "candidate-match-records.json",
-      JSON.stringify(records, null, 2),
+      JSON.stringify(
+        records.map((r) => ({ ...r, job_title: jobTitle(r.role) })),
+        null,
+        2,
+      ),
       "application/json",
     );
   });
