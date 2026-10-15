@@ -337,7 +337,7 @@
                 <div class="score-num">${score.toFixed(1)}<span>/10</span></div>
                 <div class="score-side">
                     <div class="verdict">${esc(verdict)}</div>
-                    <div class="meta">${esc(meta.name)} &middot; ${meta.chars.toLocaleString()} chars parsed${meta.note ? " &middot; " + esc(meta.note) : ""}</div>
+                    <div class="meta">${esc(meta.name)}${meta.chars ? " &middot; " + meta.chars.toLocaleString() + " chars parsed" : ""}${meta.note ? " &middot; " + esc(meta.note) : ""}</div>
                     <p class="summary">${esc(r.summary)}</p>
                 </div>
             </div>
@@ -385,18 +385,31 @@
     }
     historyCard.hidden = false;
     historyList.innerHTML = arr
-      .map((h) => {
+      .map((h, i) => {
         const s = Number(h.score) || 0;
         const cls = s >= 8 ? "good" : s >= 5.5 ? "mid" : "bad";
         const when = new Date(h.ts).toLocaleString();
-        return `<div class="hrow">
+        return `<button type="button" class="hrow" data-i="${i}" title="Open this result">
                     <span class="hscore ${cls}">${s.toFixed(1)}</span>
                     <span class="hname">${esc(h.name || "resume")}</span>
                     <span class="hrole">${esc(h.role || "")}</span>
                     <span class="hwhen">${esc(when)}${h.source === "local" ? " (local)" : ""}</span>
-                </div>`;
+                </button>`;
       })
       .join("");
+  }
+
+  // Re-open a stored result in the result panel (the handoff button works here
+  // too, since role, summary, strengths and gaps are all kept).
+  function openHistory(h) {
+    render(h, {
+      name: h.name || "resume",
+      chars: Number(h.chars) || 0,
+      note:
+        new Date(h.ts).toLocaleString() +
+        (h.source === "local" ? " (local estimate)" : ""),
+      role: h.role || "",
+    });
   }
 
   function download(filename, text, mime) {
@@ -499,8 +512,10 @@
         score: result.score,
         verdict: result.verdict,
         summary: result.summary,
+        dimensions: result.dimensions || [],
         strengths: result.strengths || [],
         gaps: result.gaps || [],
+        chars: resume.length,
         source: result.local ? "local" : "ai",
         recorded: recorded,
       });
@@ -539,6 +554,14 @@
       }
       renderHistory();
     }
+  });
+
+  // Click a stored result to re-open it in the result panel.
+  historyList.addEventListener("click", (e) => {
+    const row = e.target.closest("button.hrow");
+    if (!row) return;
+    const h = loadHistory()[Number(row.dataset.i)];
+    if (h) openHistory(h);
   });
 
   renderHistory();

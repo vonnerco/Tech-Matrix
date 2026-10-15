@@ -343,6 +343,21 @@
             #btn-hclear {
                 background: #6b7280;
             }
+            button.hrow {
+                width: 100%;
+                background: none;
+                border: 0;
+                border-top: 1px solid #eef1f6;
+                font-family: inherit;
+                text-align: left;
+                color: inherit;
+                cursor: pointer;
+            }
+            button.hrow:hover,
+            button.hrow:focus-visible {
+                background: #f2f6fd;
+                outline: none;
+            }
             @media (max-width: 620px) {
                 .hrow {
                     grid-template-columns: 44px 1fr;
@@ -430,6 +445,6 @@
         <script src="vendor/supabase.min.js"></script>
         <script src="config.js?v=20261014c"></script>
         <script src="auth.js?v=20261015b"></script>
-        <script src="candidate-match.js?v=20261015c"></script>
+        <script src="candidate-match.js?v=20261015d"></script>
     </body>
 </html>
