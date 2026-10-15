@@ -343,18 +343,20 @@
             #btn-hclear {
                 background: #6b7280;
             }
-            button.hrow {
+            /* Beats the #history-card button rule above (id + class + element). */
+            #history-card button.hrow {
                 width: 100%;
                 background: none;
                 border: 0;
                 border-top: 1px solid #eef1f6;
+                border-radius: 0;
                 font-family: inherit;
                 text-align: left;
                 color: inherit;
                 cursor: pointer;
             }
-            button.hrow:hover,
-            button.hrow:focus-visible {
+            #history-card button.hrow:hover,
+            #history-card button.hrow:focus-visible {
                 background: #f2f6fd;
                 outline: none;
             }
