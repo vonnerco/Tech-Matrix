@@ -12,13 +12,16 @@
 // is verified against the project's /auth/v1/user endpoint. Leave them blank to
 // keep the endpoints open (legacy mode).
 
-const ALLOWED_ORIGINS = new Set([
-  "https://vonnerco.github.io",
-  "http://localhost:8000",
-  "http://127.0.0.1:8000",
-  "http://localhost:3000",
-  "http://127.0.0.1:3000",
-]);
+// The deployed site's origin. Any localhost port is also accepted so the static
+// site can be previewed locally with whatever server you happen to run; the
+// Supabase access token, not the origin, is what guards the endpoints.
+const ALLOWED_ORIGINS = new Set(["https://vonnerco.github.io"]);
+
+const LOCALHOST_ORIGIN = /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/;
+
+function isAllowedOrigin(origin) {
+  return ALLOWED_ORIGINS.has(origin) || LOCALHOST_ORIGIN.test(origin);
+}
 
 const MAX_ITEMS = 80;
 const MAX_KEYWORD = 120;
@@ -34,9 +37,7 @@ const UPSTREAM_TIMEOUT_MS = 30000;
 
 function corsHeaders(origin) {
   const allow =
-    origin && ALLOWED_ORIGINS.has(origin)
-      ? origin
-      : "https://vonnerco.github.io";
+    origin && isAllowedOrigin(origin) ? origin : "https://vonnerco.github.io";
   return {
     "Access-Control-Allow-Origin": allow,
     "Access-Control-Allow-Methods": "POST, GET, DELETE, OPTIONS",
@@ -616,7 +617,7 @@ export default {
     if (request.method === "OPTIONS") {
       return new Response(null, { status: 204, headers });
     }
-    if (origin && !ALLOWED_ORIGINS.has(origin)) {
+    if (origin && !isAllowedOrigin(origin)) {
       return jsonResponse({ error: "forbidden_origin" }, 403, headers);
     }
 
