@@ -585,6 +585,69 @@
       } catch (e) {
         /* storage unavailable */
       }
+      saveProjectsRemote(kw, val);
+    }
+
+    // ---- Supabase: project notes, so a keyword's notes follow the account ----
+
+    function db() {
+      return window.Auth && window.Auth.enabled ? window.Auth.client : null;
+    }
+
+    function loadProjectsRemote(kw) {
+      var c = db();
+      if (!c || !kw) return Promise.resolve(null);
+      return c
+        .from("project_notes")
+        .select("content")
+        .eq("keyword", kw)
+        .limit(1)
+        .then(function (res) {
+          if (res.error || !res.data || !res.data.length) return null;
+          return res.data[0].content || "";
+        })
+        .catch(function () {
+          return null;
+        });
+    }
+
+    // Best-effort mirror of the local note (clearing it removes the row).
+    function saveProjectsRemote(kw, val) {
+      var c = db();
+      if (!c || !kw) return;
+      var q = val
+        ? c
+            .from("project_notes")
+            .upsert(
+              {
+                keyword: kw,
+                content: val,
+                updated_at: new Date().toISOString(),
+              },
+              { onConflict: "user_id,keyword" },
+            )
+        : c.from("project_notes").delete().eq("keyword", kw);
+      q.then(
+        function () {},
+        function () {},
+      );
+    }
+
+    // Fill the box from Supabase when this browser has no note for the keyword
+    // (e.g. opened on another device). Never overwrites what is already there.
+    function hydrateProjects(kw) {
+      loadProjectsRemote(kw).then(function (remote) {
+        if (!remote) return;
+        if (input.value.trim() !== kw) return; // keyword moved on
+        if (projectsInput.value) return;
+        projectsInput.value = remote;
+        try {
+          localStorage.setItem(STORE + kw, remote);
+        } catch (e) {
+          /* ignore */
+        }
+        refresh();
+      });
     }
 
     // When the keyword settles, restore any project text saved for it.
@@ -596,6 +659,8 @@
       var saved = loadProjectsFor(kw);
       if (projectsInput && saved) {
         projectsInput.value = saved;
+      } else if (kw) {
+        hydrateProjects(kw);
       }
       refresh();
     }
@@ -765,6 +830,30 @@
       }
     });
 
+    // Arriving from Candidate Skill Match: index.html?kw=…&projects=…
+    function applyHandoffParams() {
+      var q = new URLSearchParams(location.search);
+      var kw = (q.get("kw") || "").trim();
+      var projects = q.get("projects") || "";
+      if (!kw && !projects) return;
+      if (kw && !input.value.trim()) input.value = kw;
+      var settled = input.value.trim();
+      if (projects && projectsInput && !projectsInput.value.trim()) {
+        projectsInput.value = projects;
+        if (settled) lastKw = settled;
+        saveProjectsFor(settled || kw, projects);
+      } else if (settled) {
+        lastKw = settled;
+      }
+      // Strip the params so a reload does not re-apply (and overwrite) them.
+      try {
+        history.replaceState(null, "", location.pathname + location.hash);
+      } catch (e) {
+        /* ignore */
+      }
+    }
+
+    applyHandoffParams();
     refresh();
   });
 })();

@@ -264,6 +264,31 @@
     }
   }
 
+  // ---- handoff to the resume builder ----
+
+  // A keyword-sized title: first line of the role box, capped.
+  function roleTitle(role) {
+    const line = String(role || "")
+      .trim()
+      .split(/\r?\n/)[0]
+      .trim();
+    return line.length > 120 ? line.slice(0, 117).trimEnd() + "..." : line;
+  }
+
+  // The match's summary + strengths, as a starter projects/experience note.
+  function projectsBlurb(r) {
+    const parts = [];
+    const summary = String(r.summary || "").trim();
+    if (summary) parts.push(summary);
+    const strengths = (r.strengths || [])
+      .map((s) => String(s).trim())
+      .filter(Boolean)
+      .slice(0, 12);
+    if (strengths.length)
+      parts.push("Strengths: " + strengths.join(", ") + ".");
+    return parts.join(" ").slice(0, 1800);
+  }
+
   // ---- render current result ----
 
   function render(r, meta) {
@@ -284,6 +309,12 @@
       arr && arr.length
         ? `<ul class="chips ${k}">${arr.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>`
         : `<p class="muted">None noted.</p>`;
+    const kw = roleTitle(meta.role);
+    const blurb = projectsBlurb(r);
+    const handoff =
+      kw || blurb
+        ? `<p class="handoff-row"><a class="handoff" href="index.html?kw=${encodeURIComponent(kw)}&amp;projects=${encodeURIComponent(blurb)}">Build a tailored resume for this role &rarr;</a></p>`
+        : "";
     resultEl.innerHTML = `
             <div class="scorecard ${cls}">
                 <div class="score-num">${score.toFixed(1)}<span>/10</span></div>
@@ -297,7 +328,8 @@
             <div class="cols">
                 <div><h2 class="section">Strengths</h2>${list(r.strengths, "good")}</div>
                 <div><h2 class="section">Gaps &amp; risks</h2>${list(r.gaps, "bad")}</div>
-            </div>`;
+            </div>
+            ${handoff}`;
     resultEl.hidden = false;
     resultEl.scrollIntoView({ behavior: "smooth", block: "start" });
   }
@@ -441,7 +473,7 @@
         result = localScore(role, resume);
         note = "local estimate (not saved)";
       }
-      render(result, { name: file.name, chars: resume.length, note });
+      render(result, { name: file.name, chars: resume.length, note, role });
 
       saveHistory({
         ts: Date.now(),
