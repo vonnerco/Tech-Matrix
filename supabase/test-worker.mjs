@@ -43,16 +43,16 @@ function die(msg, code = 1) {
   process.exitCode = code;
 }
 
-const [email, password] = process.argv
-  .slice(2)
-  .filter((a) => !a.startsWith("-"));
-const origin = process.argv[2 + 2] || "https://vonnerco.github.io";
+const positional = process.argv.slice(2).filter((a) => !a.startsWith("-"));
+const [email, password, originArg] = positional;
+const origin = originArg || "https://vonnerco.github.io";
+const itemsArg = process.argv.slice(2).find((a) => a.startsWith("--items="));
+const nItems = itemsArg ? Math.max(1, Number(itemsArg.split("=")[1]) || 1) : 1;
 const worker = (fromConfig("WORKER_URL") || "").replace(/\/+$/, "");
 const url = fromNotes(/https:\/\/[a-z0-9]+\.supabase\.co/);
 const anon =
   fromConfig("SUPABASE_ANON_KEY") ||
-  fromNotes(/eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/g) ||
-  [];
+  (fromNotes(/eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/g) || [])[0];
 
 async function main() {
   if (!email || !password)
@@ -76,26 +76,52 @@ async function main() {
   }
   console.log("1. sign-in            OK  (" + tokenData.user.email + ")");
 
-  const res = await fetch(worker + "/score", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Origin: origin,
-      Authorization: "Bearer " + tokenData.access_token,
+  const cases = [
+    {
+      path: "/score",
+      body: { role: "Smoke test", resume: "No-op probe from test-worker.mjs" },
     },
-    body: JSON.stringify({
-      role: "Smoke test",
-      resume: "No-op probe from test-worker.mjs",
-    }),
-  });
-  const body = await res.text();
-  const allow = res.headers.get("access-control-allow-origin");
-  console.log("2. worker Origins:    " + origin);
-  console.log("   status:            " + res.status);
-  console.log("   allow-origin:      " + (allow || "(none)"));
-  console.log("   body:              " + body.slice(0, 300));
+    {
+      path: "/",
+      body: {
+        keyword: "Snowflake Data Engineer",
+        focus: "",
+        strength: "balanced",
+        projects: "Smoke test",
+        applyAll: false,
+        items: Array.from({ length: nItems }, (_, i) => ({
+          company: "Acme " + (i + 1),
+          title: "Senior Engineer",
+          text: "Led delivery of a governed data platform on Snowflake, cutting warehouse cost 30 percent and shipping 120 metrics to analysts and product teams across three business units, with dbt and Airflow orchestration.",
+        })),
+      },
+    },
+  ];
 
-  if (!res.ok) return (process.exitCode = 3);
+  let failed = false;
+  for (const c of cases) {
+    const res = await fetch(worker + c.path, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Origin: origin,
+        Authorization: "Bearer " + tokenData.access_token,
+      },
+      body: JSON.stringify(c.body),
+    });
+    const body = await res.text();
+    console.log(
+      "2. POST " +
+        c.path.padEnd(7) +
+        " status " +
+        res.status +
+        "  allow-origin " +
+        (res.headers.get("access-control-allow-origin") || "(none)"),
+    );
+    console.log("   body: " + body.slice(0, 400));
+    if (!res.ok) failed = true;
+  }
+  if (failed) return (process.exitCode = 3);
   console.log("\nAll good: the Worker accepted the token and answered.");
 }
 

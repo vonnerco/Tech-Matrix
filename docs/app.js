@@ -181,16 +181,24 @@
         });
       })
       .then(function (r) {
-        if (!r.ok) {
-          aiReason =
-            r.status === 401
-              ? "sign in required"
-              : r.status === 403
-                ? "origin blocked"
-                : "HTTP " + r.status;
-          throw new Error("worker_" + r.status);
-        }
-        return r.json();
+        if (r.ok) return r.json();
+        // Read the body so the Worker's own reason reaches the status line.
+        return r
+          .json()
+          .catch(function () {
+            return null;
+          })
+          .then(function (b) {
+            aiReason =
+              r.status === 401
+                ? "sign in required"
+                : r.status === 403
+                  ? "origin blocked"
+                  : "HTTP " + r.status;
+            var why = b && (b.detail || b.error);
+            if (why) aiReason += " \u2013 " + String(why).slice(0, 160);
+            throw new Error("worker_" + r.status);
+          });
       })
       .then(function (data) {
         if (!data || !Array.isArray(data.revised)) {

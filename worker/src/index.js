@@ -720,16 +720,32 @@ export default {
       for (let i = 0; i < items.length; i += BATCH) {
         chunks.push(items.slice(i, i + BATCH));
       }
-      const parts = await mapLimit(chunks, CONCURRENCY, (chunk) =>
-        callDeepSeek(
-          env.DEEPSEEK_API_KEY,
-          buildPrompt(keyword, chunk, focus, false, strong, projects, applyAll),
-        ),
-      );
-      const revised = parts.flat();
-      if (revised.length !== items.length) {
-        throw new Error("length_mismatch");
-      }
+      // A batch that fails (timeout, rate limit, malformed JSON) falls back to
+      // that batch's original text instead of failing the whole request.
+      const parts = await mapLimit(chunks, CONCURRENCY, async (chunk) => {
+        try {
+          return await callDeepSeek(
+            env.DEEPSEEK_API_KEY,
+            buildPrompt(
+              keyword,
+              chunk,
+              focus,
+              false,
+              strong,
+              projects,
+              applyAll,
+            ),
+          );
+        } catch {
+          return chunk.map((it) => it.text);
+        }
+      });
+      // Align to the input whatever the model returned.
+      const flat = parts.flat();
+      const revised = items.map((it, i) => {
+        const v = flat[i];
+        return typeof v === "string" && v.trim() ? v : it.text;
+      });
 
       // Second pass for any bullet that barely changed.
       const shallow = [];
