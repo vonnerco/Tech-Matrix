@@ -17,6 +17,7 @@
 //   node check-user.mjs you@example.com --set-password     # set a random password
 //   node check-user.mjs you@example.com <password> --set-password
 //   node check-user.mjs you@example.com --recover          # email a reset link
+//   node check-user.mjs you@example.com --delete           # remove the account
 //
 // Exit codes: 0 ok/found, 3 no such account, 4 sign-in failed, 1 config error.
 
@@ -50,6 +51,7 @@ const create = args.includes("--create");
 const invite = args.includes("--invite");
 const setPw = args.includes("--set-password");
 const recover = args.includes("--recover");
+const del = args.includes("--delete");
 const toArg = args.find((a) => a.startsWith("--to="));
 const redirectTo =
   (toArg && toArg.slice(5)) ||
@@ -153,6 +155,19 @@ async function main() {
     );
   } else {
     console.log("found account");
+  }
+
+  if (del) {
+    const res = await fetch(url + "/auth/v1/admin/users/" + target.id, {
+      method: "DELETE",
+      headers: svc,
+    });
+    if (!res.ok)
+      return die(
+        "delete failed: HTTP " + res.status + " " + (await res.text()),
+      );
+    console.log("deleted " + target.email + "  (" + target.id + ")");
+    return;
   }
 
   if (setPw) {
