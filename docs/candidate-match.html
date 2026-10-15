@@ -303,12 +303,10 @@
             }
             .hrow {
                 display: grid;
-                grid-template-columns: 52px 1.2fr 1.6fr auto;
-                gap: 10px;
+                grid-template-columns: 1fr auto;
+                gap: 6px;
                 align-items: center;
-                padding: 8px 4px;
                 border-top: 1px solid #eef1f6;
-                font-size: 13px;
             }
             .hscore {
                 font-weight: 700;
@@ -350,24 +348,44 @@
                 background: #6b7280;
             }
             /* Beats the #history-card button rule above (id + class + element). */
-            #history-card button.hrow {
+            #history-card button.hopen {
                 width: 100%;
+                display: grid;
+                grid-template-columns: 52px 1.2fr 1.6fr auto;
+                gap: 10px;
+                align-items: center;
+                padding: 8px 4px;
                 background: none;
                 border: 0;
-                border-top: 1px solid #eef1f6;
                 border-radius: 0;
                 font-family: inherit;
+                font-size: 13px;
                 text-align: left;
                 color: inherit;
                 cursor: pointer;
             }
-            #history-card button.hrow:hover,
-            #history-card button.hrow:focus-visible {
+            #history-card button.hopen:hover,
+            #history-card button.hopen:focus-visible {
                 background: #f2f6fd;
                 outline: none;
             }
+            #history-card button.hdel {
+                background: var(--bad);
+                color: #fff;
+                padding: 6px 10px;
+                font-size: 12px;
+                font-weight: 600;
+                border-radius: 6px;
+                cursor: pointer;
+            }
+            #history-card button.hdel:hover,
+            #history-card button.hdel:focus-visible {
+                filter: brightness(1.12);
+                outline: 2px solid rgba(179, 27, 27, 0.4);
+                outline-offset: 1px;
+            }
             @media (max-width: 620px) {
-                .hrow {
+                #history-card button.hopen {
                     grid-template-columns: 44px 1fr;
                 }
                 .hrole,
@@ -462,6 +480,6 @@
         <script src="config.js?v=20261014c"></script>
         <script src="auth.js?v=20261015b"></script>
         <script src="job-title.js?v=20261015d"></script>
-        <script src="candidate-match.js?v=20261015k"></script>
+        <script src="candidate-match.js?v=20261015l"></script>
     </body>
 </html>

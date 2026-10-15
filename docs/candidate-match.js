@@ -526,12 +526,15 @@
         const s = Number(h.score) || 0;
         const cls = s >= 8 ? "good" : s >= 5.5 ? "mid" : "bad";
         const when = new Date(h.ts).toLocaleString();
-        return `<button type="button" class="hrow" data-i="${i}" title="Open this result">
-                    <span class="hscore ${cls}">${s.toFixed(1)}</span>
-                    <span class="hname">${esc(h.name || "resume")}</span>
-                    <span class="hrole" title="${esc(h.role || "")}">${esc(jobTitle(h.role))}</span>
-                    <span class="hwhen">${esc(when)}${h.source === "local" ? " (local)" : ""}</span>
-                </button>`;
+        return `<div class="hrow">
+                    <button type="button" class="hopen" data-i="${i}" title="Open this result">
+                        <span class="hscore ${cls}">${s.toFixed(1)}</span>
+                        <span class="hname">${esc(h.name || "resume")}</span>
+                        <span class="hrole" title="${esc(h.role || "")}">${esc(jobTitle(h.role))}</span>
+                        <span class="hwhen">${esc(when)}${h.source === "local" ? " (local)" : ""}</span>
+                    </button>
+                    <button type="button" class="hdel" data-del-row="${i}" title="Delete this record">Delete</button>
+                </div>`;
       })
       .join("");
   }
@@ -547,6 +550,46 @@
         (h.source === "local" ? " (local estimate)" : ""),
       role: h.role || "",
     });
+  }
+
+  // Delete one row: the account record, or the browser-only copy it came from.
+  async function deleteHistoryRow(h) {
+    if (!h) return;
+    const label = jobTitle(h.role) || "this match";
+    if (
+      !window.confirm(
+        "Delete the record for " + label + "? This cannot be undone.",
+      )
+    )
+      return;
+    if (h.id && SUPABASE) {
+      setStatus("Deleting record…");
+      const { error } = await AUTH.client
+        .from("matches")
+        .delete()
+        .eq("id", h.id);
+      if (error) {
+        setStatus("Delete failed: " + (error.message || "error"), "err");
+        return;
+      }
+    } else {
+      try {
+        const arr = loadHistory().filter(
+          (x) =>
+            !(
+              x.ts === h.ts &&
+              x.name === h.name &&
+              x.role === h.role &&
+              !x.recorded
+            ),
+        );
+        localStorage.setItem(HISTORY_KEY, JSON.stringify(arr));
+      } catch {
+        /* ignore */
+      }
+    }
+    setStatus("Record deleted.");
+    await refreshHistory();
   }
 
   function download(filename, text, mime) {
@@ -723,9 +766,14 @@
 
   if (btnMigrate) btnMigrate.addEventListener("click", migrateLocalHistory);
 
-  // Click a stored result to re-open it in the result panel.
+  // Click a stored result to re-open it in the result panel, or delete one row.
   historyList.addEventListener("click", (e) => {
-    const row = e.target.closest("button.hrow");
+    const del = e.target.closest("[data-del-row]");
+    if (del) {
+      deleteHistoryRow(historyRows[Number(del.getAttribute("data-del-row"))]);
+      return;
+    }
+    const row = e.target.closest("button.hopen");
     if (!row) return;
     const h = historyRows[Number(row.dataset.i)];
     if (h) openHistory(h);
