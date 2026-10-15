@@ -108,6 +108,17 @@ npx wrangler d1 migrations apply resume-tailor-records --local
 npm run dev
 ```
 
+## Invite-only access (optional)
+
+Set `SUPABASE_URL` + `SUPABASE_ANON_KEY` in `wrangler.jsonc` (both non-secret) to
+require a valid Supabase login on `POST /` and `POST /score`. Tokens are verified
+against the project's `/auth/v1/user` endpoint; unauthenticated calls get `401`.
+Leave them blank to keep the endpoints open.
+
+Once records move to Supabase, set `PERSIST_D1` to `"false"` so `/score` no
+longer writes a second copy of candidate PII to D1. See
+[`../docs/SUPABASE.md`](../docs/SUPABASE.md).
+
 ## Security notes
 
 - CORS is limited to the allowed origins in `src/index.js`.

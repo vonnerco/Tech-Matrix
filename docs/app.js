@@ -152,20 +152,30 @@
   function aiRewrite(keyword, items, focus, strength, projects, applyAll) {
     var url = window.WORKER_URL;
     if (!url) return Promise.resolve(null);
-    return fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        keyword: keyword,
-        focus: focus || "",
-        strength: strength || "balanced",
-        projects: projects || "",
-        applyAll: applyAll === true,
-        items: items.map(function (it) {
-          return { company: it.company, title: it.title, text: it.text };
-        }),
-      }),
-    })
+    var authHeaders =
+      window.Auth && window.Auth.apiHeaders
+        ? window.Auth.apiHeaders()
+        : Promise.resolve({});
+    return authHeaders
+      .then(function (extra) {
+        var headers = { "Content-Type": "application/json" };
+        if (extra && extra.Authorization)
+          headers.Authorization = extra.Authorization;
+        return fetch(url, {
+          method: "POST",
+          headers: headers,
+          body: JSON.stringify({
+            keyword: keyword,
+            focus: focus || "",
+            strength: strength || "balanced",
+            projects: projects || "",
+            applyAll: applyAll === true,
+            items: items.map(function (it) {
+              return { company: it.company, title: it.title, text: it.text };
+            }),
+          }),
+        });
+      })
       .then(function (r) {
         if (!r.ok) throw new Error("worker_" + r.status);
         return r.json();

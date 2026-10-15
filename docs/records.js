@@ -1,10 +1,17 @@
-// Candidate Match Records: token-protected viewer for saved fit scores.
+// Candidate Match Records viewer.
+//
+// Two modes:
+//   - Supabase (window.Auth.enabled): the signed-in user's own records, scoped by
+//     Row Level Security. Loads automatically; no token needed.
+//   - Legacy: the Worker's token-protected /records endpoint.
 (function () {
   "use strict";
 
   const TOKEN_KEY = "csm_token";
   const LIMIT = 200;
+  const SUPABASE = !!(window.Auth && window.Auth.enabled);
 
+  const tokenCard = document.getElementById("token-card");
   const tokenEl = document.getElementById("token");
   const btnLoad = document.getElementById("btn-load");
   const btnForget = document.getElementById("btn-forget");
@@ -47,7 +54,25 @@
     return s >= 8 ? "good" : s >= 5.5 ? "mid" : "bad";
   }
 
-  async function load() {
+  // ---- loading ----
+
+  async function loadFromSupabase() {
+    setStatus("Loading…");
+    const { data, error } = await window.Auth.client
+      .from("matches")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(LIMIT);
+    if (error) {
+      setStatus("Could not load records: " + (error.message || "error"), "err");
+      return;
+    }
+    records = Array.isArray(data) ? data : [];
+    render();
+    setStatus("");
+  }
+
+  async function loadLegacy() {
     const token = getToken();
     const base = apiBase();
     if (!base) {
@@ -92,6 +117,14 @@
       setStatus("Network error loading records.", "err");
     } finally {
       btnLoad.disabled = false;
+    }
+  }
+
+  async function load() {
+    if (SUPABASE) {
+      await loadFromSupabase();
+    } else {
+      await loadLegacy();
     }
   }
 
@@ -149,12 +182,23 @@
       .join("");
   }
 
-  async function remove(id) {
+  async function removeFromSupabase(id) {
+    const { error } = await window.Auth.client
+      .from("matches")
+      .delete()
+      .eq("id", id);
+    if (error) {
+      setStatus("Delete failed: " + (error.message || "error"), "err");
+      return;
+    }
+    records = records.filter((r) => String(r.id) !== String(id));
+    render();
+    setStatus("Deleted.");
+  }
+
+  async function removeFromLegacy(id) {
     const token = getToken();
     if (!token) return;
-    if (!window.confirm("Delete record " + id + "? This cannot be undone."))
-      return;
-    setStatus("Deleting…");
     try {
       const res = await fetch(
         apiBase() + "/records?id=" + encodeURIComponent(id),
@@ -172,6 +216,17 @@
       setStatus("Deleted.");
     } catch {
       setStatus("Network error deleting record.", "err");
+    }
+  }
+
+  async function remove(id) {
+    if (!window.confirm("Delete record " + id + "? This cannot be undone."))
+      return;
+    setStatus("Deleting…");
+    if (SUPABASE) {
+      await removeFromSupabase(id);
+    } else {
+      await removeFromLegacy(id);
     }
   }
 
@@ -226,16 +281,6 @@
     );
   }
 
-  btnLoad.addEventListener("click", load);
-  btnForget.addEventListener("click", () => {
-    try {
-      localStorage.removeItem(TOKEN_KEY);
-    } catch {
-      /* ignore */
-    }
-    tokenEl.value = "";
-    setStatus("Token forgotten.");
-  });
   document.getElementById("btn-csv").addEventListener("click", exportCsv);
   document.getElementById("btn-json").addEventListener("click", () => {
     download(
@@ -249,11 +294,29 @@
     if (btn) remove(btn.getAttribute("data-del"));
   });
 
-  // Prefill a previously used token (never the value itself in the URL).
-  try {
-    const saved = localStorage.getItem(TOKEN_KEY);
-    if (saved) tokenEl.value = saved;
-  } catch {
-    /* ignore */
+  if (SUPABASE) {
+    // No token UI in Supabase mode; load the signed-in user's records.
+    if (tokenCard) tokenCard.hidden = true;
+    const start = () => load();
+    if (window.Auth.token) start();
+    else document.addEventListener("auth:ready", start, { once: true });
+  } else {
+    btnLoad.addEventListener("click", load);
+    btnForget.addEventListener("click", () => {
+      try {
+        localStorage.removeItem(TOKEN_KEY);
+      } catch {
+        /* ignore */
+      }
+      tokenEl.value = "";
+      setStatus("Token forgotten.");
+    });
+    // Prefill a previously used token (never the value itself in the URL).
+    try {
+      const saved = localStorage.getItem(TOKEN_KEY);
+      if (saved) tokenEl.value = saved;
+    } catch {
+      /* ignore */
+    }
   }
 })();

@@ -224,9 +224,13 @@
   async function aiScore(role, resume, resumeName) {
     const base = (window.WORKER_URL || "").replace(/\/+$/, "");
     if (!base) throw new Error("no_worker");
+    const headers = { "Content-Type": "application/json" };
+    if (window.Auth && window.Auth.apiHeaders) {
+      Object.assign(headers, await window.Auth.apiHeaders());
+    }
     const res = await fetch(base + "/score", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers,
       body: JSON.stringify({ role, resume, resumeName }),
     });
     if (!res.ok) throw new Error("worker_http_" + res.status);
@@ -234,6 +238,30 @@
     const n = Number(data && data.score);
     if (!Number.isFinite(n)) throw new Error("bad_response");
     return data;
+  }
+
+  // Persist a scored result to the signed-in user's records (Supabase + RLS).
+  // No-op in legacy mode, where the worker saves to its own store.
+  async function saveRecord(role, resume, resumeName, result) {
+    const auth = window.Auth;
+    if (!auth || !auth.enabled || auth.userId == null) return false;
+    try {
+      const { error } = await auth.client.from("matches").insert({
+        resume_name: resumeName || null,
+        role,
+        resume,
+        score: Number(result.score) || 0,
+        verdict: result.verdict || null,
+        summary: result.summary || null,
+        dimensions: result.dimensions || [],
+        strengths: result.strengths || [],
+        gaps: result.gaps || [],
+        source: result.local ? "local" : "ai",
+      });
+      return !error;
+    } catch {
+      return false;
+    }
   }
 
   // ---- render current result ----
@@ -394,10 +422,22 @@
       setStatus("Scoring fit…");
       let result;
       let note = "";
+      let recorded = false;
       try {
         result = await aiScore(role, resume, file.name);
-        note = result.recorded ? "saved to records" : "not saved";
+        recorded = await saveRecord(role, resume, file.name, result);
+        note = recorded ? "saved to records" : "not saved";
       } catch (e) {
+        if (
+          window.Auth &&
+          window.Auth.enabled &&
+          e &&
+          e.message === "worker_http_401"
+        ) {
+          setStatus("Your session expired. Redirecting to sign in…", "err");
+          setTimeout(() => window.Auth.signOut(), 1200);
+          return;
+        }
         result = localScore(role, resume);
         note = "local estimate (not saved)";
       }
@@ -413,7 +453,7 @@
         strengths: result.strengths || [],
         gaps: result.gaps || [],
         source: result.local ? "local" : "ai",
-        recorded: !!result.recorded,
+        recorded: recorded,
       });
       renderHistory();
       setStatus("");

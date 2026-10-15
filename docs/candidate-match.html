@@ -19,7 +19,12 @@
             body {
                 margin: 0;
                 font-family:
-                    -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+                    -apple-system,
+                    Segoe UI,
+                    Roboto,
+                    Helvetica,
+                    Arial,
+                    sans-serif;
                 color: #17202a;
                 background: #f4f6f9;
             }
@@ -43,6 +48,31 @@
             }
             header a:hover {
                 text-decoration: underline;
+            }
+            header .actions {
+                display: flex;
+                gap: 10px;
+                flex-wrap: wrap;
+                margin-top: 14px;
+            }
+            header a.cta {
+                display: inline-block;
+                padding: 10px 16px;
+                border-radius: 8px;
+                background: #fff;
+                color: var(--ink);
+                font-size: 14px;
+                font-weight: 600;
+                text-decoration: none;
+            }
+            header a.cta:hover {
+                filter: brightness(0.95);
+                text-decoration: none;
+            }
+            header a.cta.ghost {
+                background: transparent;
+                color: #fff;
+                border: 1px solid rgba(255, 255, 255, 0.5);
             }
             .wrap {
                 max-width: 900px;
@@ -321,10 +351,14 @@
             <h1>Candidate Skill Match</h1>
             <p>
                 Upload a candidate's resume (PDF or DOCX) and get a fit score
-                out of 10 for the role. <a href="./">&larr; Tailored resume generator</a>
-                &nbsp;&middot;&nbsp; <a href="records.html">All records &rarr;</a>
-                &nbsp;&middot;&nbsp; <span id="build">build 20261014b</span>
+                out of 10 for the role. <span id="build">build 20261015b</span>
             </p>
+            <div class="actions">
+                <a class="cta" href="index.html"
+                    >Build a tailored resume &rarr;</a
+                >
+                <a class="cta ghost" href="records.html">All records &rarr;</a>
+            </div>
         </header>
 
         <div class="wrap">
@@ -376,8 +410,9 @@
 
         <script src="vendor/jszip.min.js"></script>
         <script src="vendor/pdf.min.js"></script>
-        <script src="config.js?v=20261014b"></script>
-        <script src="candidate-match.js?v=20261014b"></script>
+        <script src="vendor/supabase.min.js"></script>
+        <script src="config.js?v=20261014c"></script>
+        <script src="auth.js?v=20261015b"></script>
+        <script src="candidate-match.js?v=20261014c"></script>
     </body>
 </html>
-</title></h1>

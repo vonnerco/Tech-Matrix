@@ -41,6 +41,26 @@
                 color: #c8d0dd;
                 font-size: 13px;
             }
+            header .actions {
+                display: flex;
+                gap: 10px;
+                flex-wrap: wrap;
+                margin-top: 14px;
+            }
+            header a.cta {
+                display: inline-block;
+                padding: 10px 16px;
+                border-radius: 8px;
+                background: #fff;
+                color: var(--ink);
+                font-size: 14px;
+                font-weight: 600;
+                text-decoration: none;
+            }
+            header a.cta:hover {
+                filter: brightness(0.95);
+                text-decoration: none;
+            }
             .wrap {
                 max-width: 900px;
                 margin: 0 auto;
@@ -214,10 +234,13 @@
             <p>
                 Enter one keyword. Companies and dates stay the same; job titles
                 and every bullet are rewritten to match it. Download as DOCX or
-                PDF.
-                <a href="candidate-match.html">Candidate skill match &rarr;</a>
-                <span id="build">build 20261013i</span>
+                PDF. <span id="build">build 20261015b</span>
             </p>
+            <div class="actions">
+                <a class="cta" href="candidate-match.html"
+                    >Candidate skill match &rarr;</a
+                >
+            </div>
         </header>
 
         <div class="wrap">
@@ -298,8 +321,10 @@
 
         <script src="vendor/jszip.min.js"></script>
         <script src="vendor/jspdf.umd.min.js"></script>
-        <script src="config.js?v=20261013i"></script>
-        <script src="resume-data.js?v=20261013i"></script>
-        <script src="app.js?v=20261013i"></script>
+        <script src="vendor/supabase.min.js"></script>
+        <script src="config.js?v=20261014c"></script>
+        <script src="auth.js?v=20261015b"></script>
+        <script src="resume-data.js?v=20261014c"></script>
+        <script src="app.js?v=20261014c"></script>
     </body>
 </html>

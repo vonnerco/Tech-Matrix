@@ -6,6 +6,15 @@
   "observability": {
     "enabled": true,
   },
+  "vars": {
+    // Set to "false" once Supabase owns records (avoids a second copy of
+    // candidate PII in D1).
+    "PERSIST_D1": "false",
+    // Set both to require a Supabase login on the AI endpoints (invite-only).
+    // The anon key is not a secret. Leave blank for legacy (open) mode.
+    "SUPABASE_URL": "https://asnoxduvpngwvxwxslqj.supabase.co",
+    "SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFzbm94ZHV2cG5nd3Z4d3hzbHFqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTIwMDc4MzIsImV4cCI6MjEwNzU4MzgzMn0.IP2z-lzqE_nbO6l_sV_xm4K7RqHF-3oX8xM-6JYJmJA",
+  },
   "d1_databases": [
     {
       "binding": "DB",

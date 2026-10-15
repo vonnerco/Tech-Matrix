@@ -1,5 +1,8 @@
 # Resume & Matrix Builder
 
+Access is invite-only — accounts are created from the Supabase dashboard. Setup:
+[`docs/SUPABASE.md`](docs/SUPABASE.md).
+
 Strapped for time?
 <br> _Take 1 minute to confirm if a candidate is a fit for the role_
 <br><br> If candidate is good fit...

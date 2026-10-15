@@ -1,11 +1,16 @@
 // Resume-tailor API (Cloudflare Worker).
 //   POST /        rewrites resume bullets to match a target-role keyword.
 //   POST /score   scores a candidate resume's fit against a role (0-10) and
-//                 saves the result to D1.
+//                 saves the result to D1 (unless PERSIST_D1=false).
 //   GET /records  lists saved fit records (requires RECORDS_TOKEN).
 //   DELETE /records?id=  removes one saved record (requires RECORDS_TOKEN).
 // The DeepSeek API key and the records token live only in the Worker secret
 // store (DEEPSEEK_API_KEY, RECORDS_TOKEN) and never reach the browser.
+//
+// Optional invite-only gate: set SUPABASE_URL + SUPABASE_ANON_KEY and the two
+// AI endpoints (POST / and /score) require a valid Supabase access token, which
+// is verified against the project's /auth/v1/user endpoint. Leave them blank to
+// keep the endpoints open (legacy mode).
 
 const ALLOWED_ORIGINS = new Set([
   "https://vonnerco.github.io",
@@ -40,6 +45,34 @@ function corsHeaders(origin) {
 
 function jsonResponse(obj, status, headers) {
   return new Response(JSON.stringify(obj), { status, headers });
+}
+
+// Verify a Supabase access token. Returns the user object, or null when the
+// token is missing/invalid/expired. Uses the project's /auth/v1/user endpoint so
+// it works with both the legacy shared JWT secret and the new signing keys.
+async function verifySupabaseUser(request, env) {
+  const auth = request.headers.get("Authorization") || "";
+  const token = auth.startsWith("Bearer ") ? auth.slice(7).trim() : "";
+  if (!token) return null;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), UPSTREAM_TIMEOUT_MS);
+  try {
+    const base = String(env.SUPABASE_URL || "").replace(/\/+$/, "");
+    const res = await fetch(base + "/auth/v1/user", {
+      headers: {
+        apikey: env.SUPABASE_ANON_KEY || "",
+        Authorization: "Bearer " + token,
+      },
+      signal: controller.signal,
+    });
+    if (!res.ok) return null;
+    const user = await res.json();
+    return user && user.id ? user : null;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 // Curated "what this role owns" lenses. The model reframes the candidate's
@@ -499,8 +532,11 @@ function parseRecord(r) {
 }
 
 // Persist a scored result. Best-effort: never blocks the score response.
+// Set PERSIST_D1=false once Supabase owns records, to avoid a second copy of
+// candidate PII in D1.
 async function recordMatch(env, role, resume, resumeName, result, source) {
   if (!env.DB) return null;
+  if (String(env.PERSIST_D1 ?? "true").toLowerCase() === "false") return null;
   try {
     const info = await env.DB.prepare(
       "INSERT INTO matches (created_at, resume_name, role, resume, score, verdict, summary, dimensions, strengths, gaps, source) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
@@ -596,6 +632,14 @@ export default {
     }
     if (!env.DEEPSEEK_API_KEY) {
       return jsonResponse({ error: "server_misconfigured" }, 500, headers);
+    }
+
+    // Invite-only gate: when configured, require a valid Supabase login.
+    if (env.SUPABASE_URL && env.SUPABASE_ANON_KEY) {
+      const user = await verifySupabaseUser(request, env);
+      if (!user) {
+        return jsonResponse({ error: "unauthorized" }, 401, headers);
+      }
     }
 
     let body;
