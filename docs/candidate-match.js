@@ -313,13 +313,8 @@
   function render(r, meta) {
     const score = Number(r.score) || 0;
     const verdict = r.verdict || verdictFor(score);
-    // Name the role in the verdict, unless it already says it.
+    // The role heading is the job title pulled out of the pasted posting.
     const posTitle = jobTitle(meta.role, 70);
-    const alreadyNamed = posTitle
-      ? verdict.toLowerCase().includes(posTitle.slice(0, 30).toLowerCase())
-      : true;
-    const verdictText =
-      posTitle && !alreadyNamed ? verdict + " for " + posTitle : verdict;
     const cls = score >= 8 ? "good" : score >= 5.5 ? "mid" : "bad";
     const dims = (r.dimensions || [])
       .map(
@@ -346,10 +341,11 @@
       ? `<p class="handoff-row"><a class="handoff" href="index.html?${q.join("&amp;")}">Build a tailored resume for this role &rarr;</a></p>`
       : "";
     resultEl.innerHTML = `
+            ${posTitle ? `<h2 class="role-title">${esc(posTitle)}</h2>` : ""}
             <div class="scorecard ${cls}">
                 <div class="score-num">${score.toFixed(1)}<span>/10</span></div>
                 <div class="score-side">
-                    <div class="verdict">${esc(verdictText)}</div>
+                    <div class="verdict">${esc(verdict)}</div>
                     <div class="meta">${esc(meta.name)}${meta.chars ? " &middot; " + meta.chars.toLocaleString() + " chars parsed" : ""}${meta.note ? " &middot; " + esc(meta.note) : ""}</div>
                     <p class="summary">${esc(r.summary)}</p>
                 </div>
