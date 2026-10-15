@@ -24,6 +24,7 @@
   const historyCard = document.getElementById("history-card");
   const historyList = document.getElementById("history-list");
   const historyNote = document.getElementById("history-note");
+  const btnMigrate = document.getElementById("btn-hmigrate");
 
   // Job titles come from the shared helper in job-title.js; if it didn't load,
   // fall back to the first line of the role box.
@@ -444,6 +445,63 @@
     renderHistory();
   }
 
+  // ---- offline rows - do they belong to the account yet? ----
+
+  // Estimates scored while the worker was unreachable were never sent anywhere,
+  // so the browser copy is their only home and they kept no resume text.
+  const RESUMELESS = "(resume text not kept for this local estimate)";
+
+  function localOnlyRows() {
+    return loadHistory().filter((h) => !h.recorded);
+  }
+
+  // Copy those rows into the account, then mark the browser copy as recorded so
+  // the button stops offering them.
+  async function migrateLocalHistory() {
+    const rows = localOnlyRows();
+    if (!rows.length) return;
+    if (
+      !window.confirm(
+        "Move " +
+          rows.length +
+          " browser-only match(es) to your account? These rows kept no resume text, so a short note is stored in its place.",
+      )
+    )
+      return;
+    btnMigrate.disabled = true;
+    setStatus("Moving history…");
+    const payload = rows.map((h) => ({
+      resume_name: h.name || null,
+      role: h.role || "",
+      resume: RESUMELESS,
+      score: Number(h.score) || 0,
+      verdict: h.verdict || null,
+      summary: h.summary || null,
+      dimensions: h.dimensions || [],
+      strengths: h.strengths || [],
+      gaps: h.gaps || [],
+      source: h.source === "local" ? "local" : "ai",
+    }));
+    const { error } = await AUTH.client.from("matches").insert(payload);
+    btnMigrate.disabled = false;
+    if (error) {
+      setStatus("Could not move history: " + (error.message || "error"), "err");
+      return;
+    }
+    try {
+      const arr = loadHistory();
+      for (const h of arr) if (!h.recorded) h.recorded = true;
+      localStorage.setItem(
+        HISTORY_KEY,
+        JSON.stringify(arr.slice(0, HISTORY_MAX)),
+      );
+    } catch {
+      /* ignore */
+    }
+    setStatus("Moved " + rows.length + " match(es) to your account.");
+    await refreshHistory();
+  }
+
   function renderHistory() {
     const arr = historyRows;
     if (!arr.length) {
@@ -456,6 +514,12 @@
       historyNote.textContent = historyAccount
         ? "Saved to your account, so it follows you to any device you sign in to. Manage or delete records on the All records page."
         : "Saved in this browser only. Sign in to keep match history on your account.";
+    }
+    if (btnMigrate) {
+      const n = localOnlyRows().length;
+      btnMigrate.hidden = !historyAccount || !n;
+      btnMigrate.textContent =
+        "Move " + n + " browser-only match(es) to my account";
     }
     historyList.innerHTML = arr
       .map((h, i) => {
@@ -656,6 +720,8 @@
     }
     await refreshHistory();
   });
+
+  if (btnMigrate) btnMigrate.addEventListener("click", migrateLocalHistory);
 
   // Click a stored result to re-open it in the result panel.
   historyList.addEventListener("click", (e) => {
