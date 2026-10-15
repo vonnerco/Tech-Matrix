@@ -25,6 +25,7 @@
   const historyList = document.getElementById("history-list");
   const historyNote = document.getElementById("history-note");
   const btnMigrate = document.getElementById("btn-hmigrate");
+  const btnSort = document.getElementById("btn-sort");
 
   // Job titles come from the shared helper in job-title.js; if it didn't load,
   // fall back to the first line of the role box.
@@ -413,6 +414,46 @@
     };
   }
 
+  // ---- sorting ----
+
+  // Cycles on click: newest first, then score, resume name (which carries the
+  // file type), and job title.
+  const SORT_MODES = [
+    {
+      label: "Sort: newest",
+      cmp: (a, b) => (b.ts || 0) - (a.ts || 0),
+    },
+    {
+      label: "Sort: score",
+      cmp: (a, b) =>
+        (Number(b.score) || 0) - (Number(a.score) || 0) ||
+        (b.ts || 0) - (a.ts || 0),
+    },
+    {
+      label: "Sort: resume name",
+      cmp: (a, b) =>
+        String(a.name || "")
+          .toLowerCase()
+          .localeCompare(String(b.name || "").toLowerCase()),
+    },
+    {
+      label: "Sort: job title",
+      cmp: (a, b) =>
+        jobTitle(a.role)
+          .toLowerCase()
+          .localeCompare(jobTitle(b.role).toLowerCase()) ||
+        String(a.name || "")
+          .toLowerCase()
+          .localeCompare(String(b.name || "").toLowerCase()),
+    },
+  ];
+  let sortMode = 0;
+  let allRows = []; // unsorted, so switching sort doesn't lose rows
+
+  function sortRows(arr) {
+    return arr.slice().sort(SORT_MODES[sortMode].cmp);
+  }
+
   // The account's rows when signed in, plus any offline estimate that never
   // reached the server; the browser copy otherwise.
   async function refreshHistory() {
@@ -427,12 +468,11 @@
           .limit(HISTORY_MAX);
         if (!error && Array.isArray(data)) {
           historyAccount = true;
-          historyRows = [
+          allRows = [
             ...data.map(remoteRow),
             ...loadHistory().filter((h) => !h.recorded),
-          ]
-            .sort((a, b) => (b.ts || 0) - (a.ts || 0))
-            .slice(0, HISTORY_MAX);
+          ];
+          historyRows = sortRows(allRows).slice(0, HISTORY_MAX);
           renderHistory();
           return;
         }
@@ -441,7 +481,8 @@
       }
     }
     historyAccount = false;
-    historyRows = loadHistory();
+    allRows = loadHistory();
+    historyRows = sortRows(allRows).slice(0, HISTORY_MAX);
     renderHistory();
   }
 
@@ -765,6 +806,13 @@
   });
 
   if (btnMigrate) btnMigrate.addEventListener("click", migrateLocalHistory);
+  if (btnSort)
+    btnSort.addEventListener("click", () => {
+      sortMode = (sortMode + 1) % SORT_MODES.length;
+      btnSort.textContent = SORT_MODES[sortMode].label;
+      historyRows = sortRows(allRows).slice(0, HISTORY_MAX);
+      renderHistory();
+    });
 
   // Click a stored result to re-open it in the result panel, or delete one row.
   historyList.addEventListener("click", (e) => {

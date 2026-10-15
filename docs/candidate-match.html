@@ -344,8 +344,15 @@
             #history-card button {
                 background: var(--ink);
             }
-            #btn-hclear {
+            /* Two ids, so these beat the #history-card button rule above. */
+            #history-card #btn-sort,
+            #history-card #btn-hclear {
                 background: #6b7280;
+            }
+            .row-actions {
+                display: flex;
+                justify-content: flex-end;
+                margin-bottom: 4px;
             }
             /* Beats the #history-card button rule above (id + class + element). */
             #history-card button.hopen {
@@ -463,11 +470,14 @@
                 </h2>
                 <p class="hint" id="history-note"></p>
                 <div class="controls">
+                    <button id="btn-sort" type="button">Sort: newest</button>
                     <button id="btn-csv" type="button">Export CSV</button>
                     <button id="btn-json" type="button">Export JSON</button>
                     <button id="btn-hmigrate" type="button" hidden>
                         Move browser history to my account
                     </button>
+                </div>
+                <div class="row-actions">
                     <button id="btn-hclear" type="button">Clear history</button>
                 </div>
                 <div id="history-list"></div>
@@ -480,6 +490,6 @@
         <script src="config.js?v=20261014c"></script>
         <script src="auth.js?v=20261015b"></script>
         <script src="job-title.js?v=20261015d"></script>
-        <script src="candidate-match.js?v=20261015l"></script>
+        <script src="candidate-match.js?v=20261015m"></script>
     </body>
 </html>
