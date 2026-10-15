@@ -148,10 +148,14 @@
     return items;
   }
 
+  // Why the last AI call failed — surfaced in the status line and the console.
+  var aiReason = "";
+
   // Ask the worker to rewrite every bullet; returns revised[ei][bi] or null.
   function aiRewrite(keyword, items, focus, strength, projects, applyAll) {
     var url = window.WORKER_URL;
     if (!url) return Promise.resolve(null);
+    aiReason = "";
     var authHeaders =
       window.Auth && window.Auth.apiHeaders
         ? window.Auth.apiHeaders()
@@ -177,11 +181,22 @@
         });
       })
       .then(function (r) {
-        if (!r.ok) throw new Error("worker_" + r.status);
+        if (!r.ok) {
+          aiReason =
+            r.status === 401
+              ? "sign in required"
+              : r.status === 403
+                ? "origin blocked"
+                : "HTTP " + r.status;
+          throw new Error("worker_" + r.status);
+        }
         return r.json();
       })
       .then(function (data) {
-        if (!data || !Array.isArray(data.revised)) throw new Error("bad_shape");
+        if (!data || !Array.isArray(data.revised)) {
+          aiReason = "unexpected response";
+          throw new Error("bad_shape");
+        }
         var grid = [];
         items.forEach(function (it, i) {
           var text = data.revised[i];
@@ -191,7 +206,13 @@
         });
         return grid;
       })
-      .catch(function () {
+      .catch(function (e) {
+        if (!aiReason)
+          aiReason =
+            e instanceof TypeError
+              ? "network or CORS blocked"
+              : (e && e.message) || String(e);
+        console.warn("[AI] " + aiReason, e);
         return null;
       });
   }
@@ -731,7 +752,9 @@
           showPreview(grid);
           status.textContent = grid
             ? "Preview updated with AI."
-            : "AI unavailable \u2014 showing original bullets.";
+            : "AI unavailable \u2014 showing original bullets" +
+              (aiReason ? " (" + aiReason + ")" : "") +
+              ".";
         });
       }, 700);
     }
@@ -758,7 +781,9 @@
         function (grid) {
           if (!grid) {
             status.textContent =
-              "AI unavailable \u2014 download will use the original bullets.";
+              "AI unavailable \u2014 download will use the original bullets" +
+              (aiReason ? " (" + aiReason + ")" : "") +
+              ".";
           }
           aiCache = { key: key, grid: grid };
           cb(grid);
