@@ -42,7 +42,7 @@
 
   function setStatus(msg, kind) {
     statusEl.textContent = msg || "";
-    statusEl.style.color = kind === "err" ? "var(--bad)" : "var(--text-strong)";
+    statusEl.style.color = kind === "err" ? "var(--bad)" : "var(--ink)";
   }
 
   function esc(s) {

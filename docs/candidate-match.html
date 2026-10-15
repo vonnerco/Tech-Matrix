@@ -3,300 +3,347 @@
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <meta name="theme-color" content="#12324e" />
         <title>Candidate Skill Match — Fit Score</title>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
         <link
             rel="stylesheet"
-            href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap"
+            href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;700&display=swap"
         />
         <script>
-            // Apply a saved theme before first paint to avoid a flash.
-            (function () {
-                try {
-                    var t = localStorage.getItem("theme");
-                    if (t === "light" || t === "dark") {
-                        document.documentElement.setAttribute("data-theme", t);
-                        document.documentElement.style.colorScheme = t;
-                    }
-                } catch (e) {}
-            })();
+            </title>            // Apply a saved theme before first paint to avoid a flash.
+                        (function () {
+                            try {
+                                var t = localStorage.getItem("theme");
+                                if (t === "light" || t === "dark")
+                                    document.documentElement.setAttribute("data-theme", t);
+                            } catch (e) {}
+                        })();
         </script>
         <style>
             :root {
-                color-scheme: light dark;
-
-                /* One definition per token; light-dark() resolves against the
-                   active color-scheme, which the toggle sets on <html>. */
-                --paper: light-dark(#eef1f5, #0f1620);
-                --surface: light-dark(#ffffff, #172232);
-                --inset: light-dark(#f5f7fa, #1c2938);
-                --hover: light-dark(#eef4fb, #22354b);
-
-                --text: light-dark(#1a222c, #dbe4ee);
-                --text-strong: light-dark(#10233a, #f2f6fb);
-                --muted: light-dark(#5a6b7c, #9fb0c2);
-
-                --brand: light-dark(#12324e, #142c46);
-                --brand-ink: light-dark(#ffffff, #eaf1f9);
-                --brand-muted: light-dark(#c2cfdd, #b6c6d8);
-                --brand-link: light-dark(#a8c8f0, #a8c8f0);
-                --bar: light-dark(#12324e, #5b8fc4);
-
-                --line: light-dark(#d7dee6, #2a3b4f);
-                --line-soft: light-dark(#e9eef3, #23344a);
-                --track: light-dark(#e7ecf2, #24374d);
-
-                --mark: light-dark(#f5c518, #e0b21f);
-                --good: light-dark(#1f7a4d, #4cc38a);
-                --mid: light-dark(#b4761a, #d8a544);
-                --bad: light-dark(#b4231f, #e86a63);
-                --neutral: light-dark(#64748b, #7c8ea1);
-
-                --r-sm: 8px;
-                --r: 12px;
-                --shadow:
-                    0 1px 2px
-                        light-dark(rgba(16, 35, 60, 0.05), rgba(0, 0, 0, 0.4)),
-                    0 14px 30px -24px
-                        light-dark(rgba(16, 35, 60, 0.55), rgba(0, 0, 0, 0.85));
-
-                --font-display:
-                    "Space Grotesk", "Segoe UI", system-ui, sans-serif;
-                --font-body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
-
-                /* Legacy alias, so any older rule still resolves. */
-                --ink: var(--brand);
-            }
-            :root[data-theme="light"] {
+                --paper: #e9ecf5;
+                --panel: #ffffff;
+                --ink: #141a2e;
+                --muted: #59607a;
+                --line: #cbd1e2;
+                --accent: #2f4be0;
+                --accent-2: #0e9c8a;
+                --on-accent: #ffffff;
+                --good: #0e9c8a;
+                --mid: #b4761a;
+                --bad: #c0392b;
+                --font-sans:
+                    "Space Grotesk", system-ui, -apple-system, "Segoe UI",
+                    sans-serif;
+                --font-mono:
+                    "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo,
+                    monospace;
+                --shadow: 0 18px 40px -28px rgba(0, 0, 0, 0.55);
                 color-scheme: light;
             }
+
+            @media (prefers-color-scheme: dark) {
+                :root:not([data-theme]) {
+                    --paper: #000000;
+                    --panel: #0a0a0c;
+                    --ink: #ececee;
+                    --muted: #8e8e96;
+                    --line: #1c1c20;
+                    --accent: #8a9bff;
+                    --accent-2: #3fd9c4;
+                    --on-accent: #000000;
+                    --good: #3fd9c4;
+                    --mid: #e0b155;
+                    --bad: #ff7a6b;
+                    color-scheme: dark;
+                }
+            }
+
             :root[data-theme="dark"] {
+                --paper: #000000;
+                --panel: #0a0a0c;
+                --ink: #ececee;
+                --muted: #8e8e96;
+                --line: #1c1c20;
+                --accent: #8a9bff;
+                --accent-2: #3fd9c4;
+                --on-accent: #000000;
+                --good: #3fd9c4;
+                --mid: #e0b155;
+                --bad: #ff7a6b;
                 color-scheme: dark;
             }
-            * {
+
+            :root[data-theme="light"] {
+                --paper: #e9ecf5;
+                --panel: #ffffff;
+                --ink: #141a2e;
+                --muted: #59607a;
+                --line: #cbd1e2;
+                --accent: #2f4be0;
+                --accent-2: #0e9c8a;
+                --on-accent: #ffffff;
+                --good: #0e9c8a;
+                --mid: #b4761a;
+                --bad: #c0392b;
+                color-scheme: light;
+            }
+
+            *,
+            *::before,
+            *::after {
                 box-sizing: border-box;
             }
-            html {
-                -webkit-text-size-adjust: 100%;
+
+            [hidden] {
+                display: none !important;
             }
+
             body {
                 margin: 0;
-                font-family: var(--font-body);
-                font-size: 15px;
-                line-height: 1.55;
-                color: var(--text);
                 background: var(--paper);
+                color: var(--ink);
+                font-family: var(--font-sans);
+                font-size: 1.0625rem;
+                line-height: 1.6;
                 -webkit-font-smoothing: antialiased;
+                text-rendering: optimizeLegibility;
             }
-            h1,
-            h2,
-            h3 {
-                font-family: var(--font-display);
+
+            a {
+                color: inherit;
             }
+
             :focus-visible {
-                outline: 2px solid var(--mark);
+                outline: 2px solid var(--accent-2);
                 outline-offset: 2px;
+                border-radius: 2px;
             }
-            header {
-                background: var(--brand);
-                color: var(--brand-ink);
-                padding: 26px 20px 22px;
-                border-bottom: 3px solid var(--mark);
+
+            .skip {
+                position: absolute;
+                left: -9999px;
             }
-            header .masthead {
-                max-width: 940px;
-                margin: 0 auto;
-                display: flex;
-                align-items: flex-end;
-                justify-content: space-between;
-                gap: 18px 24px;
-                flex-wrap: wrap;
-            }
-            header h1 {
-                margin: 0;
-                font-size: clamp(1.3rem, 1rem + 1.1vw, 1.7rem);
-                font-weight: 700;
-                letter-spacing: -0.015em;
-            }
-            header p {
-                margin: 8px 0 0;
-                max-width: 58ch;
-                color: var(--brand-muted);
-                font-size: 14px;
-            }
-            header a {
-                color: var(--brand-link);
-                text-decoration: none;
-            }
-            header a:hover {
-                text-decoration: underline;
-            }
-            header .actions {
-                display: flex;
-                gap: 10px;
-                flex-wrap: wrap;
-            }
-            header a.cta {
-                display: inline-block;
-                padding: 10px 16px;
-                border-radius: var(--r-sm);
-                background: var(--brand-ink);
-                color: var(--brand);
-                font-family: var(--font-display);
-                font-size: 14px;
-                font-weight: 600;
-                text-decoration: none;
-                transition:
-                    filter 0.15s ease,
-                    background 0.15s ease;
-            }
-            header a.cta:hover {
-                filter: brightness(0.94);
-                text-decoration: none;
-            }
-            header a.cta.ghost {
-                background: transparent;
-                color: var(--brand-ink);
-                border: 1px solid rgba(255, 255, 255, 0.45);
-            }
-            header a.cta.ghost:hover {
-                background: rgba(255, 255, 255, 0.12);
-                filter: none;
-            }
-            header .theme-toggle {
-                padding: 10px 14px;
-                font-size: 13px;
-                background: transparent;
-                color: var(--brand-ink);
-                border: 1px solid rgba(255, 255, 255, 0.45);
-            }
-            header .theme-toggle:hover,
-            header .theme-toggle:focus-visible {
-                background: rgba(255, 255, 255, 0.12);
-                filter: none;
-            }
-            .wrap {
-                max-width: 940px;
-                margin: 0 auto;
-                padding: 24px 20px 56px;
-            }
-            .card {
-                background: var(--surface);
+            .skip:focus {
+                left: 1rem;
+                top: 1rem;
+                z-index: 10;
+                padding: 0.5rem 0.75rem;
+                background: var(--panel);
                 border: 1px solid var(--line);
-                border-radius: var(--r);
-                padding: 22px;
+            }
+
+            .wrap {
+                max-width: 68rem;
+                margin-inline: auto;
+                padding-inline: clamp(1.25rem, 5vw, 3rem);
+            }
+
+            /* ---- topbar ---- */
+            .topbar {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 1rem;
+                flex-wrap: wrap;
+                padding-block: 1.25rem;
+                border-bottom: 1px solid var(--line);
+            }
+            .brand {
+                display: flex;
+                align-items: baseline;
+                gap: 0.6rem;
+                flex-wrap: wrap;
+                margin: 0;
+            }
+            .brand-name {
+                font-weight: 700;
+                letter-spacing: -0.01em;
+            }
+            .brand-role {
+                color: var(--muted);
+                font-size: 0.9375rem;
+            }
+
+            .theme-toggle {
+                display: inline-flex;
+                align-items: center;
+                gap: 0.5rem;
+                padding: 0.45rem 0.75rem;
+                border: 1px solid var(--line);
+                border-radius: 8px;
+                background: transparent;
+                color: var(--ink);
+                font: inherit;
+                font-size: 0.875rem;
+                cursor: pointer;
+            }
+            .theme-toggle svg {
+                width: 1rem;
+                height: 1rem;
+            }
+
+            /* ---- intro ---- */
+            .intro {
+                padding-block: clamp(2.5rem, 7vw, 4rem);
+            }
+            .intro h1 {
+                margin: 0 0 1rem;
+                max-width: 24ch;
+                font-size: clamp(1.9rem, 4.5vw, 3rem);
+                font-weight: 700;
+                line-height: 1.05;
+                letter-spacing: -0.025em;
+                text-wrap: balance;
+            }
+            .lead {
+                max-width: 52ch;
+                margin: 0 0 1.75rem;
+                color: var(--muted);
+                font-size: 1.125rem;
+            }
+            .actions {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 0.75rem;
+            }
+
+            .btn {
+                display: inline-block;
+                padding: 0.7rem 1.15rem;
+                border-radius: 8px;
+                border: 1px solid transparent;
+                font: inherit;
+                font-weight: 500;
+                text-decoration: none;
+                cursor: pointer;
+            }
+            .btn:hover {
+                filter: brightness(1.06);
+            }
+            .btn-primary {
+                background: var(--accent);
+                color: var(--on-accent);
+            }
+            .btn-ghost {
+                border-color: var(--line);
+                color: var(--ink);
+                background: transparent;
+            }
+            .btn:disabled {
+                opacity: 0.55;
+                cursor: not-allowed;
+                filter: none;
+            }
+
+            /* ---- blocks ---- */
+            .block {
+                padding-block: clamp(2.25rem, 6vw, 3.5rem);
+            }
+            .block + .block {
+                border-top: 1px solid var(--line);
+            }
+            .block-title {
+                margin: 0 0 1.25rem;
+                font-size: clamp(1.35rem, 3vw, 1.9rem);
+                font-weight: 700;
+                letter-spacing: -0.02em;
+            }
+            h2.section {
+                margin: 0 0 0.9rem;
+                font-size: 1.0625rem;
+                font-weight: 500;
+                letter-spacing: -0.01em;
+            }
+
+            /* ---- panel ---- */
+            .panel {
+                border: 1px solid var(--line);
+                border-radius: 12px;
+                background: var(--panel);
+                overflow: hidden;
                 box-shadow: var(--shadow);
             }
+            .panel-head {
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+                padding: 0.6rem 0.9rem;
+                border-bottom: 1px solid var(--line);
+                color: var(--muted);
+                font-family: var(--font-mono);
+                font-size: 0.8125rem;
+            }
+            .dot {
+                flex: none;
+                width: 0.55rem;
+                height: 0.55rem;
+                border-radius: 50%;
+                background: var(--accent-2);
+            }
+            .panel-body {
+                display: grid;
+                gap: 1.1rem;
+                padding: clamp(1rem, 3vw, 1.5rem);
+            }
+
+            /* ---- form ---- */
+            .field {
+                display: grid;
+                gap: 0.4rem;
+            }
             label.kw {
-                display: block;
-                width: 100%;
-                margin-bottom: 6px;
-                font-family: var(--font-display);
-                font-size: 13px;
-                font-weight: 600;
-                color: var(--text-strong);
+                font-size: 0.9375rem;
+                font-weight: 500;
             }
             textarea {
                 width: 100%;
-                padding: 12px 14px;
-                font-family: inherit;
-                font-size: 14px;
-                line-height: 1.5;
-                color: var(--text);
-                background: var(--inset);
+                min-height: 7rem;
+                padding: 0.7rem 0.8rem;
+                font: inherit;
+                font-size: 0.9375rem;
+                color: inherit;
+                background: var(--paper);
                 border: 1px solid var(--line);
-                border-radius: var(--r-sm);
+                border-radius: 8px;
                 resize: vertical;
-                min-height: 96px;
-                margin-bottom: 18px;
-                transition:
-                    border-color 0.15s ease,
-                    background 0.15s ease,
-                    box-shadow 0.15s ease;
             }
             textarea::placeholder {
                 color: var(--muted);
             }
             textarea:focus {
-                outline: none;
-                background: var(--surface);
-                border-color: var(--brand);
-                box-shadow: 0 0 0 3px
-                    color-mix(in srgb, var(--brand) 16%, transparent);
+                border-color: var(--accent);
             }
             input[type="file"] {
-                flex: 1 1 320px;
-                font-size: 13px;
+                flex: 1 1 18rem;
+                font: inherit;
+                font-size: 0.875rem;
                 color: var(--muted);
             }
             .controls {
                 display: flex;
-                gap: 10px;
-                flex-wrap: wrap;
                 align-items: center;
-            }
-            button {
-                border: 1px solid transparent;
-                border-radius: var(--r-sm);
-                padding: 11px 18px;
-                font-family: var(--font-display);
-                font-size: 14px;
-                font-weight: 600;
-                cursor: pointer;
-                color: var(--brand-ink);
-                background: var(--brand);
-                transition: filter 0.15s ease;
-            }
-            #btn-score {
-                background: var(--brand);
-            }
-            #btn-clear {
-                background: var(--neutral);
-            }
-            button:hover {
-                filter: brightness(1.09);
-            }
-            button:disabled {
-                opacity: 0.55;
-                cursor: not-allowed;
-                filter: none;
+                flex-wrap: wrap;
+                gap: 0.75rem;
             }
             .hint {
-                font-size: 12.5px;
+                margin: 0;
+                max-width: 68ch;
                 color: var(--muted);
-                margin-top: 12px;
+                font-size: 0.875rem;
             }
             #status {
-                font-size: 13px;
-                color: var(--text-strong);
-                margin-top: 12px;
-                font-weight: 600;
+                font-size: 0.9375rem;
+                font-weight: 500;
             }
             #status:empty {
-                margin: 0;
+                display: none;
             }
-            h2.section {
-                font-family: var(--font-display);
-                font-size: 15px;
-                font-weight: 600;
-                letter-spacing: -0.01em;
-                color: var(--text-strong);
-                margin: 28px 0 12px;
-                padding-top: 16px;
-                border-top: 1px solid var(--line-soft);
-            }
-            h2.section:first-child {
-                margin-top: 0;
-                padding-top: 0;
-                border-top: 0;
-            }
-            #result {
-                margin-top: 26px;
-            }
+
+            /* ---- result ---- */
             #result:not([hidden]) {
-                animation: rise 0.35s ease both;
+                animation: rise 0.4s ease both;
             }
             @keyframes rise {
                 from {
@@ -308,37 +355,28 @@
                     transform: none;
                 }
             }
-            .handoff-row {
-                margin: 18px 0 0;
+            #result > * + * {
+                margin-top: 2rem;
             }
-            a.handoff {
-                display: inline-block;
-                padding: 12px 18px;
-                border-radius: var(--r-sm);
-                background: var(--brand);
-                color: var(--brand-ink);
-                font-family: var(--font-display);
-                font-size: 14px;
-                font-weight: 600;
-                text-decoration: none;
-                transition: filter 0.15s ease;
+
+            .role-title {
+                margin: 0;
+                font-size: clamp(1.25rem, 2.5vw, 1.6rem);
+                font-weight: 500;
+                letter-spacing: -0.01em;
             }
-            a.handoff:hover {
-                filter: brightness(1.09);
-                text-decoration: none;
-            }
-            #result[hidden] {
-                display: none;
-            }
+
             .scorecard {
-                display: flex;
-                gap: 22px;
+                display: grid;
+                grid-template-columns: auto 1fr;
                 align-items: center;
-                background: var(--surface);
+                gap: 0.75rem 1.5rem;
+                padding: clamp(1.1rem, 3vw, 1.5rem);
+                background: var(--panel);
                 border: 1px solid var(--line);
-                border-left: 6px solid var(--bar);
-                border-radius: var(--r);
-                padding: 22px 24px;
+                border-left-width: 3px;
+                border-left-color: var(--muted);
+                border-radius: 12px;
             }
             .scorecard.good {
                 border-left-color: var(--good);
@@ -350,36 +388,26 @@
                 border-left-color: var(--bad);
             }
             .score-num {
-                font-family: var(--font-display);
-                font-size: 48px;
+                font-size: clamp(2.25rem, 5vw, 3rem);
                 font-weight: 700;
-                font-variant-numeric: tabular-nums;
-                color: var(--text-strong);
                 line-height: 1;
+                letter-spacing: -0.02em;
                 white-space: nowrap;
             }
             .score-num span {
-                font-size: 17px;
-                font-weight: 600;
+                margin-left: 0.15rem;
+                font-family: var(--font-mono);
+                font-size: 0.9375rem;
+                font-weight: 400;
                 color: var(--muted);
             }
             .score-side {
-                flex: 1 1 auto;
                 min-width: 0;
             }
-            /* The verdict reads as a stamped call on the file. */
             .verdict {
-                display: inline-block;
-                padding: 5px 12px;
-                border: 2px solid currentColor;
-                border-radius: 6px;
-                font-family: var(--font-display);
-                font-size: 13px;
-                font-weight: 700;
-                letter-spacing: 0.08em;
-                text-transform: uppercase;
-                color: var(--text-strong);
-                transform: rotate(-1.5deg);
+                font-family: var(--font-mono);
+                font-size: 0.875rem;
+                color: var(--mid);
             }
             .scorecard.good .verdict {
                 color: var(--good);
@@ -390,58 +418,80 @@
             .scorecard.bad .verdict {
                 color: var(--bad);
             }
-            .role-title {
-                font-family: var(--font-display);
-                font-size: 19px;
-                font-weight: 700;
-                letter-spacing: -0.01em;
-                color: var(--text-strong);
-                margin: 0 0 12px;
-            }
             .meta {
-                font-size: 12.5px;
+                margin-top: 0.35rem;
+                font-family: var(--font-mono);
+                font-size: 0.75rem;
                 color: var(--muted);
-                margin-top: 6px;
             }
             .summary {
-                font-size: 14px;
-                margin: 8px 0 0;
-                max-width: 72ch;
-                color: var(--text);
+                margin: 0.6rem 0 0;
+                max-width: 62ch;
             }
+
             .dims {
                 display: grid;
-                gap: 14px;
+                gap: 1.1rem;
             }
             .dim-head {
                 display: flex;
                 justify-content: space-between;
-                gap: 12px;
-                font-size: 13px;
-                font-weight: 600;
-                color: var(--text-strong);
-                margin-bottom: 6px;
+                gap: 1rem;
+                margin-bottom: 0.4rem;
+                font-size: 0.9375rem;
+                font-weight: 500;
+            }
+            .dim-head span:last-child {
+                font-family: var(--font-mono);
+                font-size: 0.8125rem;
+                color: var(--muted);
             }
             .bar {
-                height: 8px;
-                background: var(--track);
+                height: 6px;
+                background: var(--line);
                 border-radius: 999px;
                 overflow: hidden;
             }
             .bar span {
                 display: block;
                 height: 100%;
-                background: var(--bar);
+                background: var(--accent);
+                transform-origin: left;
+                animation: grow 0.5s ease both;
+            }
+            @keyframes grow {
+                from {
+                    transform: scaleX(0);
+                }
+                to {
+                    transform: scaleX(1);
+                }
+            }
+            .dim:nth-child(2) .bar span {
+                animation-delay: 0.07s;
+            }
+            .dim:nth-child(3) .bar span {
+                animation-delay: 0.14s;
+            }
+            .dim:nth-child(4) .bar span {
+                animation-delay: 0.21s;
+            }
+            .dim:nth-child(5) .bar span {
+                animation-delay: 0.28s;
+            }
+            .dim:nth-child(6) .bar span {
+                animation-delay: 0.35s;
             }
             .dim-note {
-                font-size: 12.5px;
+                margin: 0.4rem 0 0;
                 color: var(--muted);
-                margin-top: 6px;
+                font-size: 0.875rem;
             }
+
             .cols {
                 display: grid;
                 grid-template-columns: 1fr 1fr;
-                gap: 24px;
+                gap: 2rem;
             }
             ul.chips {
                 list-style: none;
@@ -449,46 +499,85 @@
                 padding: 0;
                 display: flex;
                 flex-wrap: wrap;
-                gap: 8px;
+                gap: 0.5rem;
             }
             ul.chips li {
-                font-size: 12.5px;
-                padding: 5px 11px;
-                border-radius: var(--r-sm);
+                padding: 0.35rem 0.6rem;
+                font-size: 0.875rem;
                 border: 1px solid var(--line);
-                background: var(--inset);
-                color: var(--text);
+                border-radius: 8px;
             }
             ul.chips.good li {
-                border-color: color-mix(in srgb, var(--good) 38%, var(--line));
-                background: color-mix(in srgb, var(--good) 10%, var(--surface));
+                border-color: var(--good);
+                color: var(--good);
             }
             ul.chips.bad li {
-                border-color: color-mix(in srgb, var(--bad) 34%, var(--line));
-                background: color-mix(in srgb, var(--bad) 9%, var(--surface));
+                border-color: var(--bad);
+                color: var(--bad);
             }
             .muted {
-                font-size: 13px;
+                margin: 0;
                 color: var(--muted);
+                font-size: 0.9375rem;
             }
-            #history-card {
-                margin-top: 22px;
+
+            .handoff-row {
+                margin: 0;
             }
-            #history-card[hidden] {
-                display: none;
+            a.handoff {
+                display: inline-block;
+                padding: 0.7rem 1.15rem;
+                border-radius: 8px;
+                background: var(--accent);
+                color: var(--on-accent);
+                font-weight: 500;
+                text-decoration: none;
+            }
+            a.handoff:hover {
+                filter: brightness(1.06);
+            }
+
+            /* ---- history ---- */
+            #history-card .controls {
+                margin-bottom: 0.75rem;
+            }
+            .row-actions {
+                display: flex;
+                justify-content: flex-end;
+                margin-bottom: 0.5rem;
             }
             .hrow {
                 display: grid;
                 grid-template-columns: 1fr auto;
-                gap: 6px;
                 align-items: center;
-                border-top: 1px solid var(--line-soft);
+                gap: 0.5rem;
+                border-top: 1px solid var(--line);
+            }
+            .hrow:last-child {
+                border-bottom: 1px solid var(--line);
+            }
+            #history-card button.hopen {
+                width: 100%;
+                display: grid;
+                grid-template-columns: 3.25rem 1.1fr 1.5fr auto;
+                align-items: center;
+                gap: 0.75rem;
+                padding: 0.7rem 0.25rem;
+                background: none;
+                border: 0;
+                border-radius: 0;
+                font: inherit;
+                font-size: 0.9375rem;
+                text-align: left;
+                color: inherit;
+                cursor: pointer;
+            }
+            #history-card button.hopen:hover {
+                background: var(--panel);
             }
             .hscore {
-                font-family: var(--font-display);
-                font-variant-numeric: tabular-nums;
-                font-weight: 700;
-                color: var(--text-strong);
+                font-family: var(--font-mono);
+                font-weight: 500;
             }
             .hscore.good {
                 color: var(--good);
@@ -500,8 +589,7 @@
                 color: var(--bad);
             }
             .hname {
-                font-weight: 600;
-                color: var(--text-strong);
+                font-weight: 500;
                 overflow: hidden;
                 text-overflow: ellipsis;
                 white-space: nowrap;
@@ -513,259 +601,259 @@
                 white-space: nowrap;
             }
             .hwhen {
+                font-family: var(--font-mono);
+                font-size: 0.75rem;
                 color: var(--muted);
-                font-size: 12px;
                 white-space: nowrap;
             }
-            #history-card .controls {
-                margin-bottom: 10px;
-            }
-            #history-card button {
-                background: var(--brand);
-            }
-            /* Two ids, so these beat the #history-card button rule above. */
-            #history-card #btn-sort,
-            #history-card #btn-hclear {
-                background: var(--neutral);
-            }
-            .row-actions {
-                display: flex;
-                justify-content: flex-end;
-                margin-bottom: 4px;
-            }
-            /* Beats the #history-card button rule above (id + class + element). */
-            #history-card button.hopen {
-                width: 100%;
-                display: grid;
-                grid-template-columns: 52px 1.2fr 1.6fr auto;
-                gap: 10px;
-                align-items: center;
-                padding: 8px 6px;
-                background: none;
-                border: 0;
-                border-radius: 0;
-                font-family: var(--font-body);
-                font-size: 13px;
-                text-align: left;
-                color: inherit;
-                cursor: pointer;
-                transition: background 0.15s ease;
-            }
-            #history-card button.hopen:hover {
-                background: var(--hover);
-            }
-            #history-card button.hopen:focus-visible {
-                background: var(--hover);
-                outline: 2px solid var(--mark);
-                outline-offset: -2px;
-            }
             #history-card button.hdel {
-                background: color-mix(in srgb, var(--bad) 12%, var(--surface));
+                padding: 0.35rem 0.6rem;
+                border: 1px solid var(--line);
+                border-radius: 8px;
+                background: transparent;
                 color: var(--bad);
-                border: 1px solid
-                    color-mix(in srgb, var(--bad) 34%, transparent);
-                padding: 6px 10px;
-                font-size: 12px;
-                font-weight: 600;
-                border-radius: 6px;
+                font: inherit;
+                font-size: 0.8125rem;
                 cursor: pointer;
             }
-            #history-card button.hdel:hover,
-            #history-card button.hdel:focus-visible {
-                background: color-mix(in srgb, var(--bad) 20%, var(--surface));
-                filter: none;
-                outline: 2px solid
-                    color-mix(in srgb, var(--bad) 45%, transparent);
-                outline-offset: 1px;
+            #history-card button.hdel:hover {
+                border-color: var(--bad);
             }
+
             .tip {
                 position: fixed;
                 left: 0;
                 top: 0;
                 z-index: 60;
-                max-width: min(560px, 90vw);
+                max-width: min(34rem, 90vw);
                 max-height: 80vh;
                 overflow: auto;
-                background: var(--brand);
-                color: var(--brand-ink);
-                padding: 10px 12px;
+                padding: 0.6rem 0.75rem;
+                background: var(--panel);
+                color: var(--ink);
                 border: 1px solid var(--line);
-                border-radius: var(--r-sm);
-                font-family: var(--font-body);
-                font-size: 12.5px;
-                line-height: 1.45;
+                border-radius: 8px;
+                font-family: var(--font-mono);
+                font-size: 0.8125rem;
+                line-height: 1.5;
                 white-space: pre-wrap;
                 overflow-wrap: anywhere;
-                box-shadow: 0 8px 24px rgba(6, 15, 26, 0.32);
+                box-shadow: var(--shadow);
             }
-            .tip[hidden] {
-                display: none;
+
+            @media (max-width: 48rem) {
+                .scorecard {
+                    grid-template-columns: 1fr;
+                }
+                .cols {
+                    grid-template-columns: 1fr;
+                }
             }
-            @media (max-width: 620px) {
+            @media (max-width: 40rem) {
                 #history-card button.hopen {
-                    grid-template-columns: 44px 1fr;
+                    grid-template-columns: 3rem 1fr;
                 }
                 .hrole,
                 .hwhen {
                     grid-column: 2;
                 }
             }
-            @media (max-width: 620px) {
-                .scorecard {
-                    flex-direction: column;
-                    align-items: flex-start;
-                }
-                .cols {
-                    grid-template-columns: 1fr;
-                }
-            }
+
             @media (prefers-reduced-motion: reduce) {
                 *,
                 *::before,
                 *::after {
                     animation-duration: 0.001ms !important;
-                    animation-iteration-count: 1 !important;
                     transition-duration: 0.001ms !important;
                 }
             }
         </style>
     </head>
     <body>
-        <header>
-            <div class="masthead">
-                <div>
-                    <h1>Candidate Skill Match</h1>
-                    <p>
-                        Score a resume against a role in seconds, then keep a
-                        record of the call you made.
-                    </p>
-                </div>
-                <div class="actions">
-                    <a class="cta" href="index.html">Build a tailored resume</a>
-                    <a class="cta ghost" href="records.html">All records</a>
-                    <button
-                        id="theme-toggle"
-                        class="theme-toggle"
-                        type="button"
-                    >
-                        Theme: Auto
-                    </button>
-                </div>
-            </div>
+        <a class="skip" href="#main">Skip to content</a>
+
+        <header class="topbar wrap">
+            <p class="brand">
+                <span class="brand-name">Candidate Skill Match</span>
+                <span class="brand-role">resume fit scoring</span>
+            </p>
+            <button
+                class="theme-toggle"
+                id="theme-toggle"
+                type="button"
+                aria-pressed="false"
+                aria-label="Switch to dark theme"
+            >
+                <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    aria-hidden="true"
+                >
+                    <path
+                        d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"
+                    ></path>
+                </svg>
+                <span id="theme-label">Dark</span>
+            </button>
         </header>
 
-        <div class="wrap">
-            <div class="card">
-                <label class="kw" for="role"
-                    >Target role or job description</label
-                >
-                <textarea
-                    id="role"
-                    rows="5"
-                    placeholder="Paste the job title and requirements, e.g. Senior Snowflake Data Engineer with dbt, Airflow, and Cortex Analyst experience."
-                ></textarea>
-
-                <label class="kw" for="file"
-                    >Candidate resume (PDF or DOCX)</label
-                >
-                <div class="controls">
-                    <input
-                        id="file"
-                        type="file"
-                        accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                    />
-                    <button id="btn-score" type="button">Score fit</button>
-                    <button id="btn-clear" type="button">Clear</button>
+        <main id="main">
+            <section class="intro wrap">
+                <h1>
+                    Decide who is worth a screen before you open the calendar.
+                </h1>
+                <p class="lead">
+                    Paste the role and the candidate's resume. You get a fit
+                    score with the reasons, and a record of every call you made.
+                </p>
+                <div class="actions">
+                    <a class="btn btn-primary" href="index.html"
+                        >Build a tailored resume</a
+                    >
+                    <a class="btn btn-ghost" href="records.html">All records</a>
                 </div>
-                <div id="status" role="status" aria-live="polite"></div>
-                <div class="hint">
-                    The resume is parsed in your browser. Scoring uses the AI
-                    worker when available, otherwise a local keyword estimate.
-                    Nothing is uploaded except the resume text sent to the
-                    scorer.
+            </section>
+
+            <section class="block wrap">
+                <div class="panel">
+                    <div class="panel-head">
+                        <span class="dot" aria-hidden="true"></span>
+                        <span>new match</span>
+                    </div>
+                    <div class="panel-body">
+                        <div class="field">
+                            <label class="kw" for="role"
+                                >Target role or job description</label
+                            >
+                            <textarea
+                                id="role"
+                                rows="5"
+                                placeholder="Paste the job title and requirements, e.g. Senior Snowflake Data Engineer with dbt, Airflow, and Cortex Analyst experience."
+                            ></textarea>
+                        </div>
+
+                        <div class="field">
+                            <label class="kw" for="file"
+                                >Candidate resume (PDF or DOCX)</label
+                            >
+                            <div class="controls">
+                                <input
+                                    id="file"
+                                    type="file"
+                                    accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                                />
+                                <button
+                                    class="btn btn-primary"
+                                    id="btn-score"
+                                    type="button"
+                                >
+                                    Score fit
+                                </button>
+                                <button
+                                    class="btn btn-ghost"
+                                    id="btn-clear"
+                                    type="button"
+                                >
+                                    Clear
+                                </button>
+                            </div>
+                        </div>
+
+                        <div id="status" role="status" aria-live="polite"></div>
+                        <p class="hint">
+                            The resume is parsed in your browser. Scoring uses
+                            the AI worker when available, otherwise a local
+                            keyword estimate. Nothing is uploaded except the
+                            resume text sent to the scorer.
+                        </p>
+                    </div>
                 </div>
-            </div>
+            </section>
 
-            <div id="result" hidden></div>
+            <div id="result" class="block wrap" hidden></div>
 
-            <section id="history-card" class="card" hidden>
-                <h2 class="section" style="margin-top: 0">
-                    Recent match results
-                </h2>
+            <section id="history-card" class="block wrap" hidden>
+                <h2 class="block-title">Recent match results</h2>
                 <p class="hint" id="history-note"></p>
                 <div class="controls">
-                    <button id="btn-sort" type="button">Sort: newest</button>
-                    <button id="btn-csv" type="button">Export CSV</button>
-                    <button id="btn-json" type="button">Export JSON</button>
-                    <button id="btn-hmigrate" type="button" hidden>
+                    <button class="btn btn-ghost" id="btn-sort" type="button">
+                        Sort: newest
+                    </button>
+                    <button class="btn btn-ghost" id="btn-csv" type="button">
+                        Export CSV
+                    </button>
+                    <button class="btn btn-ghost" id="btn-json" type="button">
+                        Export JSON
+                    </button>
+                    <button
+                        class="btn btn-primary"
+                        id="btn-hmigrate"
+                        type="button"
+                        hidden
+                    >
                         Move browser history to my account
                     </button>
                 </div>
                 <div class="row-actions">
-                    <button id="btn-hclear" type="button">Clear history</button>
+                    <button class="btn btn-ghost" id="btn-hclear" type="button">
+                        Clear history
+                    </button>
                 </div>
                 <div id="history-list"></div>
             </section>
-        </div>
+        </main>
 
         <script src="vendor/jszip.min.js"></script>
         <script src="vendor/pdf.min.js"></script>
         <script src="vendor/supabase.min.js"></script>
         <script src="config.js?v=20261014c"></script>
-        <script src="auth.js?v=20261015c"></script>
+        <script src="auth.js?v=20261015d"></script>
         <script src="job-title.js?v=20261015d"></script>
-        <script src="candidate-match.js?v=20261015o"></script>
+        <script src="candidate-match.js?v=20261015p"></script>
         <script>
             (function () {
                 var root = document.documentElement;
                 var btn = document.getElementById("theme-toggle");
-                if (!btn) return;
+                var label = document.getElementById("theme-label");
+                var stored = null;
+                try {
+                    stored = localStorage.getItem("theme");
+                } catch (e) {}
 
-                var order = ["auto", "light", "dark"];
-                var label = { auto: "Auto", light: "Light", dark: "Dark" };
-
-                function current() {
-                    var t;
-                    try {
-                        t = localStorage.getItem("theme");
-                    } catch (e) {}
-                    return order.indexOf(t) > -1 ? t : "auto";
-                }
-
-                function render(mode) {
-                    var next = order[(order.indexOf(mode) + 1) % order.length];
-                    btn.textContent = "Theme: " + label[mode];
+                function apply(theme) {
+                    root.setAttribute("data-theme", theme);
+                    var dark = theme === "dark";
+                    btn.setAttribute("aria-pressed", String(dark));
                     btn.setAttribute(
                         "aria-label",
-                        "Theme: " +
-                            label[mode] +
-                            ". Switch to " +
-                            label[next].toLowerCase() +
-                            ".",
+                        dark ? "Switch to light theme" : "Switch to dark theme",
                     );
+                    label.textContent = dark ? "Light" : "Dark";
                 }
 
-                function apply(mode) {
-                    if (mode === "auto") {
-                        root.removeAttribute("data-theme");
-                        root.style.colorScheme = "";
-                    } else {
-                        root.setAttribute("data-theme", mode);
-                        root.style.colorScheme = mode;
-                    }
-                    try {
-                        if (mode === "auto") localStorage.removeItem("theme");
-                        else localStorage.setItem("theme", mode);
-                    } catch (e) {}
-                    render(mode);
-                }
+                var prefersDark = window.matchMedia(
+                    "(prefers-color-scheme: dark)",
+                ).matches;
+                apply(
+                    stored === "dark" || stored === "light"
+                        ? stored
+                        : prefersDark
+                          ? "dark"
+                          : "light",
+                );
 
                 btn.addEventListener("click", function () {
-                    var mode = current();
-                    apply(order[(order.indexOf(mode) + 1) % order.length]);
+                    var next =
+                        root.getAttribute("data-theme") === "dark"
+                            ? "light"
+                            : "dark";
+                    apply(next);
+                    try {
+                        localStorage.setItem("theme", next);
+                    } catch (e) {}
                 });
-
-                render(current());
             })();
         </script>
     </body>

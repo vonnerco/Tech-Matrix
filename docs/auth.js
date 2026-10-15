@@ -74,16 +74,20 @@
     if (!bar) {
       var style = document.createElement("style");
       style.textContent =
-        ".authbar{--ab-bg:#182747;--ab-fg:#c8d0dd;--ab-link:#9dc4ff;" +
-        "display:flex;gap:14px;align-items:center;justify-content:flex-end;" +
-        "padding:6px 20px;background:var(--ab-bg);color:var(--ab-fg);font:12px/1.4 " +
-        "-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}" +
+        ".authbar{--ab-bg:#e9ecf5;--ab-fg:#59607a;--ab-link:#2f4be0;" +
+        "--ab-line:#cbd1e2;" +
+        "display:flex;gap:1rem;align-items:center;justify-content:flex-end;" +
+        "padding:0.4rem clamp(1.25rem,5vw,3rem);background:var(--ab-bg);" +
+        "color:var(--ab-fg);border-bottom:1px solid var(--ab-line);" +
+        'font:0.8125rem/1.4 "Space Grotesk",system-ui,-apple-system,' +
+        '"Segoe UI",sans-serif}' +
         ".authbar a{color:var(--ab-link);text-decoration:none;cursor:pointer}" +
         ".authbar a:hover{text-decoration:underline}" +
-        ":root[data-theme=dark] .authbar{--ab-bg:#142c46;--ab-fg:#b6c6d8;" +
-        "--ab-link:#a8c8f0}" +
+        ":root[data-theme=dark] .authbar{--ab-bg:#0a0a0c;--ab-fg:#8e8e96;" +
+        "--ab-link:#8a9bff;--ab-line:#1c1c20}" +
         "@media (prefers-color-scheme:dark){:root:not([data-theme=light]) " +
-        ".authbar{--ab-bg:#142c46;--ab-fg:#b6c6d8;--ab-link:#a8c8f0}}";
+        ".authbar{--ab-bg:#0a0a0c;--ab-fg:#8e8e96;--ab-link:#8a9bff;" +
+        "--ab-line:#1c1c20}}";
       document.head.appendChild(style);
       bar = document.createElement("div");
       bar.id = "authbar";
