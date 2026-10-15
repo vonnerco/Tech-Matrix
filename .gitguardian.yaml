@@ -1,0 +1,15 @@
+# GitGuardian / ggshield configuration.
+#
+# The only secret-shaped strings in this repo are Supabase anon (publishable)
+# keys. They are public by design: docs/config.js ships one to the browser on
+# purpose, and Row Level Security — not secrecy — protects the data. GitGuardian
+# still flags the JWT shape, so the two files that carry it are excluded here.
+#
+# Honoured by ggshield (CLI / CI / pre-commit). The GitGuardian dashboard does
+# NOT read this file — mark the incident as ignored there as well.
+version: 2
+
+secret:
+  ignored_paths:
+    - docs/config.js
+    - worker/wrangler.jsonc
