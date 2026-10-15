@@ -267,12 +267,13 @@
   // ---- handoff to the resume builder ----
 
   // A keyword-sized title: first line of the role box, capped.
-  function roleTitle(role) {
+  function roleTitle(role, max) {
     const line = String(role || "")
       .trim()
       .split(/\r?\n/)[0]
       .trim();
-    return line.length > 120 ? line.slice(0, 117).trimEnd() + "..." : line;
+    const cap = max || 120;
+    return line.length > cap ? line.slice(0, cap - 3).trimEnd() + "..." : line;
   }
 
   // The rest of the role box (requirements), used to steer emphasis.
@@ -307,6 +308,13 @@
   function render(r, meta) {
     const score = Number(r.score) || 0;
     const verdict = r.verdict || verdictFor(score);
+    // Name the role in the verdict, unless it already says it.
+    const posTitle = roleTitle(meta.role, 70);
+    const alreadyNamed = posTitle
+      ? verdict.toLowerCase().includes(posTitle.slice(0, 30).toLowerCase())
+      : true;
+    const verdictText =
+      posTitle && !alreadyNamed ? verdict + " for " + posTitle : verdict;
     const cls = score >= 8 ? "good" : score >= 5.5 ? "mid" : "bad";
     const dims = (r.dimensions || [])
       .map(
@@ -336,7 +344,7 @@
             <div class="scorecard ${cls}">
                 <div class="score-num">${score.toFixed(1)}<span>/10</span></div>
                 <div class="score-side">
-                    <div class="verdict">${esc(verdict)}</div>
+                    <div class="verdict">${esc(verdictText)}</div>
                     <div class="meta">${esc(meta.name)}${meta.chars ? " &middot; " + meta.chars.toLocaleString() + " chars parsed" : ""}${meta.note ? " &middot; " + esc(meta.note) : ""}</div>
                     <p class="summary">${esc(r.summary)}</p>
                 </div>
