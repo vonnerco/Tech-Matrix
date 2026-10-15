@@ -74,11 +74,16 @@
     if (!bar) {
       var style = document.createElement("style");
       style.textContent =
-        ".authbar{display:flex;gap:10px;align-items:center;justify-content:flex-end;" +
-        "padding:6px 20px;background:#182747;color:#c8d0dd;font:12px/1.4 " +
+        ".authbar{--ab-bg:#182747;--ab-fg:#c8d0dd;--ab-link:#9dc4ff;" +
+        "display:flex;gap:14px;align-items:center;justify-content:flex-end;" +
+        "padding:6px 20px;background:var(--ab-bg);color:var(--ab-fg);font:12px/1.4 " +
         "-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}" +
-        ".authbar span{color:#c8d0dd}.authbar a{color:#9dc4ff;text-decoration:none;" +
-        "cursor:pointer}.authbar a:hover{text-decoration:underline}";
+        ".authbar a{color:var(--ab-link);text-decoration:none;cursor:pointer}" +
+        ".authbar a:hover{text-decoration:underline}" +
+        ":root[data-theme=dark] .authbar{--ab-bg:#142c46;--ab-fg:#b6c6d8;" +
+        "--ab-link:#a8c8f0}" +
+        "@media (prefers-color-scheme:dark){:root:not([data-theme=light]) " +
+        ".authbar{--ab-bg:#142c46;--ab-fg:#b6c6d8;--ab-link:#a8c8f0}}";
       document.head.appendChild(style);
       bar = document.createElement("div");
       bar.id = "authbar";
@@ -88,7 +93,7 @@
     bar.innerHTML =
       "<span>" +
       escapeHtml((user && user.email) || "signed in") +
-      '</span>&middot; <a id="auth-signout" role="button">Sign out</a>';
+      '</span><a id="auth-signout" role="button">Sign out</a>';
     var out = document.getElementById("auth-signout");
     if (out)
       out.addEventListener("click", function () {
