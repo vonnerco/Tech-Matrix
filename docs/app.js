@@ -616,16 +616,14 @@
       var c = db();
       if (!c || !kw) return;
       var q = val
-        ? c
-            .from("project_notes")
-            .upsert(
-              {
-                keyword: kw,
-                content: val,
-                updated_at: new Date().toISOString(),
-              },
-              { onConflict: "user_id,keyword" },
-            )
+        ? c.from("project_notes").upsert(
+            {
+              keyword: kw,
+              content: val,
+              updated_at: new Date().toISOString(),
+            },
+            { onConflict: "user_id,keyword" },
+          )
         : c.from("project_notes").delete().eq("keyword", kw);
       q.then(
         function () {},
@@ -830,13 +828,16 @@
       }
     });
 
-    // Arriving from Candidate Skill Match: index.html?kw=…&projects=…
+    // Arriving from Candidate Skill Match: index.html?kw=…&focus=…&projects=…
     function applyHandoffParams() {
       var q = new URLSearchParams(location.search);
       var kw = (q.get("kw") || "").trim();
+      var focus = (q.get("focus") || "").trim();
       var projects = q.get("projects") || "";
-      if (!kw && !projects) return;
+      if (!kw && !focus && !projects) return;
       if (kw && !input.value.trim()) input.value = kw;
+      if (focus && focusInput && !focusInput.value.trim())
+        focusInput.value = focus;
       var settled = input.value.trim();
       if (projects && projectsInput && !projectsInput.value.trim()) {
         projectsInput.value = projects;

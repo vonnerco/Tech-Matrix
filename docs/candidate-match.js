@@ -275,7 +275,15 @@
     return line.length > 120 ? line.slice(0, 117).trimEnd() + "..." : line;
   }
 
-  // The match's summary + strengths, as a starter projects/experience note.
+  // The rest of the role box (requirements), used to steer emphasis.
+  function focusFromRole(role) {
+    const text = String(role || "").trim();
+    if (!text || text === roleTitle(text)) return ""; // title already carries it
+    return text.slice(0, 1200);
+  }
+
+  // The match's summary + strengths, as a starter projects/experience note,
+  // with the gaps carried across as targets to address.
   function projectsBlurb(r) {
     const parts = [];
     const summary = String(r.summary || "").trim();
@@ -286,6 +294,11 @@
       .slice(0, 12);
     if (strengths.length)
       parts.push("Strengths: " + strengths.join(", ") + ".");
+    const gaps = (r.gaps || [])
+      .map((s) => String(s).trim())
+      .filter(Boolean)
+      .slice(0, 8);
+    if (gaps.length) parts.push("Gaps to address: " + gaps.join(", ") + ".");
     return parts.join(" ").slice(0, 1800);
   }
 
@@ -311,10 +324,14 @@
         : `<p class="muted">None noted.</p>`;
     const kw = roleTitle(meta.role);
     const blurb = projectsBlurb(r);
-    const handoff =
-      kw || blurb
-        ? `<p class="handoff-row"><a class="handoff" href="index.html?kw=${encodeURIComponent(kw)}&amp;projects=${encodeURIComponent(blurb)}">Build a tailored resume for this role &rarr;</a></p>`
-        : "";
+    const focus = focusFromRole(meta.role);
+    const q = [];
+    if (kw) q.push("kw=" + encodeURIComponent(kw));
+    if (blurb) q.push("projects=" + encodeURIComponent(blurb));
+    if (focus) q.push("focus=" + encodeURIComponent(focus));
+    const handoff = q.length
+      ? `<p class="handoff-row"><a class="handoff" href="index.html?${q.join("&amp;")}">Build a tailored resume for this role &rarr;</a></p>`
+      : "";
     resultEl.innerHTML = `
             <div class="scorecard ${cls}">
                 <div class="score-num">${score.toFixed(1)}<span>/10</span></div>
