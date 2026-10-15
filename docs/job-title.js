@@ -2,9 +2,10 @@
 //
 // Recruiter pastes are messy: a LinkedIn header ("M. Ayan Khan (He/Him) 3rd
 // degree connection · 3rd Talent Acquisition") or "Active Opening | Data
-// Engineer | Acme" instead of a plain title. JobTitle.from(role) picks the most
-// title-shaped line, pipe segment or prose phrase and falls back to the first
-// line that isn't feed noise.
+// Engineer | Acme" instead of a plain title. A line labelled "Job Title: …"
+// wins outright; otherwise JobTitle.from(role) picks the most title-shaped
+// line, pipe segment or prose phrase and falls back to the first line that
+// isn't feed noise or a signature.
 //
 // Shared by candidate-match.js (this browser's history rows) and records.js
 // (saved records), so both label a match the same way.
@@ -66,8 +67,13 @@
   const TITLE_GENERIC =
     /^(a|an|the|active|new|now|we|are|is|job|jobs|opening|openings|position|role|title|opportunity|opportunities|hiring|remote|hybrid|onsite|full|part|time|contract)$/i;
 
-  // "Job Title: …" and friends — the stripped copy is the better candidate.
+  // "Job Title: …" and friends — an explicit label beats every guess.
   const TITLE_LABEL = /^(?:job\s+title|title|role|position)\s*[:-]/i;
+
+  // Sign-off and contact lines that trail a pasted posting: the sender's own
+  // job ("Sr. Technical Hiring Specialist"), an email or a phone number.
+  const TITLE_SIGNATURE =
+    /(technical recruiter|hiring specialist|talent acquisition|staffing|recruiting|resume\b|@[\w.-]+\.[a-z]{2,}|https?:\/\/|www\.|\+?\d[\d ().-]{7,}\d)/i;
 
   function jobTitle(role, max) {
     const cap = max || 70;
@@ -78,14 +84,20 @@
     const text = String(role || "").trim();
     if (!text) return "";
     const cands = [];
+    const labeled = [];
     for (const line of text.split(/\r?\n/)) {
       const clean = line.replace(/\s+/g, " ").trim();
-      if (!clean || TITLE_NOISE.test(clean)) continue;
+      if (!clean || TITLE_NOISE.test(clean) || TITLE_SIGNATURE.test(clean))
+        continue;
       const strip = (s) =>
         s
           .replace(/^[\s:*-]+|[.,;:\s]+$/g, "")
           .replace(/^(?:job\s+title|title|role|position)\s*[:\-]\s*/i, "")
           .trim();
+      if (TITLE_LABEL.test(clean)) {
+        const t = strip(clean);
+        if (t) labeled.push(t);
+      }
       const parts = new Set([clean]);
       parts.add(strip(clean));
       // "Active Opening | Forward Deployed Data Engineer" → each segment.
@@ -116,8 +128,11 @@
       const caps = words.filter((w) => /^[A-Z0-9]/.test(w)).length;
       return caps / words.length + Math.min(words.length, 6) / 100;
     };
-    const best = shaped.sort((a, b) => rank(b) - rank(a) || a.i - b.i)[0];
-    return clip(best ? best.c : cands[0] || "");
+    const bestOf = (arr) =>
+      arr.slice().sort((a, b) => rank(b) - rank(a) || a.i - b.i)[0];
+    const best =
+      bestOf(shaped.filter(({ c }) => labeled.includes(c))) || bestOf(shaped);
+    return clip(best ? best.c : labeled[0] || cands[0] || "");
   }
 
   // Titles inside a line of prose: the role word plus up to three capitalized

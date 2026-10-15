@@ -314,7 +314,7 @@
     const score = Number(r.score) || 0;
     const verdict = r.verdict || verdictFor(score);
     // Name the role in the verdict, unless it already says it.
-    const posTitle = roleTitle(meta.role, 70);
+    const posTitle = jobTitle(meta.role, 70);
     const alreadyNamed = posTitle
       ? verdict.toLowerCase().includes(posTitle.slice(0, 30).toLowerCase())
       : true;
@@ -335,7 +335,7 @@
       arr && arr.length
         ? `<ul class="chips ${k}">${arr.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>`
         : `<p class="muted">None noted.</p>`;
-    const kw = roleTitle(meta.role);
+    const kw = jobTitle(meta.role);
     const blurb = projectsBlurb(r);
     const focus = focusFromRole(meta.role);
     const q = [];
