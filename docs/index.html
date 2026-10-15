@@ -4,320 +4,600 @@
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <title>Corderio Vonner — Tailored Resume Generator</title>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            rel="stylesheet"
+            href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;700&display=swap"
+        />
+        <script>
+            // Apply a saved theme before first paint to avoid a flash.
+            (function () {
+                try {
+                    var t = localStorage.getItem("theme");
+                    if (t === "light" || t === "dark")
+                        document.documentElement.setAttribute("data-theme", t);
+                } catch (e) {}
+            })();
+        </script>
         <style>
             :root {
-                --ink: #1f3057;
-                --muted: #5b6472;
-                --line: #d9dee7;
-                --accent: #2ea44f;
-                --accent2: #b31b1b;
+                --paper: #e9ecf5;
+                --panel: #ffffff;
+                --ink: #141a2e;
+                --muted: #59607a;
+                --line: #cbd1e2;
+                --accent: #2f4be0;
+                --accent-2: #0e9c8a;
+                --on-accent: #ffffff;
+                --bad: #c0392b;
+                --font-sans:
+                    "Space Grotesk", system-ui, -apple-system, "Segoe UI",
+                    sans-serif;
+                --font-mono:
+                    "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo,
+                    monospace;
+                --shadow: 0 18px 40px -28px rgba(0, 0, 0, 0.55);
+                color-scheme: light;
             }
-            * {
+
+            @media (prefers-color-scheme: dark) {
+                :root:not([data-theme]) {
+                    --paper: #000000;
+                    --panel: #0a0a0c;
+                    --ink: #ececee;
+                    --muted: #8e8e96;
+                    --line: #1c1c20;
+                    --accent: #8a9bff;
+                    --accent-2: #3fd9c4;
+                    --on-accent: #000000;
+                    --bad: #ff7a6b;
+                    color-scheme: dark;
+                }
+            }
+
+            :root[data-theme="dark"] {
+                --paper: #000000;
+                --panel: #0a0a0c;
+                --ink: #ececee;
+                --muted: #8e8e96;
+                --line: #1c1c20;
+                --accent: #8a9bff;
+                --accent-2: #3fd9c4;
+                --on-accent: #000000;
+                --bad: #ff7a6b;
+                color-scheme: dark;
+            }
+
+            :root[data-theme="light"] {
+                --paper: #e9ecf5;
+                --panel: #ffffff;
+                --ink: #141a2e;
+                --muted: #59607a;
+                --line: #cbd1e2;
+                --accent: #2f4be0;
+                --accent-2: #0e9c8a;
+                --on-accent: #ffffff;
+                --bad: #c0392b;
+                color-scheme: light;
+            }
+
+            *,
+            *::before,
+            *::after {
                 box-sizing: border-box;
             }
+
+            [hidden] {
+                display: none !important;
+            }
+
             body {
                 margin: 0;
-                font-family:
-                    -apple-system,
-                    Segoe UI,
-                    Roboto,
-                    Helvetica,
-                    Arial,
-                    sans-serif;
-                color: #17202a;
-                background: #f4f6f9;
-            }
-            header {
-                background: var(--ink);
-                color: #fff;
-                padding: 24px 20px;
-            }
-            header h1 {
-                margin: 0 0 4px;
-                font-size: 20px;
-            }
-            header p {
-                margin: 0;
-                color: #c8d0dd;
-                font-size: 13px;
-            }
-            header .actions {
-                display: flex;
-                gap: 10px;
-                flex-wrap: wrap;
-                margin-top: 14px;
-            }
-            header a.cta {
-                display: inline-block;
-                padding: 10px 16px;
-                border-radius: 8px;
-                background: #fff;
+                background: var(--paper);
                 color: var(--ink);
-                font-size: 14px;
-                font-weight: 600;
-                text-decoration: none;
+                font-family: var(--font-sans);
+                font-size: 1.0625rem;
+                line-height: 1.6;
+                -webkit-font-smoothing: antialiased;
+                text-rendering: optimizeLegibility;
             }
-            header a.cta:hover {
-                filter: brightness(0.95);
-                text-decoration: none;
+
+            a {
+                color: inherit;
             }
+
+            :focus-visible {
+                outline: 2px solid var(--accent-2);
+                outline-offset: 2px;
+                border-radius: 2px;
+            }
+
+            .skip {
+                position: absolute;
+                left: -9999px;
+            }
+            .skip:focus {
+                left: 1rem;
+                top: 1rem;
+                z-index: 10;
+                padding: 0.5rem 0.75rem;
+                background: var(--panel);
+                border: 1px solid var(--line);
+            }
+
             .wrap {
-                max-width: 900px;
-                margin: 0 auto;
-                padding: 20px;
+                max-width: 68rem;
+                margin-inline: auto;
+                padding-inline: clamp(1.25rem, 5vw, 3rem);
             }
-            .card {
-                background: #fff;
+
+            /* ---- topbar ---- */
+            .topbar {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 1rem;
+                flex-wrap: wrap;
+                padding-block: 1.25rem;
+                border-bottom: 1px solid var(--line);
+            }
+            .brand {
+                display: flex;
+                align-items: baseline;
+                gap: 0.6rem;
+                flex-wrap: wrap;
+                margin: 0;
+            }
+            .brand-name {
+                font-weight: 700;
+                letter-spacing: -0.01em;
+            }
+            .brand-role {
+                color: var(--muted);
+                font-size: 0.9375rem;
+            }
+            .theme-toggle {
+                display: inline-flex;
+                align-items: center;
+                gap: 0.5rem;
+                padding: 0.45rem 0.75rem;
+                border: 1px solid var(--line);
+                border-radius: 8px;
+                background: transparent;
+                color: var(--ink);
+                font: inherit;
+                font-size: 0.875rem;
+                cursor: pointer;
+            }
+            .theme-toggle svg {
+                width: 1rem;
+                height: 1rem;
+            }
+
+            /* ---- intro ---- */
+            .intro {
+                padding-block: clamp(2.5rem, 7vw, 4rem);
+            }
+            .intro h1 {
+                margin: 0 0 1rem;
+                max-width: 26ch;
+                font-size: clamp(1.9rem, 4.5vw, 3rem);
+                font-weight: 700;
+                line-height: 1.05;
+                letter-spacing: -0.025em;
+                text-wrap: balance;
+            }
+            .lead {
+                max-width: 54ch;
+                margin: 0 0 1.75rem;
+                color: var(--muted);
+                font-size: 1.125rem;
+            }
+            .lead .tag {
+                margin-left: 0.35rem;
+                font-family: var(--font-mono);
+                font-size: 0.75rem;
+                color: var(--muted);
+            }
+            .actions {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 0.75rem;
+            }
+
+            .btn {
+                display: inline-block;
+                padding: 0.7rem 1.15rem;
+                border-radius: 8px;
+                border: 1px solid transparent;
+                font: inherit;
+                font-weight: 500;
+                text-decoration: none;
+                cursor: pointer;
+            }
+            .btn:hover {
+                filter: brightness(1.06);
+            }
+            .btn-primary {
+                background: var(--accent);
+                color: var(--on-accent);
+            }
+            .btn-ghost {
+                border-color: var(--line);
+                color: var(--ink);
+                background: transparent;
+            }
+            .btn:disabled,
+            button:disabled {
+                opacity: 0.55;
+                cursor: not-allowed;
+                filter: none;
+            }
+            .small {
+                padding: 0.45rem 0.7rem;
+                font-size: 0.875rem;
+            }
+
+            /* ---- blocks ---- */
+            .block {
+                padding-block: clamp(2.25rem, 6vw, 3.5rem);
+            }
+            .block + .block {
+                border-top: 1px solid var(--line);
+            }
+            .block-title {
+                margin: 0 0 1.25rem;
+                font-size: clamp(1.35rem, 3vw, 1.9rem);
+                font-weight: 700;
+                letter-spacing: -0.02em;
+            }
+            h2.section {
+                margin: 0 0 0.9rem;
+                font-size: 1.0625rem;
+                font-weight: 500;
+                letter-spacing: -0.01em;
+            }
+
+            /* ---- panel ---- */
+            .panel {
                 border: 1px solid var(--line);
                 border-radius: 12px;
-                padding: 20px;
-                box-shadow: 0 1px 3px rgba(20, 30, 50, 0.06);
+                background: var(--panel);
+                overflow: hidden;
+                box-shadow: var(--shadow);
+            }
+            .panel-head {
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+                padding: 0.6rem 0.9rem;
+                border-bottom: 1px solid var(--line);
+                color: var(--muted);
+                font-family: var(--font-mono);
+                font-size: 0.8125rem;
+            }
+            .dot {
+                flex: none;
+                width: 0.55rem;
+                height: 0.55rem;
+                border-radius: 50%;
+                background: var(--accent-2);
+            }
+            .panel-body {
+                display: grid;
+                gap: 1.1rem;
+                padding: clamp(1rem, 3vw, 1.5rem);
+            }
+
+            /* ---- form ---- */
+            .field {
+                display: grid;
+                gap: 0.4rem;
+            }
+            label.kw {
+                font-size: 0.9375rem;
+                font-weight: 500;
+            }
+            input[type="text"],
+            textarea,
+            select {
+                width: 100%;
+                padding: 0.6rem 0.75rem;
+                font: inherit;
+                font-size: 0.9375rem;
+                color: inherit;
+                background: var(--paper);
+                border: 1px solid var(--line);
+                border-radius: 8px;
+            }
+            input[type="text"] {
+                flex: 1 1 18rem;
+            }
+            input::placeholder,
+            textarea::placeholder {
+                color: var(--muted);
+            }
+            input[type="text"]:focus,
+            textarea:focus,
+            select:focus {
+                border-color: var(--accent);
+            }
+            textarea {
+                resize: vertical;
+                min-height: 6rem;
+            }
+            select {
+                max-width: 34rem;
             }
             .controls {
                 display: flex;
-                gap: 10px;
-                flex-wrap: wrap;
                 align-items: center;
-            }
-            label.kw {
-                font-size: 13px;
-                font-weight: 600;
-                color: var(--muted);
-                width: 100%;
-                margin-bottom: 6px;
-                display: block;
-            }
-            input[type="text"] {
-                flex: 1 1 320px;
-                padding: 12px 14px;
-                font-size: 15px;
-                border: 1px solid var(--line);
-                border-radius: 8px;
-                outline: none;
-            }
-            input[type="text"]:focus {
-                border-color: var(--ink);
-                box-shadow: 0 0 0 3px rgba(31, 48, 87, 0.12);
-            }
-            textarea {
-                width: 100%;
-                padding: 12px 14px;
-                font-size: 14px;
-                font-family: inherit;
-                border: 1px solid var(--line);
-                border-radius: 8px;
-                resize: vertical;
-                min-height: 90px;
-            }
-            textarea:focus {
-                outline: none;
-                border-color: var(--ink);
-                box-shadow: 0 0 0 3px rgba(31, 48, 87, 0.12);
-            }
-            button {
-                border: 0;
-                border-radius: 8px;
-                padding: 12px 18px;
-                font-size: 14px;
-                font-weight: 600;
-                cursor: pointer;
-                color: #fff;
-            }
-            #btn-docx {
-                background: #2563eb;
-            }
-            #btn-pdf {
-                background: var(--accent2);
-            }
-            #btn-original {
-                background: #6b7280;
-            }
-            button:hover {
-                filter: brightness(1.06);
-            }
-            .hint {
-                font-size: 12px;
-                color: var(--muted);
-                margin-top: 10px;
-            }
-            #status {
-                font-size: 13px;
-                color: var(--ink);
-                margin-top: 12px;
-                font-weight: 600;
-            }
-            h2.section {
-                font-size: 13px;
-                text-transform: uppercase;
-                letter-spacing: 0.06em;
-                color: var(--muted);
-                margin: 24px 0 10px;
-            }
-            #preview {
-                background: #fff;
-                border: 1px solid var(--line);
-                border-radius: 12px;
-                padding: 32px 36px;
-                font-size: 12.5px;
-                line-height: 1.5;
-            }
-            .doc-name {
-                font-size: 22px;
-                font-weight: 700;
-            }
-            .doc-contact {
-                color: #59616f;
-                font-size: 12px;
-                margin-bottom: 14px;
-            }
-            #preview h3 {
-                font-size: 12px;
-                text-transform: uppercase;
-                letter-spacing: 0.05em;
-                color: #1f3057;
-                border-bottom: 1px solid var(--line);
-                padding-bottom: 3px;
-                margin: 16px 0 8px;
-            }
-            #preview p {
-                margin: 6px 0;
-            }
-            #preview .skill b {
-                color: #1f3057;
-            }
-            .role {
-                margin-bottom: 12px;
-            }
-            .role-head {
-                display: flex;
-                justify-content: space-between;
-                gap: 12px;
-            }
-            .role-title {
-                font-weight: 700;
-            }
-            .role-dates {
-                color: #59616f;
-                white-space: nowrap;
-            }
-            .role-company {
-                font-weight: 600;
-            }
-            #preview ul {
-                margin: 4px 0 0 18px;
-                padding: 0;
-            }
-            #preview li {
-                margin: 2px 0;
-            }
-            #preview .kw {
-                font-weight: 700;
-                color: #1f3057;
+                flex-wrap: wrap;
+                gap: 0.75rem;
             }
             .chk {
                 display: flex;
                 align-items: center;
-                gap: 8px;
-                font-size: 13px;
+                gap: 0.5rem;
                 color: var(--muted);
-                margin-top: 12px;
+                font-size: 0.9375rem;
             }
             .chk input {
-                width: 16px;
-                height: 16px;
+                width: 1rem;
+                height: 1rem;
+                accent-color: var(--accent);
+            }
+            .hint {
+                margin: 0;
+                max-width: 68ch;
+                color: var(--muted);
+                font-size: 0.875rem;
+            }
+            #status {
+                font-size: 0.9375rem;
+                font-weight: 500;
+            }
+            #status:empty {
+                display: none;
+            }
+
+            /* ---- preview: shown as paper so it matches the download ---- */
+            #preview {
+                --doc-ink: #141a2e;
+                --doc-muted: #59607a;
+                --doc-line: #cbd1e2;
+                --doc-accent: #2f4be0;
+                background: #ffffff;
+                color: var(--doc-ink);
+                border: 1px solid var(--line);
+                border-radius: 12px;
+                padding: clamp(1.75rem, 4vw, 2.75rem);
+                font-size: 0.875rem;
+                line-height: 1.55;
+                box-shadow: var(--shadow);
+            }
+            #preview .doc-name {
+                font-size: 1.5rem;
+                font-weight: 700;
+                letter-spacing: -0.01em;
+            }
+            #preview .doc-contact {
+                margin-bottom: 1rem;
+                color: var(--doc-muted);
+                font-size: 0.8125rem;
+            }
+            #preview h3 {
+                margin: 1.25rem 0 0.5rem;
+                padding-bottom: 0.2rem;
+                border-bottom: 1px solid var(--doc-line);
+                color: var(--doc-ink);
+                font-family: var(--font-mono);
+                font-size: 0.75rem;
+                font-weight: 500;
+                letter-spacing: 0.04em;
+            }
+            #preview p {
+                margin: 0.4rem 0;
+            }
+            #preview .skill b,
+            #preview .kw {
+                color: var(--doc-accent);
+                font-weight: 500;
+            }
+            #preview .role {
+                margin-bottom: 0.9rem;
+            }
+            #preview .role-head {
+                display: flex;
+                justify-content: space-between;
+                gap: 0.75rem;
+            }
+            #preview .role-title {
+                font-weight: 700;
+            }
+            #preview .role-dates,
+            #preview .role-company {
+                color: var(--doc-muted);
+                white-space: nowrap;
+            }
+            #preview .role-company {
+                font-weight: 500;
+                white-space: normal;
+            }
+            #preview ul {
+                margin: 0.25rem 0 0 1.1rem;
+                padding: 0;
+            }
+            #preview li {
+                margin: 0.15rem 0;
             }
         </style>
     </head>
     <body>
-        <header>
-            <h1>Corderio Vonner — Tailored Resume Generator</h1>
-            <p>
-                Enter one keyword. Companies and dates stay the same; job titles
-                and every bullet are rewritten to match it. Download as DOCX or
-                PDF. <span id="build">build 20261015b</span>
+        <a class="skip" href="#main">Skip to content</a>
+
+        <header class="topbar wrap">
+            <p class="brand">
+                <span class="brand-name">Corderio Vonner</span>
+                <span class="brand-role">tailored resume generator</span>
             </p>
-            <div class="actions">
-                <a class="cta" href="candidate-match.html"
-                    >Candidate skill match &rarr;</a
+            <button
+                class="theme-toggle"
+                id="theme-toggle"
+                type="button"
+                aria-pressed="false"
+                aria-label="Switch to dark theme"
+            >
+                <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    aria-hidden="true"
                 >
-            </div>
+                    <path
+                        d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"
+                    ></path>
+                </svg>
+                <span id="theme-label">Dark</span>
+            </button>
         </header>
 
-        <div class="wrap">
-            <div class="card">
-                <label class="kw" for="kw"
-                    >Keyword (e.g. Snowflake Data Engineer, GenAI Architect,
-                    MLOps Engineer)</label
-                >
-                <div class="controls">
-                    <input
-                        id="kw"
-                        type="text"
-                        placeholder="Type a keyword and press Enter"
-                        autocomplete="off"
-                    />
-                    <button id="btn-docx" type="button">Download DOCX</button>
-                    <button id="btn-pdf" type="button">Download PDF</button>
-                    <button id="btn-original" type="button">
-                        Reset to original
-                    </button>
+        <main id="main">
+            <section class="intro wrap">
+                <h1>One keyword in, a resume that matches it out.</h1>
+                <p class="lead">
+                    Companies and dates stay the same. Job titles and every
+                    bullet are rewritten to match what you enter, then download
+                    as DOCX or PDF.
+                    <span id="build" class="tag">build 20261015b</span>
+                </p>
+                <div class="actions">
+                    <a class="btn btn-ghost" href="candidate-match.html"
+                        >Candidate skill match</a
+                    >
                 </div>
-                <label class="chk"
-                    ><input id="weave" type="checkbox" checked /> Improve every
-                    bullet to match the keyword</label
-                >
-                <label class="kw" for="focus"
-                    >Optional focus &mdash; steer the emphasis (e.g. semantic
-                    layers, healthcare claims, cost tuning,
-                    client-facing)</label
-                >
-                <input
-                    id="focus"
-                    type="text"
-                    placeholder="Optional: what should the bullets emphasize?"
-                    autocomplete="off"
-                />
-                <label class="kw" for="projects"
-                    >Your projects / experience &mdash; tools and outcomes to
-                    reflect in every bullet (saved per keyword in this browser).
-                    Example: "Enterprise data platform on Snowflake. Tools:
-                    Snowflake, Snowpark, Cortex Analyst, dbt, Airflow. Outcomes:
-                    cut warehouse cost 30%, delivered 120 governed
-                    metrics."</label
-                >
-                <textarea
-                    id="projects"
-                    rows="4"
-                    placeholder="Paste your real project details: project, tools, outcomes/metrics."
-                ></textarea>
-                <label class="chk"
-                    ><input id="applyall" type="checkbox" /> This project spans
-                    every role below &mdash; name a project tool/outcome in
-                    every bullet</label
-                >
-                <label class="kw" for="strength">Rewrite intensity</label>
-                <select id="strength">
-                    <option value="balanced" selected>
-                        Balanced — reword and re-emphasize
-                    </option>
-                    <option value="strong">
-                        Strong — recast into the role's framing
-                    </option>
-                </select>
-                <div id="status"></div>
-                <div class="hint">
-                    Your keyword becomes the role, and job titles show a career
-                    progression (Junior &rarr; Senior &rarr; Staff &rarr; Lead
-                    &rarr; Principal) from your earliest to most recent role.
-                    With the box checked, every bullet is rewritten to match the
-                    keyword &mdash; by AI when the worker is enabled, otherwise
-                    locally. Leave the keyword blank for the original resume.
-                </div>
-            </div>
+            </section>
 
-            <h2 class="section">Preview</h2>
-            <div id="preview"></div>
-        </div>
+            <section class="block wrap">
+                <div class="panel">
+                    <div class="panel-head">
+                        <span class="dot" aria-hidden="true"></span>
+                        <span>tailored resume</span>
+                    </div>
+                    <div class="panel-body">
+                        <div class="field">
+                            <label class="kw" for="kw"
+                                >Keyword (e.g. Snowflake Data Engineer, GenAI
+                                Architect, MLOps Engineer)</label
+                            >
+                            <div class="controls">
+                                <input
+                                    id="kw"
+                                    type="text"
+                                    placeholder="Type a keyword and press Enter"
+                                    autocomplete="off"
+                                />
+                                <button
+                                    class="btn btn-primary"
+                                    id="btn-docx"
+                                    type="button"
+                                >
+                                    Download DOCX
+                                </button>
+                                <button
+                                    class="btn btn-ghost"
+                                    id="btn-pdf"
+                                    type="button"
+                                >
+                                    Download PDF
+                                </button>
+                                <button
+                                    class="btn btn-ghost"
+                                    id="btn-original"
+                                    type="button"
+                                >
+                                    Reset to original
+                                </button>
+                            </div>
+                        </div>
+
+                        <label class="chk"
+                            ><input id="weave" type="checkbox" checked />
+                            Improve every bullet to match the keyword</label
+                        >
+
+                        <div class="field">
+                            <label class="kw" for="focus"
+                                >Optional focus — steer the emphasis (e.g.
+                                semantic layers, healthcare claims, cost tuning,
+                                client-facing)</label
+                            >
+                            <input
+                                id="focus"
+                                type="text"
+                                placeholder="Optional: what should the bullets emphasize?"
+                                autocomplete="off"
+                            />
+                        </div>
+
+                        <div class="field">
+                            <label class="kw" for="projects"
+                                >Your projects / experience — tools and outcomes
+                                to reflect in every bullet (saved per keyword in
+                                this browser). Example: "Enterprise data
+                                platform on Snowflake. Tools: Snowflake,
+                                Snowpark, Cortex Analyst, dbt, Airflow.
+                                Outcomes: cut warehouse cost 30%, delivered 120
+                                governed metrics."</label
+                            >
+                            <textarea
+                                id="projects"
+                                rows="4"
+                                placeholder="Paste your real project details: project, tools, outcomes/metrics."
+                            ></textarea>
+                        </div>
+
+                        <label class="chk"
+                            ><input id="applyall" type="checkbox" /> This
+                            project spans every role below — name a project
+                            tool/outcome in every bullet</label
+                        >
+
+                        <div class="field">
+                            <label class="kw" for="strength"
+                                >Rewrite intensity</label
+                            >
+                            <select id="strength">
+                                <option value="balanced" selected>
+                                    Balanced — reword and re-emphasize
+                                </option>
+                                <option value="strong">
+                                    Strong — recast into the role's framing
+                                </option>
+                            </select>
+                        </div>
+
+                        <div id="status" role="status" aria-live="polite"></div>
+                        <p class="hint">
+                            Your keyword becomes the role, and job titles show a
+                            career progression (Junior → Senior → Staff → Lead →
+                            Principal) from your earliest to most recent role.
+                            With the box checked, every bullet is rewritten to
+                            match the keyword — by AI when the worker is
+                            enabled, otherwise locally. Leave the keyword blank
+                            for the original resume.
+                        </p>
+                    </div>
+                </div>
+            </section>
+
+            <section class="block wrap">
+                <h2 class="block-title">Preview</h2>
+                <div id="preview"></div>
+            </section>
+        </main>
 
         <script src="vendor/jszip.min.js"></script>
         <script src="vendor/jspdf.umd.min.js"></script>
@@ -326,5 +606,49 @@
         <script src="auth.js?v=20261015d"></script>
         <script src="resume-data.js?v=20261014c"></script>
         <script src="app.js?v=20261015e"></script>
+        <script>
+            (function () {
+                var root = document.documentElement;
+                var btn = document.getElementById("theme-toggle");
+                var label = document.getElementById("theme-label");
+                var stored = null;
+                try {
+                    stored = localStorage.getItem("theme");
+                } catch (e) {}
+
+                function apply(theme) {
+                    root.setAttribute("data-theme", theme);
+                    var dark = theme === "dark";
+                    btn.setAttribute("aria-pressed", String(dark));
+                    btn.setAttribute(
+                        "aria-label",
+                        dark ? "Switch to light theme" : "Switch to dark theme",
+                    );
+                    label.textContent = dark ? "Light" : "Dark";
+                }
+
+                var prefersDark = window.matchMedia(
+                    "(prefers-color-scheme: dark)",
+                ).matches;
+                apply(
+                    stored === "dark" || stored === "light"
+                        ? stored
+                        : prefersDark
+                          ? "dark"
+                          : "light",
+                );
+
+                btn.addEventListener("click", function () {
+                    var next =
+                        root.getAttribute("data-theme") === "dark"
+                            ? "light"
+                            : "dark";
+                    apply(next);
+                    try {
+                        localStorage.setItem("theme", next);
+                    } catch (e) {}
+                });
+            })();
+        </script>
     </body>
 </html>

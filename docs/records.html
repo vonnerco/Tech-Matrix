@@ -4,146 +4,359 @@
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <title>Candidate Match Records</title>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            rel="stylesheet"
+            href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;700&display=swap"
+        />
+        <script>
+            // Apply a saved theme before first paint to avoid a flash.
+            (function () {
+                try {
+                    var t = localStorage.getItem("theme");
+                    if (t === "light" || t === "dark")
+                        document.documentElement.setAttribute("data-theme", t);
+                } catch (e) {}
+            })();
+        </script>
         <style>
             :root {
-                --ink: #1f3057;
-                --muted: #5b6472;
-                --line: #d9dee7;
-                --good: #2ea44f;
-                --mid: #b8860b;
-                --bad: #b31b1b;
+                --paper: #e9ecf5;
+                --panel: #ffffff;
+                --ink: #141a2e;
+                --muted: #59607a;
+                --line: #cbd1e2;
+                --accent: #2f4be0;
+                --accent-2: #0e9c8a;
+                --on-accent: #ffffff;
+                --good: #0e9c8a;
+                --mid: #b4761a;
+                --bad: #c0392b;
+                --font-sans:
+                    "Space Grotesk", system-ui, -apple-system, "Segoe UI",
+                    sans-serif;
+                --font-mono:
+                    "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo,
+                    monospace;
+                --shadow: 0 18px 40px -28px rgba(0, 0, 0, 0.55);
+                color-scheme: light;
             }
-            * {
+
+            @media (prefers-color-scheme: dark) {
+                :root:not([data-theme]) {
+                    --paper: #000000;
+                    --panel: #0a0a0c;
+                    --ink: #ececee;
+                    --muted: #8e8e96;
+                    --line: #1c1c20;
+                    --accent: #8a9bff;
+                    --accent-2: #3fd9c4;
+                    --on-accent: #000000;
+                    --good: #3fd9c4;
+                    --mid: #e0b155;
+                    --bad: #ff7a6b;
+                    color-scheme: dark;
+                }
+            }
+
+            :root[data-theme="dark"] {
+                --paper: #000000;
+                --panel: #0a0a0c;
+                --ink: #ececee;
+                --muted: #8e8e96;
+                --line: #1c1c20;
+                --accent: #8a9bff;
+                --accent-2: #3fd9c4;
+                --on-accent: #000000;
+                --good: #3fd9c4;
+                --mid: #e0b155;
+                --bad: #ff7a6b;
+                color-scheme: dark;
+            }
+
+            :root[data-theme="light"] {
+                --paper: #e9ecf5;
+                --panel: #ffffff;
+                --ink: #141a2e;
+                --muted: #59607a;
+                --line: #cbd1e2;
+                --accent: #2f4be0;
+                --accent-2: #0e9c8a;
+                --on-accent: #ffffff;
+                --good: #0e9c8a;
+                --mid: #b4761a;
+                --bad: #c0392b;
+                color-scheme: light;
+            }
+
+            *,
+            *::before,
+            *::after {
                 box-sizing: border-box;
             }
+
+            [hidden] {
+                display: none !important;
+            }
+
             body {
                 margin: 0;
-                font-family:
-                    -apple-system,
-                    Segoe UI,
-                    Roboto,
-                    Helvetica,
-                    Arial,
-                    sans-serif;
-                color: #17202a;
-                background: #f4f6f9;
+                background: var(--paper);
+                color: var(--ink);
+                font-family: var(--font-sans);
+                font-size: 1.0625rem;
+                line-height: 1.6;
+                -webkit-font-smoothing: antialiased;
+                text-rendering: optimizeLegibility;
             }
-            header {
-                background: var(--ink);
-                color: #fff;
-                padding: 24px 20px;
+
+            a {
+                color: inherit;
             }
-            header h1 {
-                margin: 0 0 4px;
-                font-size: 20px;
+
+            :focus-visible {
+                outline: 2px solid var(--accent-2);
+                outline-offset: 2px;
+                border-radius: 2px;
             }
-            header p {
-                margin: 0;
-                color: #c8d0dd;
-                font-size: 13px;
+
+            .skip {
+                position: absolute;
+                left: -9999px;
             }
-            header a {
-                color: #9dc4ff;
-                text-decoration: none;
+            .skip:focus {
+                left: 1rem;
+                top: 1rem;
+                z-index: 10;
+                padding: 0.5rem 0.75rem;
+                background: var(--panel);
+                border: 1px solid var(--line);
             }
-            header a:hover {
-                text-decoration: underline;
-            }
+
             .wrap {
-                max-width: 900px;
-                margin: 0 auto;
-                padding: 20px;
+                max-width: 68rem;
+                margin-inline: auto;
+                padding-inline: clamp(1.25rem, 5vw, 3rem);
             }
-            .card {
-                background: #fff;
+
+            /* ---- topbar ---- */
+            .topbar {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 1rem;
+                flex-wrap: wrap;
+                padding-block: 1.25rem;
+                border-bottom: 1px solid var(--line);
+            }
+            .brand {
+                display: flex;
+                align-items: baseline;
+                gap: 0.6rem;
+                flex-wrap: wrap;
+                margin: 0;
+            }
+            .brand-name {
+                font-weight: 700;
+                letter-spacing: -0.01em;
+            }
+            .brand-role {
+                color: var(--muted);
+                font-size: 0.9375rem;
+            }
+            .theme-toggle {
+                display: inline-flex;
+                align-items: center;
+                gap: 0.5rem;
+                padding: 0.45rem 0.75rem;
+                border: 1px solid var(--line);
+                border-radius: 8px;
+                background: transparent;
+                color: var(--ink);
+                font: inherit;
+                font-size: 0.875rem;
+                cursor: pointer;
+            }
+            .theme-toggle svg {
+                width: 1rem;
+                height: 1rem;
+            }
+
+            /* ---- intro ---- */
+            .intro {
+                padding-block: clamp(2.5rem, 7vw, 4rem);
+            }
+            .intro h1 {
+                margin: 0 0 1rem;
+                max-width: 26ch;
+                font-size: clamp(1.9rem, 4.5vw, 3rem);
+                font-weight: 700;
+                line-height: 1.05;
+                letter-spacing: -0.025em;
+                text-wrap: balance;
+            }
+            .lead {
+                max-width: 56ch;
+                margin: 0 0 1.75rem;
+                color: var(--muted);
+                font-size: 1.125rem;
+            }
+            .actions {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 0.75rem;
+            }
+
+            .btn {
+                display: inline-block;
+                padding: 0.7rem 1.15rem;
+                border-radius: 8px;
+                border: 1px solid transparent;
+                font: inherit;
+                font-weight: 500;
+                text-decoration: none;
+                cursor: pointer;
+            }
+            .btn:hover {
+                filter: brightness(1.06);
+            }
+            .btn-primary {
+                background: var(--accent);
+                color: var(--on-accent);
+            }
+            .btn-ghost {
+                border-color: var(--line);
+                color: var(--ink);
+                background: transparent;
+            }
+            .btn:disabled,
+            button:disabled {
+                opacity: 0.55;
+                cursor: not-allowed;
+                filter: none;
+            }
+            .small {
+                padding: 0.45rem 0.7rem;
+                font-size: 0.875rem;
+            }
+
+            /* ---- blocks ---- */
+            .block {
+                padding-block: clamp(2.25rem, 6vw, 3.5rem);
+            }
+            .block + .block {
+                border-top: 1px solid var(--line);
+            }
+            .block-title {
+                margin: 0 0 1.25rem;
+                font-size: clamp(1.35rem, 3vw, 1.9rem);
+                font-weight: 700;
+                letter-spacing: -0.02em;
+            }
+
+            /* ---- panel ---- */
+            .panel {
                 border: 1px solid var(--line);
                 border-radius: 12px;
-                padding: 20px;
-                box-shadow: 0 1px 3px rgba(20, 30, 50, 0.06);
+                background: var(--panel);
+                overflow: hidden;
+                box-shadow: var(--shadow);
+            }
+            .panel-head {
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+                padding: 0.6rem 0.9rem;
+                border-bottom: 1px solid var(--line);
+                color: var(--muted);
+                font-family: var(--font-mono);
+                font-size: 0.8125rem;
+            }
+            .dot {
+                flex: none;
+                width: 0.55rem;
+                height: 0.55rem;
+                border-radius: 50%;
+                background: var(--accent-2);
+            }
+            .panel-body {
+                display: grid;
+                gap: 1.1rem;
+                padding: clamp(1rem, 3vw, 1.5rem);
+            }
+
+            /* ---- form ---- */
+            .field {
+                display: grid;
+                gap: 0.4rem;
+            }
+            label.kw {
+                font-size: 0.9375rem;
+                font-weight: 500;
+            }
+            input[type="password"] {
+                flex: 1 1 18rem;
+                width: 100%;
+                padding: 0.6rem 0.75rem;
+                font: inherit;
+                font-size: 0.9375rem;
+                color: inherit;
+                background: var(--paper);
+                border: 1px solid var(--line);
+                border-radius: 8px;
+            }
+            input::placeholder {
+                color: var(--muted);
+            }
+            input[type="password"]:focus {
+                border-color: var(--accent);
             }
             .controls {
                 display: flex;
-                gap: 10px;
-                flex-wrap: wrap;
                 align-items: center;
-            }
-            label.kw {
-                font-size: 13px;
-                font-weight: 600;
-                color: var(--muted);
-                width: 100%;
-                margin-bottom: 6px;
-                display: block;
-            }
-            input[type="password"] {
-                flex: 1 1 280px;
-                padding: 12px 14px;
-                font-size: 14px;
-                border: 1px solid var(--line);
-                border-radius: 8px;
-                outline: none;
-            }
-            input[type="password"]:focus {
-                border-color: var(--ink);
-                box-shadow: 0 0 0 3px rgba(31, 48, 87, 0.12);
-            }
-            button {
-                border: 0;
-                border-radius: 8px;
-                padding: 11px 16px;
-                font-size: 14px;
-                font-weight: 600;
-                cursor: pointer;
-                color: #fff;
-                background: var(--ink);
-            }
-            button:hover {
-                filter: brightness(1.06);
-            }
-            button:disabled {
-                opacity: 0.6;
-                cursor: default;
-            }
-            button.grey {
-                background: #6b7280;
-            }
-            button.danger {
-                background: var(--bad);
-            }
-            .small {
-                padding: 7px 12px;
-                font-size: 12.5px;
-            }
-            #status {
-                font-size: 13px;
-                color: var(--ink);
-                margin-top: 12px;
-                font-weight: 600;
+                flex-wrap: wrap;
+                gap: 0.75rem;
             }
             .hint {
-                font-size: 12px;
+                margin: 0;
+                max-width: 72ch;
                 color: var(--muted);
-                margin-top: 10px;
+                font-size: 0.875rem;
             }
+            #status {
+                font-size: 0.9375rem;
+                font-weight: 500;
+            }
+            #status:empty {
+                display: none;
+            }
+
+            /* ---- records list ---- */
             #tools {
                 display: flex;
-                gap: 10px;
                 align-items: center;
                 flex-wrap: wrap;
-                margin: 20px 0 10px;
+                gap: 0.6rem;
+                margin-bottom: 1.25rem;
             }
             #count {
-                font-size: 13px;
-                color: var(--muted);
                 margin-left: auto;
+                font-family: var(--font-mono);
+                font-size: 0.8125rem;
+                color: var(--muted);
             }
+
             details.rec {
                 border: 1px solid var(--line);
-                border-left: 6px solid var(--ink);
-                border-radius: 10px;
-                margin-bottom: 8px;
-                background: #fff;
+                border-left-width: 3px;
+                border-left-color: var(--muted);
+                border-radius: 12px;
+                background: var(--panel);
                 overflow: hidden;
+            }
+            details.rec + details.rec {
+                margin-top: 0.6rem;
             }
             details.rec.good {
                 border-left-color: var(--good);
@@ -155,77 +368,95 @@
                 border-left-color: var(--bad);
             }
             details.rec > summary {
+                display: grid;
+                grid-template-columns: 3.25rem 7rem 1fr 1.4fr auto;
+                align-items: center;
+                gap: 0.75rem;
+                padding: 0.7rem 0.9rem;
+                font-size: 0.9375rem;
                 cursor: pointer;
                 list-style: none;
-                padding: 12px 14px;
-                display: flex;
-                gap: 12px;
-                align-items: center;
-                font-size: 13.5px;
             }
             details.rec > summary::-webkit-details-marker {
                 display: none;
             }
+            details.rec > summary:hover {
+                background: var(--paper);
+            }
             .rscore {
-                font-weight: 800;
-                color: var(--ink);
-                min-width: 42px;
+                font-family: var(--font-mono);
+                font-weight: 500;
             }
             .rverdict {
-                font-weight: 600;
-                min-width: 110px;
+                font-family: var(--font-mono);
+                font-size: 0.875rem;
+                color: var(--muted);
             }
-            .rresume {
-                font-weight: 600;
+            details.rec.good .rverdict {
+                color: var(--good);
+            }
+            details.rec.mid .rverdict {
+                color: var(--mid);
+            }
+            details.rec.bad .rverdict {
+                color: var(--bad);
+            }
+            .rresume,
+            .rrole {
                 overflow: hidden;
                 text-overflow: ellipsis;
                 white-space: nowrap;
-                flex: 0 1 auto;
+            }
+            .rresume {
+                font-weight: 500;
             }
             .rrole {
                 color: var(--muted);
-                overflow: hidden;
-                text-overflow: ellipsis;
-                white-space: nowrap;
-                flex: 1 1 auto;
             }
             .rwhen {
+                font-family: var(--font-mono);
+                font-size: 0.75rem;
                 color: var(--muted);
-                font-size: 12px;
                 white-space: nowrap;
             }
             .rbody {
-                padding: 0 16px 16px;
-                border-top: 1px solid #eef1f6;
+                padding: 0 1rem 1.25rem;
+                border-top: 1px solid var(--line);
             }
             h3.sec {
-                font-size: 12px;
-                text-transform: uppercase;
-                letter-spacing: 0.05em;
+                margin: 1.25rem 0 0.6rem;
+                font-family: var(--font-mono);
+                font-size: 0.8125rem;
+                font-weight: 500;
                 color: var(--muted);
-                margin: 16px 0 6px;
             }
             .dims {
                 display: grid;
-                gap: 8px;
+                gap: 0.9rem;
             }
             .dim-head {
                 display: flex;
                 justify-content: space-between;
-                font-size: 12.5px;
-                font-weight: 600;
-                margin-bottom: 3px;
+                gap: 1rem;
+                margin-bottom: 0.4rem;
+                font-size: 0.9375rem;
+                font-weight: 500;
+            }
+            .dim-head span:last-child {
+                font-family: var(--font-mono);
+                font-size: 0.8125rem;
+                color: var(--muted);
             }
             .bar {
-                height: 7px;
-                background: #eef1f6;
+                height: 6px;
+                background: var(--line);
                 border-radius: 999px;
                 overflow: hidden;
             }
             .bar span {
                 display: block;
                 height: 100%;
-                background: var(--ink);
+                background: var(--accent);
             }
             ul.chips {
                 list-style: none;
@@ -233,91 +464,227 @@
                 padding: 0;
                 display: flex;
                 flex-wrap: wrap;
-                gap: 6px;
+                gap: 0.5rem;
             }
             ul.chips li {
-                font-size: 12px;
-                padding: 4px 9px;
-                border-radius: 999px;
-                border: 1px solid var(--line);
-            }
-            ul.chips.good li {
-                border-color: rgba(46, 164, 79, 0.4);
-                background: rgba(46, 164, 79, 0.08);
-            }
-            ul.chips.bad li {
-                border-color: rgba(179, 27, 27, 0.35);
-                background: rgba(179, 27, 27, 0.07);
-            }
-            pre.resume {
-                white-space: pre-wrap;
-                word-break: break-word;
-                background: #f7f8fb;
+                padding: 0.3rem 0.55rem;
+                font-size: 0.875rem;
                 border: 1px solid var(--line);
                 border-radius: 8px;
-                padding: 12px;
-                font-size: 12px;
-                max-height: 320px;
-                overflow: auto;
-                margin: 0;
+            }
+            ul.chips.good li {
+                border-color: var(--good);
+                color: var(--good);
+            }
+            ul.chips.bad li {
+                border-color: var(--bad);
+                color: var(--bad);
             }
             .summary {
-                font-size: 13.5px;
-                color: #26303d;
-                margin: 4px 0 0;
+                margin: 0.75rem 0 0;
+                font-size: 1rem;
+            }
+            pre.resume {
+                margin: 0;
+                padding: 0.8rem;
+                max-height: 20rem;
+                overflow: auto;
+                background: var(--paper);
+                border: 1px solid var(--line);
+                border-radius: 8px;
+                font-family: var(--font-mono);
+                font-size: 0.8125rem;
+                line-height: 1.5;
+                white-space: pre-wrap;
+                word-break: break-word;
+            }
+            button.danger {
+                padding: 0.45rem 0.7rem;
+                border: 1px solid var(--line);
+                border-radius: 8px;
+                background: transparent;
+                color: var(--bad);
+                font: inherit;
+                font-size: 0.875rem;
+                cursor: pointer;
+            }
+            button.danger:hover {
+                border-color: var(--bad);
+            }
+
+            @media (max-width: 48rem) {
+                details.rec > summary {
+                    grid-template-columns: 3.25rem 1fr;
+                }
+                .rverdict,
+                .rresume,
+                .rrole,
+                .rwhen {
+                    grid-column: 2;
+                }
             }
         </style>
     </head>
     <body>
-        <header>
-            <h1>Candidate Match Records</h1>
-            <p>
-                Saved fit scores from the skill match tool.
-                <a href="candidate-match.html">&larr; Candidate skill match</a>
-                &nbsp;&middot;&nbsp; <a href="./">Resume generator</a>
+        <a class="skip" href="#main">Skip to content</a>
+
+        <header class="topbar wrap">
+            <p class="brand">
+                <span class="brand-name">Candidate Match Records</span>
+                <span class="brand-role">saved fit scores</span>
             </p>
+            <button
+                class="theme-toggle"
+                id="theme-toggle"
+                type="button"
+                aria-pressed="false"
+                aria-label="Switch to dark theme"
+            >
+                <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    aria-hidden="true"
+                >
+                    <path
+                        d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"
+                    ></path>
+                </svg>
+                <span id="theme-label">Dark</span>
+            </button>
         </header>
 
-        <div class="wrap">
-            <div class="card" id="token-card">
-                <label class="kw" for="token">Access token</label>
-                <div class="controls">
-                    <input
-                        id="token"
-                        type="password"
-                        placeholder="Paste the records token"
-                        autocomplete="off"
-                    />
-                    <button id="btn-load" type="button">Load records</button>
-                    <button id="btn-forget" type="button" class="grey">
-                        Forget token
-                    </button>
+        <main id="main">
+            <section class="intro wrap">
+                <h1>Every call you made, with the reasoning kept.</h1>
+                <p class="lead">
+                    Saved fit scores from the skill match tool, including the
+                    summary, the dimensions, and the resume text behind each
+                    score.
+                </p>
+                <div class="actions">
+                    <a class="btn btn-ghost" href="candidate-match.html"
+                        >Candidate skill match</a
+                    >
+                    <a class="btn btn-ghost" href="./">Resume generator</a>
                 </div>
-                <div id="status"></div>
-                <div class="hint">
-                    The token is stored only in this browser and sent as a
-                    bearer credential. Records contain candidate resumes (PII) —
-                    keep the token private and delete records when no longer
-                    needed.
-                </div>
-            </div>
+            </section>
 
-            <div id="tools" hidden>
-                <button id="btn-csv" type="button" class="small">
-                    Export CSV
-                </button>
-                <button id="btn-json" type="button" class="small">
-                    Export JSON
-                </button>
-                <span id="count"></span>
-            </div>
-            <div id="list"></div>
-        </div>
+            <section class="block wrap">
+                <div class="panel" id="token-card">
+                    <div class="panel-head">
+                        <span class="dot" aria-hidden="true"></span>
+                        <span>records access</span>
+                    </div>
+                    <div class="panel-body">
+                        <div class="field">
+                            <label class="kw" for="token">Access token</label>
+                            <div class="controls">
+                                <input
+                                    id="token"
+                                    type="password"
+                                    placeholder="Paste the records token"
+                                    autocomplete="off"
+                                />
+                                <button
+                                    class="btn btn-primary"
+                                    id="btn-load"
+                                    type="button"
+                                >
+                                    Load records
+                                </button>
+                                <button
+                                    class="btn btn-ghost"
+                                    id="btn-forget"
+                                    type="button"
+                                >
+                                    Forget token
+                                </button>
+                            </div>
+                        </div>
+                        <div id="status" role="status" aria-live="polite"></div>
+                        <p class="hint">
+                            The token is stored only in this browser and sent as
+                            a bearer credential. Records contain candidate
+                            resumes (PII) — keep the token private and delete
+                            records when no longer needed.
+                        </p>
+                    </div>
+                </div>
+            </section>
+
+            <section class="block wrap">
+                <h2 class="block-title">Records</h2>
+                <div id="tools" hidden>
+                    <button
+                        class="btn btn-ghost small"
+                        id="btn-csv"
+                        type="button"
+                    >
+                        Export CSV
+                    </button>
+                    <button
+                        class="btn btn-ghost small"
+                        id="btn-json"
+                        type="button"
+                    >
+                        Export JSON
+                    </button>
+                    <span id="count"></span>
+                </div>
+                <div id="list"></div>
+            </section>
+        </main>
 
         <script src="vendor/supabase.min.js"></script>
         <script src="config.js?v=20261014c"></script>
         <script src="auth.js?v=20261015d"></script>
         <script src="job-title.js?v=20261015d"></script>
-        <script src="records.js?v=20261015c"></script>
+        <script src="records.js?v=20261015d"></script>
+        <script>
+            (function () {
+                var root = document.documentElement;
+                var btn = document.getElementById("theme-toggle");
+                var label = document.getElementById("theme-label");
+                var stored = null;
+                try {
+                    stored = localStorage.getItem("theme");
+                } catch (e) {}
+
+                function apply(theme) {
+                    root.setAttribute("data-theme", theme);
+                    var dark = theme === "dark";
+                    btn.setAttribute("aria-pressed", String(dark));
+                    btn.setAttribute(
+                        "aria-label",
+                        dark ? "Switch to light theme" : "Switch to dark theme",
+                    );
+                    label.textContent = dark ? "Light" : "Dark";
+                }
+
+                var prefersDark = window.matchMedia(
+                    "(prefers-color-scheme: dark)",
+                ).matches;
+                apply(
+                    stored === "dark" || stored === "light"
+                        ? stored
+                        : prefersDark
+                          ? "dark"
+                          : "light",
+                );
+
+                btn.addEventListener("click", function () {
+                    var next =
+                        root.getAttribute("data-theme") === "dark"
+                            ? "light"
+                            : "dark";
+                    apply(next);
+                    try {
+                        localStorage.setItem("theme", next);
+                    } catch (e) {}
+                });
+            })();
+        </script>
     </body>
 </html>
