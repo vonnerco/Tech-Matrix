@@ -568,10 +568,10 @@
         const cls = s >= 8 ? "good" : s >= 5.5 ? "mid" : "bad";
         const when = new Date(h.ts).toLocaleString();
         return `<div class="hrow">
-                    <button type="button" class="hopen" data-i="${i}" title="Open this result">
+                    <button type="button" class="hopen" data-i="${i}" aria-label="Open this result">
                         <span class="hscore ${cls}">${s.toFixed(1)}</span>
                         <span class="hname">${esc(h.name || "resume")}</span>
-                        <span class="hrole" title="${esc(h.role || "")}">${esc(jobTitle(h.role))}</span>
+                        <span class="hrole" data-tip="${esc(h.role || "")}">${esc(jobTitle(h.role))}</span>
                         <span class="hwhen">${esc(when)}${h.source === "local" ? " (local)" : ""}</span>
                     </button>
                     <button type="button" class="hdel" data-del-row="${i}" title="Delete this record">Delete</button>
@@ -803,6 +803,55 @@
       /* ignore */
     }
     await refreshHistory();
+  });
+
+  // ---- hover tooltip ----
+
+  // The pasted role can run to thousands of characters, which the browser's
+  // native title box cuts short. This one wraps to fit the text and is clamped
+  // to the viewport, so the whole role is readable.
+  const tip = document.createElement("div");
+  tip.className = "tip";
+  tip.hidden = true;
+  document.body.appendChild(tip);
+
+  function showTip(el, text) {
+    if (!text) return;
+    tip.textContent = text;
+    tip.hidden = false;
+    const r = el.getBoundingClientRect();
+    const t = tip.getBoundingClientRect();
+    const left = Math.min(
+      Math.max(8, r.left),
+      Math.max(8, window.innerWidth - t.width - 8),
+    );
+    let top = r.bottom + 8;
+    if (top + t.height > window.innerHeight - 8)
+      top = Math.max(8, r.top - t.height - 8);
+    tip.style.left = left + "px";
+    tip.style.top = top + "px";
+  }
+
+  function hideTip() {
+    tip.hidden = true;
+  }
+
+  historyList.addEventListener("mouseover", (e) => {
+    const el = e.target.closest("[data-tip]");
+    if (el) showTip(el, el.getAttribute("data-tip"));
+  });
+  historyList.addEventListener("mouseout", (e) => {
+    const el = e.target.closest("[data-tip]");
+    if (!el) return;
+    const to = e.relatedTarget;
+    if (to && (el.contains(to) || tip.contains(to))) return; // into the tip itself
+    hideTip();
+  });
+  tip.addEventListener("mouseleave", hideTip);
+  window.addEventListener("scroll", hideTip, { passive: true });
+  window.addEventListener("resize", hideTip);
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") hideTip();
   });
 
   if (btnMigrate) btnMigrate.addEventListener("click", migrateLocalHistory);

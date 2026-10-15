@@ -391,6 +391,27 @@
                 outline: 2px solid rgba(179, 27, 27, 0.4);
                 outline-offset: 1px;
             }
+            .tip {
+                position: fixed;
+                left: 0;
+                top: 0;
+                z-index: 60;
+                max-width: min(560px, 90vw);
+                max-height: 80vh;
+                overflow: auto;
+                background: var(--ink);
+                color: #fff;
+                padding: 10px 12px;
+                border-radius: 8px;
+                font-size: 12.5px;
+                line-height: 1.45;
+                white-space: pre-wrap;
+                overflow-wrap: anywhere;
+                box-shadow: 0 8px 24px rgba(20, 30, 50, 0.28);
+            }
+            .tip[hidden] {
+                display: none;
+            }
             @media (max-width: 620px) {
                 #history-card button.hopen {
                     grid-template-columns: 44px 1fr;
@@ -490,6 +511,6 @@
         <script src="config.js?v=20261014c"></script>
         <script src="auth.js?v=20261015b"></script>
         <script src="job-title.js?v=20261015d"></script>
-        <script src="candidate-match.js?v=20261015m"></script>
+        <script src="candidate-match.js?v=20261015n"></script>
     </body>
 </html>
