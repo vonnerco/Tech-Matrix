@@ -15,12 +15,15 @@
   const tokenEl = document.getElementById("token");
   const btnLoad = document.getElementById("btn-load");
   const btnForget = document.getElementById("btn-forget");
+  const btnSort = document.getElementById("btn-sort");
   const statusEl = document.getElementById("status");
   const toolsEl = document.getElementById("tools");
   const countEl = document.getElementById("count");
   const listEl = document.getElementById("list");
 
-  let records = [];
+  let records = []; // what's on screen, in the current sort order
+  let allRows = []; // unsorted, so switching sort doesn't lose rows
+  let sortMode = 0;
 
   function setStatus(msg, kind) {
     statusEl.textContent = msg || "";
@@ -65,6 +68,50 @@
         .trim()
         .slice(0, 120));
 
+  // Same sort cycle as the match page: click to rotate through newest, score,
+  // resume name and job title.
+  function savedAt(r) {
+    return Date.parse(r.created_at) || 0;
+  }
+
+  function resumeName(r) {
+    return String(r.resume_name || "").toLowerCase();
+  }
+
+  function title(r) {
+    return String(jobTitle(r.role) || "").toLowerCase();
+  }
+
+  const SORT_MODES = [
+    { label: "Sort: newest", cmp: (a, b) => savedAt(b) - savedAt(a) },
+    {
+      label: "Sort: score",
+      cmp: (a, b) =>
+        (Number(b.score) || 0) - (Number(a.score) || 0) ||
+        savedAt(b) - savedAt(a),
+    },
+    {
+      label: "Sort: resume name",
+      cmp: (a, b) => resumeName(a).localeCompare(resumeName(b)),
+    },
+    {
+      label: "Sort: job title",
+      cmp: (a, b) =>
+        title(a).localeCompare(title(b)) ||
+        resumeName(a).localeCompare(resumeName(b)),
+    },
+  ];
+
+  function sortRows(arr) {
+    return arr.slice().sort(SORT_MODES[sortMode].cmp);
+  }
+
+  function setRows(rows) {
+    allRows = rows;
+    records = sortRows(allRows);
+    render();
+  }
+
   // ---- loading ----
 
   async function loadFromSupabase() {
@@ -78,8 +125,7 @@
       setStatus("Could not load records: " + (error.message || "error"), "err");
       return;
     }
-    records = Array.isArray(data) ? data : [];
-    render();
+    setRows(Array.isArray(data) ? data : []);
     setStatus("");
   }
 
@@ -116,13 +162,12 @@
         return;
       }
       const data = await res.json();
-      records = Array.isArray(data.records) ? data.records : [];
       try {
         localStorage.setItem(TOKEN_KEY, token);
       } catch {
         /* ignore */
       }
-      render();
+      setRows(Array.isArray(data.records) ? data.records : []);
       setStatus("");
     } catch {
       setStatus("Network error loading records.", "err");
@@ -202,8 +247,7 @@
       setStatus("Delete failed: " + (error.message || "error"), "err");
       return;
     }
-    records = records.filter((r) => String(r.id) !== String(id));
-    render();
+    setRows(allRows.filter((r) => String(r.id) !== String(id)));
     setStatus("Deleted.");
   }
 
@@ -222,8 +266,7 @@
         setStatus("Delete failed (HTTP " + res.status + ").", "err");
         return;
       }
-      records = records.filter((r) => String(r.id) !== String(id));
-      render();
+      setRows(allRows.filter((r) => String(r.id) !== String(id)));
       setStatus("Deleted.");
     } catch {
       setStatus("Network error deleting record.", "err");
@@ -292,6 +335,16 @@
       [cols.join(","), ...rows].join("\n"),
       "text/csv",
     );
+  }
+
+  if (btnSort) {
+    btnSort.textContent = SORT_MODES[sortMode].label;
+    btnSort.addEventListener("click", () => {
+      sortMode = (sortMode + 1) % SORT_MODES.length;
+      btnSort.textContent = SORT_MODES[sortMode].label;
+      records = sortRows(allRows);
+      render();
+    });
   }
 
   document.getElementById("btn-csv").addEventListener("click", exportCsv);
