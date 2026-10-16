@@ -1,0 +1,5 @@
+# Shell scripts and git hooks must use LF line endings.
+# A CRLF shebang ("#!/bin/sh\r") fails on Unix runners and in Git Bash, and a
+# stray \r inside a heredoc corrupts the data the scanner reads.
+*.sh text eol=lf
+.githooks/* text eol=lf
