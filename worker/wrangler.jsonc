@@ -29,6 +29,12 @@
     "bindings": [{ "name": "BATCH", "class_name": "BatchJob" }],
   },
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["BatchJob"] }],
+  // Serve the static site from this same Worker, so the app and the API share an
+  // origin: no CORS, no preflight, and one deploy publishes both. Requests that
+  // match a file in docs/ are served as assets; everything else runs the Worker.
+  "assets": {
+    "directory": "../docs",
+  },
   // Exposes the deployed version id/tag/timestamp to the Worker, so GET /health
   // can report exactly which build is live.
   "version_metadata": {

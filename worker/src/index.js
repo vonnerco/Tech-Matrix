@@ -705,9 +705,17 @@ export default {
       return handleBatch(request, env, headers, url, user);
     }
 
-    // Scoring and rewrite are POST-only.
+    // Scoring and rewrite are POST-only. This Worker also serves the static site,
+    // so anything landing here either names an API route or matched no asset at
+    // all — 405 for the former, a plain 404 for the latter.
     if (request.method !== "POST") {
-      return jsonResponse({ error: "method_not_allowed" }, 405, headers);
+      const isApiRoute =
+        path.endsWith("/score") ||
+        path.endsWith("/records") ||
+        /\/batch(\/|$)/.test(path);
+      return isApiRoute
+        ? jsonResponse({ error: "method_not_allowed" }, 405, headers)
+        : jsonResponse({ error: "not_found" }, 404, headers);
     }
     if (!env.DEEPSEEK_API_KEY) {
       return jsonResponse({ error: "server_misconfigured" }, 500, headers);

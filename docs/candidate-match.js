@@ -1171,6 +1171,11 @@
     }</li>`;
   }
 
+  // Strengths get no interview prompt: they are evidence, not things to confirm.
+  function listItem(icon, text) {
+    return `<li><span class="ico" aria-hidden="true">${icon}</span><span class="txt">${esc(text)}</span></li>`;
+  }
+
   // One line carrying the decision, instead of bullets that restate the lists.
   function headlineLine(strengths, verify, gaps) {
     const first = String((strengths && strengths[0]) || "")
@@ -1235,7 +1240,7 @@
 
     const strengthHtml = strengths.length
       ? `<ul class="chips good">${strengths
-          .map((x) => gapItem("✓", x))
+          .map((x) => listItem("✓", x))
           .join("")}</ul>`
       : `<p class="muted">None noted.</p>`;
     const gapHtml = hardGaps.length
@@ -2895,8 +2900,17 @@
   }
   wireStep(fieldJdEl, [dropJdEl], (files) => loadJobDescription(files[0]));
   wireStep(fieldResumeEl, [dropResumeEl, dropResumeManyEl], (files) => {
-    if (resumeMode === "many") addBatchFiles(files);
-    else if (files[0]) setResumeFile(files[0]);
+    if (resumeMode === "many") {
+      addBatchFiles(files);
+    } else if (files.filter(acceptableResume).length > 1) {
+      // Several resumes at once means a batch, not one screen. Queue them all and
+      // switch modes rather than silently keeping only the first file.
+      setResumeMode("many");
+      addBatchFiles(files);
+      setStatus(files.length + " resumes dropped — switched to Batch.");
+    } else if (files[0]) {
+      setResumeFile(files[0]);
+    }
   });
   // Keep a stray drop elsewhere on the page from navigating to the file.
   ["dragover", "drop"].forEach((type) =>

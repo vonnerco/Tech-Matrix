@@ -239,7 +239,13 @@ longer writes a second copy of candidate PII to D1. See
 
 ## Hosting and origins
 
-The browser may call this API from:
+This Worker serves the static site itself (`assets.directory` → `../docs`), so the
+app and the API share one origin by default: no CORS, no preflight, and one deploy
+publishes both. Cloudflare serves a matching file from `docs/` first and only
+invokes the Worker when no asset matches — which is how `/score`, `/batch*`,
+`/records` and `/health` are reached.
+
+The browser may also call this API from:
 
 - `https://vonnerco.github.io` — the GitHub Pages copy of the site
 - `https://tech-matrix.corderio-vonner.workers.dev` — the Cloudflare-hosted copy
@@ -251,11 +257,10 @@ The browser may call this API from:
 
 Anything else gets `403 {"error":"forbidden_origin"}`. To add a host, extend
 `ALLOWED_ORIGINS` in `src/index.js`; to avoid needing to, serve the site from this
-same Worker.
+same Worker — which is the default above.
 
-The API is deployed by `wrangler deploy` (locally, or by the `Deploy worker`
-workflow). The static site is deployed separately — GitHub Pages and/or a
-Cloudflare Workers static-assets project — so the two are independent.
+The site is also mirrored on GitHub Pages and by a Cloudflare Workers static-assets
+project (`tech-matrix`); both are optional once this Worker serves it.
 
 ## Security notes
 
