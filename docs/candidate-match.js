@@ -421,12 +421,8 @@
   async function ocrImage(file) {
     if (file.size > MAX_IMAGE_BYTES)
       throw new Error("That image is too large. Try one under 12 MB.");
-    const worker = await newOcrWorker();
-    try {
-      return cleanOcr((await worker.recognize(file)).data.text);
-    } finally {
-      await worker.terminate();
-    }
+    const worker = await getOcrWorker();
+    return cleanOcr((await worker.recognize(file)).data.text);
   }
 
   function cleanOcr(text) {
@@ -442,32 +438,48 @@
     return Tesseract.createWorker("eng");
   }
 
+  // One worker for the whole page. Building it downloads the wasm core and the
+  // English model, and recognizing is the slow part, so create it once and reuse
+  // it for every paste, drop and scanned page instead of rebuilding it each time.
+  // A failed build is dropped so a later attempt can retry.
+  let ocrWorker = null;
+  function getOcrWorker() {
+    if (!ocrWorker)
+      ocrWorker = newOcrWorker().catch((e) => {
+        ocrWorker = null;
+        throw e;
+      });
+    return ocrWorker;
+  }
+
+  // Start the download while the recruiter is still aiming at the box, so the
+  // first paste is read instead of waiting on the engine. Best-effort.
+  function warmOcr() {
+    getOcrWorker().catch(() => {});
+  }
+
   // Scanned PDFs (image-only, no text layer) are rendered page by page onto one
-  // reused canvas and read the same way, so the engine loads only once.
+  // reused canvas and read by the shared worker.
   async function ocrPdf(file) {
     if (!PDFJS) throw new Error("PDF reader unavailable");
     const doc = await PDFJS.getDocument({ data: await file.arrayBuffer() })
       .promise;
     const pages = Math.min(doc.numPages, MAX_OCR_PAGES);
     const canvas = document.createElement("canvas");
-    const worker = await newOcrWorker();
-    try {
-      const parts = [];
-      for (let n = 1; n <= pages; n++) {
-        const page = await doc.getPage(n);
-        const viewport = page.getViewport({ scale: OCR_SCALE });
-        canvas.width = Math.ceil(viewport.width);
-        canvas.height = Math.ceil(viewport.height);
-        const context = canvas.getContext("2d");
-        context.fillStyle = "#ffffff";
-        context.fillRect(0, 0, canvas.width, canvas.height);
-        await page.render({ canvasContext: context, viewport }).promise;
-        parts.push(cleanOcr((await worker.recognize(canvas)).data.text));
-      }
-      return parts.join("\n\n").trim();
-    } finally {
-      await worker.terminate();
+    const worker = await getOcrWorker();
+    const parts = [];
+    for (let n = 1; n <= pages; n++) {
+      const page = await doc.getPage(n);
+      const viewport = page.getViewport({ scale: OCR_SCALE });
+      canvas.width = Math.ceil(viewport.width);
+      canvas.height = Math.ceil(viewport.height);
+      const context = canvas.getContext("2d");
+      context.fillStyle = "#ffffff";
+      context.fillRect(0, 0, canvas.width, canvas.height);
+      await page.render({ canvasContext: context, viewport }).promise;
+      parts.push(cleanOcr((await worker.recognize(canvas)).data.text));
     }
+    return parts.join("\n\n").trim();
   }
 
   // Fill the role box from one or more files the recruiter picked, dropped or
@@ -3208,6 +3220,14 @@
   roleEl.addEventListener("blur", () => {
     touched.role = true;
     updateReady();
+  });
+  // Warm OCR the first time the box is focused, so a paste doesn't pay the engine
+  // download while the recruiter waits.
+  let ocrWarmed = false;
+  roleEl.addEventListener("focus", () => {
+    if (ocrWarmed) return;
+    ocrWarmed = true;
+    warmOcr();
   });
   if (btnExample)
     btnExample.addEventListener("click", () => {
