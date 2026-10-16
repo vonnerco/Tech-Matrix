@@ -507,6 +507,15 @@
     resultEl.innerHTML = `
             ${posTitle ? `<h2 class="role-title">${esc(posTitle)}</h2>` : ""}
             <div class="scorecard ${cls}">
+                <button
+                    class="dismiss"
+                    type="button"
+                    data-dismiss-result
+                    aria-label="Dismiss this result"
+                    title="Dismiss this result"
+                >
+                    &times;
+                </button>
                 <div class="score-num">${score.toFixed(1)}<span>/10</span></div>
                 <div class="score-side">
                     <div class="verdict">${esc(verdict)}</div>
@@ -904,6 +913,14 @@
   }
 
   btn.addEventListener("click", run);
+  // Dismiss the current scorecard without rescoring; the match itself stays in
+  // the saved records.
+  resultEl.addEventListener("click", (e) => {
+    if (!e.target.closest("[data-dismiss-result]")) return;
+    resultEl.hidden = true;
+    resultEl.innerHTML = "";
+    setStatus("Result hidden.");
+  });
   if (jdFileEl)
     jdFileEl.addEventListener("change", () => {
       showFileName(jdNameEl, jdFileEl.files && jdFileEl.files[0], jdClearEl);
