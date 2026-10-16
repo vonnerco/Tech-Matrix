@@ -31,6 +31,7 @@
                 --divider: #c3cad9;
                 --field-bg: #f5f7fc;
                 --field-line: #c3cad9;
+                --quiet-line: #c3cad9;
                 --accent: #2f4be0;
                 --accent-2: #0e9c8a;
                 --on-accent: #ffffff;
@@ -63,6 +64,7 @@
                     --divider: #2a2a2a;
                     --field-bg: #0d0d0f;
                     --field-line: #2a2a2a;
+                    --quiet-line: #333333;
                     --accent: #8a9bff;
                     --accent-2: #3fd9c4;
                     --on-accent: #000000;
@@ -83,6 +85,7 @@
                 --divider: #2a2a2a;
                 --field-bg: #0d0d0f;
                 --field-line: #2a2a2a;
+                --quiet-line: #333333;
                 --accent: #8a9bff;
                 --accent-2: #3fd9c4;
                 --on-accent: #000000;
@@ -102,6 +105,7 @@
                 --divider: #c3cad9;
                 --field-bg: #f5f7fc;
                 --field-line: #c3cad9;
+                --quiet-line: #c3cad9;
                 --accent: #2f4be0;
                 --accent-2: #0e9c8a;
                 --on-accent: #ffffff;
@@ -325,7 +329,17 @@
                 border-bottom: 1px solid var(--divider);
                 color: var(--muted);
                 font-family: var(--font-mono);
-                font-size: 1rem;
+                font-size: 1.125rem;
+                font-weight: 600;
+            }
+            /* White on the black theme; the light theme keeps dark ink. */
+            @media (prefers-color-scheme: dark) {
+                :root:not([data-theme]) .panel-head {
+                    color: #ffffff;
+                }
+            }
+            :root[data-theme="dark"] .panel-head {
+                color: #ffffff;
             }
             .dot {
                 flex: none;
@@ -398,7 +412,12 @@
                 border: 0;
             }
             .file-btn {
+                min-width: 12rem;
+                text-align: center;
                 cursor: pointer;
+            }
+            .file-clear {
+                border-color: var(--quiet-line);
             }
             .file-input:focus-visible + .file-btn {
                 outline: 2px solid var(--accent-2);
@@ -416,6 +435,12 @@
                 flex-wrap: wrap;
                 gap: 0.75rem;
             }
+            /* Keep Calculate Fit Score and Clear the same width so the pair reads
+               as a set; the history toolbar is left alone. */
+            .panel-body .controls .btn {
+                min-width: 11rem;
+                text-align: center;
+            }
             .hint {
                 margin: 0;
                 max-width: 68ch;
@@ -429,6 +454,12 @@
                 gap: 0.5rem;
                 font-size: 0.9375rem;
                 font-weight: 500;
+            }
+            #btn-clear {
+                border-color: var(--quiet-line);
+            }
+            #btn-clear:hover {
+                border-color: var(--ink);
             }
             #status:empty {
                 display: none;
@@ -860,7 +891,7 @@
                                     >No file chosen</span
                                 >
                                 <button
-                                    class="btn btn-ghost file-btn"
+                                    class="btn btn-ghost file-clear"
                                     id="jd-clear"
                                     type="button"
                                     aria-label="Clear the job description file"
@@ -870,8 +901,7 @@
                                 </button>
                             </div>
                             <p class="hint">
-                                Paste the posting, or pick a PDF, DOCX, or image
-                                (PNG, JPEG) to fill this in.
+                                Paste text directly or upload a PDF/Image.
                             </p>
                         </div>
 
