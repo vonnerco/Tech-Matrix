@@ -315,6 +315,14 @@
                 cursor: not-allowed;
                 filter: none;
             }
+            /* Blocked but still focusable, so the click can explain what's missing. */
+            .btn[aria-disabled="true"] {
+                opacity: 0.55;
+                cursor: not-allowed;
+            }
+            .btn-primary[aria-disabled="true"]:hover {
+                background: var(--accent);
+            }
 
             /* ---- blocks ---- */
             .block {
@@ -387,6 +395,12 @@
             .field + .field {
                 padding-top: var(--panel-gap);
                 border-top: 1px solid var(--divider);
+            }
+            /* Whole-step drop target, so a file can be dropped in either view. */
+            .field.is-over {
+                outline: 2px dashed var(--accent);
+                outline-offset: 4px;
+                border-radius: 12px;
             }
             /* ---- stepper ---- */
             .step {
@@ -1072,7 +1086,7 @@
                         <span id="panel-state">New match</span>
                     </div>
                     <div class="panel-body">
-                        <div class="field">
+                        <div class="field" id="field-jd">
                             <h3 class="step" id="step-jd">
                                 <span class="step-num" aria-hidden="true"
                                     >1</span
@@ -1174,12 +1188,20 @@
                                             &times;
                                         </button>
                                     </span>
+                                    <button
+                                        class="btn btn-ghost btn-quiet"
+                                        id="jd-clear"
+                                        type="button"
+                                        hidden
+                                    >
+                                        Clear file
+                                    </button>
                                 </div>
                             </div>
                             <p class="field-error" id="role-error" hidden></p>
                         </div>
 
-                        <div class="field">
+                        <div class="field" id="field-resume">
                             <h3 class="step" id="step-resume">
                                 <span class="step-num" aria-hidden="true"
                                     >2</span
@@ -1237,9 +1259,18 @@
                                     class="btn btn-primary"
                                     id="btn-score"
                                     type="button"
-                                    disabled
+                                    aria-disabled="true"
                                 >
                                     Calculate Fit Score
+                                </button>
+                                <button
+                                    class="btn btn-ghost btn-quiet"
+                                    id="btn-clear"
+                                    type="button"
+                                    aria-label="Clear the resume file"
+                                    hidden
+                                >
+                                    Clear
                                 </button>
                                 <button
                                     class="btn btn-ghost btn-quiet"
@@ -1298,7 +1329,7 @@
         <script src="config.js?v=20261014c"></script>
         <script src="auth.js?v=20261015d"></script>
         <script src="job-title.js?v=20261015d"></script>
-        <script src="candidate-match.js?v=20261016a"></script>
+        <script src="candidate-match.js?v=20261016b"></script>
         <script>
             (function () {
                 var root = document.documentElement;

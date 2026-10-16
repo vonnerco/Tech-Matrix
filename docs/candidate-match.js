@@ -24,6 +24,7 @@
   const fileEl = document.getElementById("file");
   const jdFileEl = document.getElementById("jd-file");
   const btn = document.getElementById("btn-score");
+  const btnClear = document.getElementById("btn-clear");
   const btnClearAll = document.getElementById("btn-clear-all");
   const btnExample = document.getElementById("btn-example");
   const panelStateEl = document.getElementById("panel-state");
@@ -36,8 +37,11 @@
   const jdChipEl = document.getElementById("jd-chip");
   const jdChipNameEl = document.getElementById("jd-chip-name");
   const jdChipX = document.getElementById("jd-chip-x");
+  const jdClearEl = document.getElementById("jd-clear");
   const stepJdEl = document.getElementById("step-jd");
   const stepResumeEl = document.getElementById("step-resume");
+  const fieldJdEl = document.getElementById("field-jd");
+  const fieldResumeEl = document.getElementById("field-resume");
   const panePasteEl = document.getElementById("pane-paste");
   const paneUploadEl = document.getElementById("pane-upload");
   const modePasteEl = document.getElementById("mode-paste");
@@ -200,12 +204,13 @@
   // The native file controls are hidden, so the chosen file is tracked here and
   // shown as a chip. Picking or dropping clears the input value, which keeps the
   // same file reselectable.
-  function showChip(chip, name, file) {
+  function showChip(chip, name, file, clearBtn) {
     if (chip) chip.hidden = !file;
     if (name) {
       name.textContent = file ? file.name : "";
       name.title = file ? file.name : "";
     }
+    if (clearBtn) clearBtn.hidden = !file;
   }
 
   function setStep(el, done) {
@@ -245,6 +250,7 @@
   let jdFileText = ""; // text the posting file filled in, so a remove can tell
   const touched = { role: false, resume: false };
   let scoring = false;
+  let jdBusy = false; // a posting file is being read
 
   const EXAMPLE_JD =
     "Senior Snowflake Data Engineer — Snowflake, dbt, Airflow, SQL. Own ELT " +
@@ -264,11 +270,14 @@
     fileErrorEl.hidden = !msg;
   }
 
-  // Drives the disabled primary, the panel's status line and the inline errors.
+  // Drives the blocked-until-valid primary, the panel's status line and the
+  // inline errors. The button stays focusable (aria-disabled, not disabled) so a
+  // click can always surface what's missing.
   function updateReady() {
     const hasRole = !!roleEl.value.trim();
     const ready = hasRole && !!resumeFile;
-    btn.disabled = !ready || scoring;
+    const blocked = !ready || scoring || jdBusy;
+    btn.setAttribute("aria-disabled", String(blocked));
     setRoleError(touched.role && !hasRole ? "Add the job description." : "");
     setFileError(touched.resume && !resumeFile ? "Add the resume file." : "");
     setStep(stepJdEl, hasRole);
@@ -283,12 +292,28 @@
 
   function setResumeFile(file) {
     resumeFile = file || null;
-    showChip(fileChipEl, fileChipNameEl, resumeFile);
+    showChip(fileChipEl, fileChipNameEl, resumeFile, btnClear);
     if (file) {
       touched.resume = true;
       setStatus("Resume added: " + file.name + ".");
     }
     updateReady();
+  }
+
+  // Each step's clear button and the chip's x do the same thing.
+  function clearResumeFile() {
+    setResumeFile(null);
+    setStatus("Resume file cleared.");
+  }
+
+  function clearJdFile() {
+    showChip(jdChipEl, jdChipNameEl, null, jdClearEl);
+    // Drop text this file filled in, but never text the recruiter typed.
+    if (jdFileText && roleEl.value === jdFileText) roleEl.value = "";
+    jdFileText = "";
+    updateCount();
+    updateReady();
+    setStatus("Job description file cleared.");
   }
 
   function loadTesseract() {
@@ -381,7 +406,8 @@
       !image &&
       (/\.pdf$/i.test(file.name || "") || file.type === "application/pdf");
     setBusyStatus(image ? "Reading image…" : "Reading job description…");
-    btn.disabled = true;
+    jdBusy = true;
+    updateReady();
     try {
       let text = image ? await ocrImage(file) : await readFile(file);
       if (mayBeScanned && text.length < 40) {
@@ -397,7 +423,7 @@
         );
       roleEl.value = text.slice(0, MAX_ROLE);
       jdFileText = roleEl.value;
-      showChip(jdChipEl, jdChipNameEl, file);
+      showChip(jdChipEl, jdChipNameEl, file, jdClearEl);
       updateCount();
       // Show the text so the recruiter can check and edit what was read.
       setMode("paste");
@@ -405,6 +431,7 @@
     } catch (err) {
       setStatus(err && err.message ? err.message : String(err), "err");
     } finally {
+      jdBusy = false;
       updateReady();
     }
   }
@@ -945,6 +972,7 @@
   async function run() {
     const role = roleEl.value.trim().slice(0, MAX_ROLE);
     const file = resumeFile;
+    if (scoring || jdBusy) return;
     if (!role) {
       touched.role = true;
       updateReady();
@@ -1042,16 +1070,8 @@
       jdFileEl.value = ""; // so the same file can be picked again
       if (file) loadJobDescription(file);
     });
-  if (jdChipX)
-    jdChipX.addEventListener("click", () => {
-      showChip(jdChipEl, jdChipNameEl, null);
-      // Drop text this file filled in, but never text the recruiter typed.
-      if (jdFileText && roleEl.value === jdFileText) roleEl.value = "";
-      jdFileText = "";
-      updateCount();
-      updateReady();
-      setStatus("Job description file removed.");
-    });
+  if (jdChipX) jdChipX.addEventListener("click", clearJdFile);
+  if (jdClearEl) jdClearEl.addEventListener("click", clearJdFile);
 
   // ---- resume: picker, drop zone, chip ----
   if (fileEl)
@@ -1060,35 +1080,44 @@
       fileEl.value = "";
       if (file) setResumeFile(file);
     });
-  if (fileChipX)
-    fileChipX.addEventListener("click", () => {
-      setResumeFile(null);
-      setStatus("Resume file removed.");
-    });
+  if (fileChipX) fileChipX.addEventListener("click", clearResumeFile);
+  if (btnClear) btnClear.addEventListener("click", clearResumeFile);
 
-  // Drop zones: the whole area is the input's label, so a drop behaves exactly
-  // like picking the file.
-  function wireDropzone(zone, onFile) {
-    if (!zone) return;
-    zone.addEventListener("dragover", (e) => {
+  // Drops are accepted on the whole step, so a posting can be dropped whether the
+  // Paste or the Upload view is showing.
+  function wireStep(stepEl, zones, onFile) {
+    if (!stepEl) return;
+    const setOver = (on) => stepEl.classList.toggle("is-over", on);
+    stepEl.addEventListener("dragover", (e) => {
       e.preventDefault();
-      zone.classList.add("is-over");
+      setOver(true);
     });
-    zone.addEventListener("dragleave", () => zone.classList.remove("is-over"));
-    zone.addEventListener("drop", (e) => {
+    stepEl.addEventListener("dragleave", (e) => {
+      if (!stepEl.contains(e.relatedTarget)) setOver(false);
+    });
+    stepEl.addEventListener("drop", (e) => {
       e.preventDefault();
-      zone.classList.remove("is-over");
+      setOver(false);
       const file =
         e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
       if (file) onFile(file);
     });
+    // The visible drop zone keeps its own hover treatment.
+    zones.forEach((zone) => {
+      if (!zone) return;
+      zone.addEventListener("dragover", () => zone.classList.add("is-over"));
+      zone.addEventListener("dragleave", () =>
+        zone.classList.remove("is-over"),
+      );
+      zone.addEventListener("drop", () => zone.classList.remove("is-over"));
+    });
   }
-  wireDropzone(dropJdEl, loadJobDescription);
-  wireDropzone(dropResumeEl, setResumeFile);
+  wireStep(fieldJdEl, [dropJdEl], loadJobDescription);
+  wireStep(fieldResumeEl, [dropResumeEl], setResumeFile);
   // Keep a stray drop elsewhere on the page from navigating to the file.
   ["dragover", "drop"].forEach((type) =>
     document.addEventListener(type, (e) => {
-      if (!e.target.closest(".dropzone")) e.preventDefault();
+      if (!e.target.closest("#field-jd, #field-resume")) e.preventDefault();
     }),
   );
 
@@ -1116,10 +1145,10 @@
     btnClearAll.addEventListener("click", () => {
       roleEl.value = "";
       resumeFile = null;
-      showChip(fileChipEl, fileChipNameEl, null);
+      showChip(fileChipEl, fileChipNameEl, null, btnClear);
       if (fileEl) fileEl.value = "";
       if (jdFileEl) jdFileEl.value = "";
-      showChip(jdChipEl, jdChipNameEl, null);
+      showChip(jdChipEl, jdChipNameEl, null, jdClearEl);
       jdFileText = "";
       touched.role = false;
       touched.resume = false;
