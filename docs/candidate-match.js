@@ -775,10 +775,16 @@
     return lines.join("\n");
   }
 
-  function openSubmittal() {
-    if (!currentResult || !submittalDlg) return;
+  // What the submittal dialog is currently building: the single result, or one
+  // row picked from the batch table.
+  let submittalTarget = null;
+
+  function openSubmittal(target) {
+    const cr = target || currentResult;
+    if (!cr || !submittalDlg) return;
+    submittalTarget = cr;
     subAgencyInput.value = agency.name || "";
-    subNotesInput.value = getNotes(currentResult);
+    subNotesInput.value = getNotes(cr);
     // Always start unchecked: including contact details is a deliberate choice.
     subContactToggle.checked = false;
     subResetLogoBtn.hidden = !agency.logo;
@@ -793,10 +799,10 @@
   }
 
   function printSubmittal() {
-    if (!currentResult) return;
+    if (!submittalTarget) return;
     saveAgency();
-    setNotes(currentResult, subNotesInput.value);
-    buildSubmittal(currentResult, {
+    setNotes(submittalTarget, subNotesInput.value);
+    buildSubmittal(submittalTarget, {
       includeContact: subContactToggle.checked,
       notes: subNotesInput.value,
     });
@@ -806,8 +812,8 @@
   }
 
   async function copySubmittal() {
-    if (!currentResult) return;
-    const text = submittalText(currentResult, {
+    if (!submittalTarget) return;
+    const text = submittalText(submittalTarget, {
       includeContact: subContactToggle.checked,
       notes: subNotesInput.value,
     });
@@ -2364,6 +2370,7 @@
               <td class="cand-sub col-extra">${esc(gap)}</td>
               <td class="ranked-actions">
                   <button class="btn btn-ghost" type="button" data-batch="open" data-i="${r.i}">Open</button>
+                  <button class="btn btn-ghost" type="button" data-batch="submittal" data-i="${r.i}">Submittal</button>
                   <button class="btn ${isShort ? "btn-primary" : "btn-ghost"}" type="button" data-batch="short" data-i="${r.i}" aria-pressed="${isShort}">${isShort ? "Shortlisted ✓" : "Shortlist"}</button>
                   <button class="btn btn-pass" type="button" data-batch="pass" data-i="${r.i}" aria-pressed="${isPass}">${isPass ? "Passed ✓" : "Pass"}</button>
               </td>
@@ -2410,6 +2417,69 @@
       back.textContent = "← Ranked shortlist";
       actions.prepend(back);
     }
+  }
+
+  // A candidate from the batch table, shaped like the single-result object, so
+  // the submittal builders work unchanged.
+  function batchCr(row) {
+    const r = row.result || {};
+    return {
+      r,
+      meta: {
+        name: row.file.name,
+        role: batchRole,
+        resumeText: row.resumeText || "",
+      },
+      score: Number(r.score) || 0,
+      verdict: r.verdict || verdictFor(Number(r.score) || 0),
+      name: displayName(row.file.name) || row.file.name,
+      role: jobTitle(batchRole, 70),
+      resumeText: row.resumeText || "",
+    };
+  }
+
+  // Pull one candidate's full record from the server, so a submittal made from
+  // the ranked table carries the summary and every strength/gap, not just the
+  // compact fields the progress poll sends.
+  async function fetchBatchItem(i) {
+    const base = workerBase();
+    if (!batchJobId || !base) return null;
+    try {
+      const res = await fetch(
+        base + "/batch/" + encodeURIComponent(batchJobId) + "/item/" + i,
+        { headers: await apiHeaders() },
+      );
+      if (!res.ok) return null;
+      const data = await res.json();
+      return (data && data.item) || null;
+    } catch {
+      return null;
+    }
+  }
+
+  async function openBatchSubmittal(i) {
+    const row = rowByIndex(i);
+    if (!row || row.status !== "done") return;
+    if (!(row.result && row.result.summary)) {
+      setStatus("Preparing submittal…");
+      const item = await fetchBatchItem(i);
+      if (item && item.status === "done") {
+        row.status = "done";
+        row.resumeText = item.resume || row.resumeText || "";
+        row.result = {
+          score: item.score,
+          verdict: item.verdict,
+          summary: item.summary,
+          dimensions: item.dimensions || [],
+          strengths: item.strengths || [],
+          gaps: item.gaps || [],
+          local: item.source === "local",
+        };
+        renderBatch();
+      }
+      setStatus("");
+    }
+    openSubmittal(batchCr(row));
   }
 
   function batchExportRows() {
@@ -2787,6 +2857,8 @@
         renderBatch();
       } else if (act === "open")
         openBatchRow(Number(el.getAttribute("data-i")));
+      else if (act === "submittal")
+        openBatchSubmittal(Number(el.getAttribute("data-i")));
       else if (act === "short")
         batchToggle(rowByIndex(Number(el.getAttribute("data-i"))), "short");
       else if (act === "pass")

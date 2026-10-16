@@ -185,11 +185,46 @@ export class BatchJob extends DurableObject {
     return { ok: true };
   }
 
+  // One finished candidate, with everything needed to build a submittal. Used
+  // when the ranked table needs a full record it doesn't already hold (a row
+  // scored in this session only carries the compact progress fields).
+  async item(userId, index) {
+    const sql = this.ctx.storage.sql;
+    assertOwner(sql, userId);
+    const n = Number(index);
+    if (!Number.isInteger(n) || n < 0) return { item: null };
+    const row = sql
+      .exec(
+        "SELECT i, name, resume, status, score, verdict, summary, dimensions, " +
+          "strengths, gaps, source FROM items WHERE i = ?",
+        n,
+      )
+      .toArray()[0];
+    if (!row) return { item: null };
+    return {
+      item: {
+        i: row.i,
+        name: row.name,
+        resume: row.resume,
+        status: row.status,
+        score: row.score,
+        verdict: row.verdict,
+        summary: row.summary,
+        dimensions: toArray(row.dimensions),
+        strengths: toArray(row.strengths),
+        gaps: toArray(row.gaps),
+        source: row.source,
+      },
+    };
+  }
+
   // --- processing ---
 
   async alarm() {
     const sql = this.ctx.storage.sql;
-    const job = sql.exec("SELECT status, role FROM job WHERE id = 1").toArray()[0];
+    const job = sql
+      .exec("SELECT status, role FROM job WHERE id = 1")
+      .toArray()[0];
     if (!job || job.status !== "running") return;
 
     // An item still "running" is from a tick that was interrupted; retry it.
@@ -225,7 +260,11 @@ export class BatchJob extends DurableObject {
       let result;
       let source = "ai";
       try {
-        result = await scoreWithRetry(this.env.DEEPSEEK_API_KEY, job.role, text);
+        result = await scoreWithRetry(
+          this.env.DEEPSEEK_API_KEY,
+          job.role,
+          text,
+        );
       } catch {
         // Retries exhausted: keep a usable keyword estimate rather than lose it.
         result = localScore(job.role, text);
@@ -251,7 +290,8 @@ export class BatchJob extends DurableObject {
     const remaining = sql
       .exec("SELECT COUNT(*) AS n FROM items WHERE status = 'queued'")
       .toArray()[0].n;
-    if (remaining > 0) await this.ctx.storage.setAlarm(Date.now() + NEXT_TICK_MS);
+    if (remaining > 0)
+      await this.ctx.storage.setAlarm(Date.now() + NEXT_TICK_MS);
     else sql.exec("UPDATE job SET status = 'done' WHERE id = 1");
   }
 }

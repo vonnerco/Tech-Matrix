@@ -6,6 +6,8 @@
 //                 Durable Object; returns { id, total }.
 //   GET  /batch/:id           progress for polling (compact, no resume text).
 //   GET  /batch/:id/pending   full results not yet copied to the account.
+//   GET  /batch/:id/item/:i   one finished candidate, for a per-candidate
+//                             submittal.
 //   POST /batch/:id/recorded  mark those results as copied.
 //   POST /batch/:id/cancel    stop the job.
 //   GET /records  lists saved fit records (requires RECORDS_TOKEN).
@@ -518,6 +520,7 @@ async function handleBatch(request, env, headers, url, user) {
   const at = parts.indexOf("batch");
   const id = at >= 0 ? parts[at + 1] || "" : "";
   const sub = at >= 0 ? parts[at + 2] || "" : "";
+  const extra = at >= 0 ? parts[at + 3] || "" : "";
 
   // Start a job.
   if (request.method === "POST" && !id) {
@@ -565,6 +568,13 @@ async function handleBatch(request, env, headers, url, user) {
     }
     if (request.method === "GET" && sub === "pending") {
       return jsonResponse(await stub.pending(user.id), 200, headers);
+    }
+    if (request.method === "GET" && sub === "item") {
+      const index = Number(extra);
+      if (!Number.isInteger(index) || index < 0) {
+        return jsonResponse({ error: "invalid_item" }, 400, headers);
+      }
+      return jsonResponse(await stub.item(user.id, index), 200, headers);
     }
     if (request.method === "POST" && sub === "cancel") {
       return jsonResponse(await stub.cancel(user.id), 200, headers);

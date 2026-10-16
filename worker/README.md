@@ -119,6 +119,12 @@ Full records (including resume text) for `done` candidates not yet copied to the
 account. The client inserts these, then calls `POST /batch/:id/recorded` with
 `{ "indexes": [0, 1, 2] }` so they aren't inserted twice.
 
+### `GET /batch/:id/item/:i` — one candidate
+
+A single finished candidate: summary, every strength and gap, and the resume
+text. The ranked table uses this to build a per-candidate client submittal when
+it only holds the compact progress fields.
+
 ### `POST /batch/:id/cancel`
 
 Stops the job; queued candidates are marked `canceled`.
