@@ -56,6 +56,24 @@
   const btnMigrate = document.getElementById("btn-hmigrate");
   const btnSort = document.getElementById("btn-sort");
 
+  // Batch controls (see "batch" further down).
+  const filesEl = document.getElementById("files");
+  const batchListEl = document.getElementById("batch-list");
+  const filesErrorEl = document.getElementById("files-error");
+  const btnBatch = document.getElementById("btn-batch");
+  const btnBatchCancel = document.getElementById("btn-batch-cancel");
+  const btnBatchClear = document.getElementById("btn-batch-clear");
+  const dropResumeManyEl = document.getElementById("drop-resume-many");
+  const resumeOneEl = document.getElementById("resume-one");
+  const resumeManyEl = document.getElementById("resume-many");
+  const paneOneEl = document.getElementById("pane-one");
+  const paneManyEl = document.getElementById("pane-many");
+  const batchResultEl = document.getElementById("batch-result");
+  const batchTableEl = document.getElementById("batch-table");
+  const batchTitleEl = document.getElementById("batch-title");
+  const batchSubEl = document.getElementById("batch-sub");
+  const batchCardEl = document.getElementById("batch-card");
+
   // Job titles come from the shared helper in job-title.js; if it didn't load,
   // fall back to the first line of the role box.
   const jobTitle =
@@ -252,6 +270,18 @@
   let scoring = false;
   let jdBusy = false; // a posting file is being read
 
+  // Batch state: many resumes scored against the same role, ranked best-first.
+  // MAX_BATCH caps one run; a run over 25 asks for confirmation first.
+  const MAX_BATCH = 300;
+  const BATCH_CONCURRENCY = 3; // parallel /score calls; matches the worker
+  let resumeMode = "one"; // "one" | "many"
+  let batchFiles = []; // File[] still to score
+  let batchRows = []; // one row per file, with status + result
+  let batchRunning = false;
+  let batchCancel = false;
+  let batchShortlistOnly = false;
+  let batchRole = "";
+
   const EXAMPLE_JD =
     "Senior Snowflake Data Engineer — Snowflake, dbt, Airflow, SQL. Own ELT " +
     "pipelines, model in dbt, orchestrate with Airflow, and partner with " +
@@ -275,19 +305,38 @@
   // click can always surface what's missing.
   function updateReady() {
     const hasRole = !!roleEl.value.trim();
-    const ready = hasRole && !!resumeFile;
-    const blocked = !ready || scoring || jdBusy;
+    const many = resumeMode === "many";
+    const hasResume = many ? batchFiles.length > 0 : !!resumeFile;
+    const ready = hasRole && hasResume;
+    const blocked = !ready || scoring || batchRunning || jdBusy;
     btn.setAttribute("aria-disabled", String(blocked));
+    if (btnBatch) {
+      btnBatch.setAttribute("aria-disabled", String(blocked));
+      if (!batchRunning)
+        btnBatch.textContent = batchFiles.length
+          ? "Score " + batchFiles.length + " candidate(s)"
+          : "Score all candidates";
+    }
     setRoleError(touched.role && !hasRole ? "Add the job description." : "");
-    setFileError(touched.resume && !resumeFile ? "Add the resume file." : "");
+    if (filesErrorEl) {
+      const show = touched.resume && many && !batchFiles.length;
+      filesErrorEl.textContent = show ? "Add at least one resume." : "";
+      filesErrorEl.hidden = !show;
+    }
+    setFileError(
+      touched.resume && !many && !resumeFile ? "Add the resume file." : "",
+    );
     setStep(stepJdEl, hasRole);
-    setStep(stepResumeEl, !!resumeFile);
+    setStep(stepResumeEl, hasResume);
     if (panelStateEl)
-      panelStateEl.textContent = scoring
-        ? "Analyzing…"
-        : ready
-          ? "Ready to score"
-          : "Needs a job description and a resume";
+      panelStateEl.textContent =
+        scoring || batchRunning
+          ? "Analyzing…"
+          : ready
+            ? many
+              ? "Ready to score " + batchFiles.length + " candidate(s)"
+              : "Ready to score"
+            : "Needs a job description and a resume";
   }
 
   function setResumeFile(file) {
@@ -1444,6 +1493,456 @@
     return [cols.join(","), ...rows].join("\n");
   }
 
+  // ---- batch: score many resumes against one role, rank the results ----
+
+  function acceptableResume(file) {
+    const name = (file.name || "").toLowerCase();
+    return (
+      name.endsWith(".pdf") ||
+      name.endsWith(".docx") ||
+      file.type === "application/pdf" ||
+      /openxmlformats-officedocument/.test(file.type || "")
+    );
+  }
+
+  function setResumeMode(mode) {
+    resumeMode = mode === "many" ? "many" : "one";
+    const many = resumeMode === "many";
+    if (paneOneEl) paneOneEl.hidden = many;
+    if (paneManyEl) paneManyEl.hidden = !many;
+    if (resumeOneEl) {
+      resumeOneEl.classList.toggle("is-on", !many);
+      resumeOneEl.setAttribute("aria-pressed", String(!many));
+    }
+    if (resumeManyEl) {
+      resumeManyEl.classList.toggle("is-on", many);
+      resumeManyEl.setAttribute("aria-pressed", String(many));
+    }
+    updateReady();
+  }
+
+  // One list row per queued resume: name, live status, and a remove button.
+  function renderBatchList() {
+    if (!batchListEl) return;
+    if (!batchFiles.length) {
+      batchListEl.innerHTML = "";
+      return;
+    }
+    batchListEl.innerHTML = batchFiles
+      .map((f, i) => {
+        const row = batchRows[i];
+        const status = row ? row.status : "queued";
+        const label =
+          status === "done"
+            ? (Number(row.result && row.result.score) || 0).toFixed(1) + "/10"
+            : status === "running"
+              ? "scoring…"
+              : status === "error"
+                ? "failed"
+                : status === "canceled"
+                  ? "skipped"
+                  : "queued";
+        const cls = status === "error" ? " bad" : "";
+        return `<li><span class="b-name" title="${esc(f.name)}">${esc(f.name)}</span><span class="b-state${cls}">${label}</span>${
+          batchRunning
+            ? "<span></span>"
+            : `<button class="chip-x" type="button" data-batch-remove="${i}" aria-label="Remove ${esc(f.name)}">&times;</button>`
+        }</li>`;
+      })
+      .join("");
+  }
+
+  function addBatchFiles(list) {
+    const arr = Array.from(list || []);
+    let skipped = 0;
+    for (const f of arr) {
+      if (!f) continue;
+      if (!acceptableResume(f)) {
+        skipped += 1;
+        continue;
+      }
+      if (batchFiles.length >= MAX_BATCH) break;
+      // De-dupe by name + size so a re-drop doesn't score the same file twice.
+      if (!batchFiles.some((x) => x.name === f.name && x.size === f.size))
+        batchFiles.push(f);
+    }
+    touched.resume = true;
+    batchRows = [];
+    renderBatchList();
+    updateReady();
+    if (skipped)
+      setStatus(
+        "Skipped " + skipped + " file(s) that aren't PDF or DOCX.",
+        "err",
+      );
+    else if (arr.length)
+      setStatus(
+        batchFiles.length +
+          " resume(s) queued" +
+          (batchFiles.length >= MAX_BATCH
+            ? " (limit " + MAX_BATCH + ")."
+            : "."),
+      );
+  }
+
+  function removeBatchFile(i) {
+    if (batchRunning) return;
+    batchFiles.splice(i, 1);
+    batchRows = [];
+    renderBatchList();
+    updateReady();
+  }
+
+  function clearBatch() {
+    if (batchRunning) return;
+    batchFiles = [];
+    batchRows = [];
+    batchShortlistOnly = false;
+    renderBatchList();
+    if (batchResultEl) batchResultEl.hidden = true;
+    updateReady();
+  }
+
+  // Limited-concurrency map that preserves order (mirrors the worker's helper).
+  async function mapLimit(items, limit, fn) {
+    let next = 0;
+    async function worker() {
+      while (next < items.length) {
+        const i = next++;
+        await fn(items[i], i);
+      }
+    }
+    await Promise.all(
+      Array.from({ length: Math.min(limit, items.length) }, worker),
+    );
+  }
+
+  // The decision key shared with the single-candidate view, so a shortlist or
+  // pass made in the table shows up when that candidate is opened in full.
+  function batchKey(row) {
+    return [
+      jobTitle(batchRole, 70),
+      displayName(row.file.name) || row.file.name,
+      Number(row.result && row.result.score) || 0,
+    ].join("|");
+  }
+
+  function batchToggle(row, kind) {
+    const key = batchKey(row);
+    const store = kind === "short" ? SHORTLIST_KEY : PASS_KEY;
+    const list = (kind === "short" ? shortlist() : passList()) || [];
+    const on = list.includes(key);
+    try {
+      localStorage.setItem(
+        store,
+        JSON.stringify(on ? list.filter((k) => k !== key) : list.concat(key)),
+      );
+    } catch {
+      /* storage unavailable */
+    }
+    showToast(
+      on
+        ? "Decision cleared."
+        : kind === "short"
+          ? "Candidate shortlisted."
+          : "Candidate passed.",
+    );
+    renderBatch();
+  }
+
+  function rankedRows() {
+    return batchRows
+      .filter((r) => r.status === "done")
+      .slice()
+      .sort(
+        (a, b) =>
+          (Number(b.result && b.result.score) || 0) -
+          (Number(a.result && a.result.score) || 0),
+      );
+  }
+
+  function renderBatch() {
+    if (!batchResultEl) return;
+    batchResultEl.hidden = false;
+    const ranked = rankedRows();
+    const failed = batchRows.filter((r) => r.status === "error");
+    const queued = batchRows.filter(
+      (r) => r.status === "queued" || r.status === "running",
+    ).length;
+
+    if (batchTitleEl)
+      batchTitleEl.textContent = ranked.length
+        ? ranked.length + " candidate(s) ranked"
+        : batchRunning
+          ? "Scoring…"
+          : "Batch results";
+    if (batchSubEl)
+      batchSubEl.textContent = batchRole ? jobTitle(batchRole, 70) : "";
+
+    if (batchCardEl) {
+      const avg = ranked.length
+        ? ranked.reduce((a, r) => a + (Number(r.result.score) || 0), 0) /
+          ranked.length
+        : 0;
+      const strong = ranked.filter(
+        (r) => (Number(r.result.score) || 0) >= 8,
+      ).length;
+      const k = avg >= 8 ? "good" : avg >= 5.5 ? "mid" : "bad";
+      batchCardEl.className = "scorecard " + k;
+      batchCardEl.innerHTML = ranked.length
+        ? `<div class="score-line"><span class="score-num">${avg.toFixed(1)}<span>/10</span></span><span class="verdict">avg</span></div>
+           <p class="how-note">${strong} strong fit(s) of ${ranked.length} scored${queued ? ", " + queued + " pending" : ""}.</p>`
+        : `<p class="how-note">${queued ? "Scoring " + queued + " resume(s)…" : "Add resumes, then press Score."}</p>`;
+    }
+
+    const visible = batchShortlistOnly
+      ? ranked.filter((r) => shortlist().includes(batchKey(r)))
+      : ranked;
+
+    let html = "";
+    if (visible.length) {
+      const body = visible
+        .map((r, i) => {
+          const s = Number(r.result.score) || 0;
+          const k = s >= 8 ? "good" : s >= 5.5 ? "mid" : "bad";
+          const isShort = shortlist().includes(batchKey(r));
+          const isPass = passList().includes(batchKey(r));
+          const strength = (r.result.strengths || [])[0] || "—";
+          const gap = (r.result.gaps || [])[0] || "—";
+          const name = displayName(r.file.name) || r.file.name;
+          return `<tr class="${isShort ? "is-short" : ""}">
+              <td class="rank-cell">${i + 1}</td>
+              <td><span class="cand-name">${esc(name)}</span><div class="cand-sub">${esc(r.file.name)}</div></td>
+              <td class="score-cell ${k}">${s.toFixed(1)}</td>
+              <td>${esc(r.result.verdict || verdictFor(s))}</td>
+              <td class="cand-sub col-extra">${esc(strength)}</td>
+              <td class="cand-sub col-extra">${esc(gap)}</td>
+              <td class="ranked-actions">
+                  <button class="btn btn-ghost" type="button" data-batch="open" data-i="${r.i}">Open</button>
+                  <button class="btn ${isShort ? "btn-primary" : "btn-ghost"}" type="button" data-batch="short" data-i="${r.i}" aria-pressed="${isShort}">${isShort ? "Shortlisted ✓" : "Shortlist"}</button>
+                  <button class="btn btn-pass" type="button" data-batch="pass" data-i="${r.i}" aria-pressed="${isPass}">${isPass ? "Passed ✓" : "Pass"}</button>
+              </td>
+          </tr>`;
+        })
+        .join("");
+      html = `<table class="ranked">
+          <thead><tr><th>#</th><th>Candidate</th><th>Score</th><th>Verdict</th><th class="col-extra">Top strength</th><th class="col-extra">Top gap</th><th></th></tr></thead>
+          <tbody>${body}</tbody>
+        </table>`;
+    } else if (batchShortlistOnly && ranked.length) {
+      html = `<p class="muted">No shortlisted candidates yet.</p>`;
+    } else if (!ranked.length) {
+      html = `<p class="muted">${queued ? "Ranking as results land…" : ""}</p>`;
+    }
+
+    if (failed.length)
+      html += `<p class="muted">Couldn't score ${failed.length} file(s): ${failed
+        .map(
+          (r) => esc(r.file.name) + (r.error ? " (" + esc(r.error) + ")" : ""),
+        )
+        .join(", ")}</p>`;
+
+    batchTableEl.innerHTML = html;
+  }
+
+  // Open one candidate's full result, with a way back to the ranking.
+  function openBatchRow(i) {
+    const row = batchRows[i];
+    if (!row || row.status !== "done") return;
+    batchResultEl.hidden = true;
+    render(row.result, {
+      name: row.file.name,
+      chars: (row.resumeText || "").length,
+      role: batchRole,
+      resumeText: row.resumeText || "",
+    });
+    const actions = resultEl.querySelector(".result-actions");
+    if (actions) {
+      const back = document.createElement("button");
+      back.className = "btn btn-ghost";
+      back.type = "button";
+      back.setAttribute("data-action", "batch");
+      back.textContent = "← Ranked shortlist";
+      actions.prepend(back);
+    }
+  }
+
+  function batchExportRows() {
+    return rankedRows().map((r, i) => ({
+      rank: i + 1,
+      resume_name: r.file.name,
+      candidate: displayName(r.file.name) || r.file.name,
+      job_title: jobTitle(batchRole, 70),
+      score: Number(r.result.score) || 0,
+      verdict: r.result.verdict || verdictFor(Number(r.result.score) || 0),
+      strengths: (r.result.strengths || []).join("; "),
+      gaps: (r.result.gaps || []).join("; "),
+      shortlisted: shortlist().includes(batchKey(r)) ? "yes" : "",
+    }));
+  }
+
+  function batchCsv() {
+    const cols = [
+      "rank",
+      "resume_name",
+      "candidate",
+      "job_title",
+      "score",
+      "verdict",
+      "strengths",
+      "gaps",
+      "shortlisted",
+    ];
+    const rows = batchExportRows().map((o) =>
+      cols.map((c) => csvCell(o[c])).join(","),
+    );
+    return [cols.join(","), ...rows].join("\n");
+  }
+
+  // Score every queued resume, at most BATCH_CONCURRENCY at a time. A file that
+  // fails to read or score is marked and skipped; the rest keep going.
+  async function runBatch() {
+    const role = roleEl.value.trim().slice(0, MAX_ROLE);
+    if (batchRunning || scoring || jdBusy) return;
+    if (!role) {
+      touched.role = true;
+      updateReady();
+      roleEl.focus();
+      setStatus("Add the job description before scoring.", "err");
+      return;
+    }
+    if (!batchFiles.length) {
+      touched.resume = true;
+      updateReady();
+      setStatus("Add at least one resume to the batch.", "err");
+      return;
+    }
+    if (
+      batchFiles.length > 25 &&
+      !window.confirm(
+        "Score " +
+          batchFiles.length +
+          " resumes? This sends one AI request per resume and can take several minutes.",
+      )
+    )
+      return;
+
+    let sessionExpired = false;
+    batchRunning = true;
+    batchCancel = false;
+    batchShortlistOnly = false;
+    batchRole = role;
+    resultEl.hidden = true;
+    batchRows = batchFiles.map((f, i) => ({ file: f, i, status: "queued" }));
+    if (btnBatchCancel) btnBatchCancel.hidden = false;
+    if (btnBatch) btnBatch.setAttribute("aria-busy", "true");
+    updateReady();
+    renderBatchList();
+    renderBatch();
+    if (batchResultEl)
+      batchResultEl.scrollIntoView({ behavior: "smooth", block: "start" });
+    setStatus("Scoring 0 of " + batchRows.length + "…");
+
+    let done = 0;
+    let batchError = "";
+    const total = batchRows.length;
+
+    await mapLimit(batchRows.slice(), BATCH_CONCURRENCY, async (row) => {
+      const finish = () => {
+        done += 1;
+        renderBatchList();
+        renderBatch();
+        setStatus("Scoring " + done + " of " + total + "…");
+      };
+      if (batchCancel) {
+        row.status = "canceled";
+        return finish();
+      }
+      row.status = "running";
+      renderBatchList();
+
+      let resume;
+      try {
+        resume = await readFile(row.file);
+        if (!resume || resume.length < 40)
+          throw new Error("Couldn't read text from that file.");
+      } catch (err) {
+        row.status = "error";
+        row.error = err && err.message ? err.message : String(err);
+        return finish();
+      }
+      resume = resume.slice(0, MAX_RESUME);
+
+      let result;
+      let recorded = false;
+      try {
+        result = await aiScore(role, resume, row.file.name);
+        recorded = await saveRecord(role, resume, row.file.name, result);
+      } catch (e) {
+        if (e && e.message === "worker_http_401") {
+          // Session died mid-run: stop the batch and resync.
+          sessionExpired = true;
+          batchCancel = true;
+          row.status = "error";
+          row.error = "Session expired";
+          return finish();
+        }
+        result = localScore(role, resume);
+      }
+
+      row.result = result;
+      row.recorded = recorded;
+      row.resumeText = resume;
+      row.status = "done";
+      saveHistory({
+        ts: Date.now(),
+        name: row.file.name,
+        role,
+        score: result.score,
+        verdict: result.verdict,
+        summary: result.summary,
+        dimensions: result.dimensions || [],
+        strengths: result.strengths || [],
+        gaps: result.gaps || [],
+        chars: resume.length,
+        source: result.local ? "local" : "ai",
+        recorded: recorded,
+      });
+      finish();
+    }).catch((e) => {
+      batchError = e && e.message ? e.message : String(e);
+      batchCancel = true;
+    });
+
+    batchRunning = false;
+    if (btnBatchCancel) btnBatchCancel.hidden = true;
+    if (btnBatch) btnBatch.removeAttribute("aria-busy");
+    updateReady();
+    renderBatchList();
+    renderBatch();
+    await refreshHistory();
+
+    if (batchError) {
+      setStatus("Batch stopped: " + batchError, "err");
+      return;
+    }
+    if (sessionExpired) {
+      setStatus("Your session expired. Redirecting to sign in…", "err");
+      setTimeout(() => window.Auth.signOut(), 1200);
+      return;
+    }
+    const ok = batchRows.filter((r) => r.status === "done").length;
+    const failed = batchRows.filter((r) => r.status === "error").length;
+    setStatus(
+      (batchCancel ? "Stopped. Scored " : "Scored ") +
+        ok +
+        " of " +
+        total +
+        " candidate(s)" +
+        (failed ? ", " + failed + " failed." : "."),
+    );
+  }
+
   // ---- flow ----
 
   async function run() {
@@ -1466,6 +1965,7 @@
     scoring = true;
     btn.setAttribute("aria-busy", "true");
     resultEl.hidden = true;
+    if (batchResultEl) batchResultEl.hidden = true;
     updateReady();
     try {
       setBusyStatus("Reading resume…");
@@ -1547,6 +2047,13 @@
     else if (action === "docx") exportDocx(currentResult);
     else if (action === "pdf") window.print();
     else if (action === "resume") openResume();
+    else if (action === "batch") {
+      resultEl.hidden = true;
+      if (batchResultEl) {
+        batchResultEl.hidden = false;
+        batchResultEl.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    }
   });
   // ---- input methods ----
   if (modePasteEl)
@@ -1574,9 +2081,61 @@
   if (fileChipX) fileChipX.addEventListener("click", clearResumeFile);
   if (btnClear) btnClear.addEventListener("click", clearResumeFile);
 
+  // ---- resume: batch list, mode toggle, run ----
+  if (filesEl)
+    filesEl.addEventListener("change", () => {
+      addBatchFiles(filesEl.files);
+      filesEl.value = "";
+    });
+  if (resumeOneEl)
+    resumeOneEl.addEventListener("click", () => setResumeMode("one"));
+  if (resumeManyEl)
+    resumeManyEl.addEventListener("click", () => setResumeMode("many"));
+  if (btnBatch) btnBatch.addEventListener("click", runBatch);
+  if (btnBatchCancel)
+    btnBatchCancel.addEventListener("click", () => {
+      batchCancel = true;
+      setStatus("Stopping after the current resume…");
+    });
+  if (btnBatchClear)
+    btnBatchClear.addEventListener("click", () => {
+      clearBatch();
+      setStatus("Batch list cleared.");
+    });
+  if (batchListEl)
+    batchListEl.addEventListener("click", (e) => {
+      const el = e.target.closest("[data-batch-remove]");
+      if (el) removeBatchFile(Number(el.getAttribute("data-batch-remove")));
+    });
+  if (batchResultEl)
+    batchResultEl.addEventListener("click", (e) => {
+      const el = e.target.closest("[data-batch]");
+      if (!el) return;
+      const act = el.getAttribute("data-batch");
+      if (act === "csv")
+        download("candidate-shortlist.csv", batchCsv(), "text/csv");
+      else if (act === "json")
+        download(
+          "candidate-shortlist.json",
+          JSON.stringify(batchExportRows(), null, 2),
+          "application/json",
+        );
+      else if (act === "clear") clearBatch();
+      else if (act === "shortlisted-only") {
+        batchShortlistOnly = !batchShortlistOnly;
+        el.setAttribute("aria-pressed", String(batchShortlistOnly));
+        renderBatch();
+      } else if (act === "open")
+        openBatchRow(Number(el.getAttribute("data-i")));
+      else if (act === "short")
+        batchToggle(batchRows[Number(el.getAttribute("data-i"))], "short");
+      else if (act === "pass")
+        batchToggle(batchRows[Number(el.getAttribute("data-i"))], "pass");
+    });
+
   // Drops are accepted on the whole step, so a posting can be dropped whether the
   // Paste or the Upload view is showing.
-  function wireStep(stepEl, zones, onFile) {
+  function wireStep(stepEl, zones, onFiles) {
     if (!stepEl) return;
     const setOver = (on) => stepEl.classList.toggle("is-over", on);
     stepEl.addEventListener("dragover", (e) => {
@@ -1589,9 +2148,8 @@
     stepEl.addEventListener("drop", (e) => {
       e.preventDefault();
       setOver(false);
-      const file =
-        e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
-      if (file) onFile(file);
+      const files = e.dataTransfer ? Array.from(e.dataTransfer.files) : [];
+      if (files.length) onFiles(files);
     });
     // The visible drop zone keeps its own hover treatment.
     zones.forEach((zone) => {
@@ -1603,8 +2161,11 @@
       zone.addEventListener("drop", () => zone.classList.remove("is-over"));
     });
   }
-  wireStep(fieldJdEl, [dropJdEl], loadJobDescription);
-  wireStep(fieldResumeEl, [dropResumeEl], setResumeFile);
+  wireStep(fieldJdEl, [dropJdEl], (files) => loadJobDescription(files[0]));
+  wireStep(fieldResumeEl, [dropResumeEl, dropResumeManyEl], (files) => {
+    if (resumeMode === "many") addBatchFiles(files);
+    else if (files[0]) setResumeFile(files[0]);
+  });
   // Keep a stray drop elsewhere on the page from navigating to the file.
   ["dragover", "drop"].forEach((type) =>
     document.addEventListener(type, (e) => {
@@ -1648,11 +2209,17 @@
       resultEl.hidden = true;
       resultEl.innerHTML = "";
       currentResult = null;
+      batchFiles = [];
+      batchRows = [];
+      batchShortlistOnly = false;
+      renderBatchList();
+      if (batchResultEl) batchResultEl.hidden = true;
       setStatus("Cleared.");
       updateReady();
     });
 
   setMode("paste");
+  setResumeMode("one");
   updateCount();
   updateReady();
   document.getElementById("btn-csv").addEventListener("click", () => {
