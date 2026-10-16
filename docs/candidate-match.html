@@ -20,6 +20,31 @@
                 } catch (e) {}
             })();
         </script>
+        <script>
+            // Self-healing cache check. GitHub Pages caches HTML/JS for ~10 min,
+            // so a plain reload can keep serving stale assets. If the deployed
+            // build differs from BUILD below, reload once with a cache-busting
+            // query. Bump BUILD and version.json together on every deploy.
+            (function () {
+                var BUILD = "20261016f";
+                try {
+                    fetch("version.json?_=" + Date.now(), { cache: "no-store" })
+                        .then(function (r) {
+                            return r.ok ? r.json() : null;
+                        })
+                        .then(function (d) {
+                            if (!d || !d.build || d.build === BUILD) return;
+                            var key = "cache-bust:" + d.build;
+                            if (sessionStorage.getItem(key)) return;
+                            sessionStorage.setItem(key, "1");
+                            var u = new URL(location.href);
+                            u.searchParams.set("_v", d.build);
+                            location.replace(u.toString());
+                        })
+                        .catch(function () {});
+                } catch (e) {}
+            })();
+        </script>
         <style>
             :root {
                 --paper: #e9ecf5;
@@ -2195,9 +2220,9 @@
         <script src="vendor/jszip.min.js"></script>
         <script src="vendor/pdf.min.js"></script>
         <script src="vendor/supabase.min.js"></script>
-        <script src="config.js?v=20261014c"></script>
-        <script src="auth.js?v=20261015d"></script>
-        <script src="job-title.js?v=20261015d"></script>
+        <script src="config.js?v=20261016f"></script>
+        <script src="auth.js?v=20261016f"></script>
+        <script src="job-title.js?v=20261016f"></script>
         <script src="candidate-match.js?v=20261016f"></script>
         <script>
             (function () {
