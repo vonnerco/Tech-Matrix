@@ -3,6 +3,10 @@
 Access is invite-only — accounts are created from the Supabase dashboard. Setup:
 [`docs/SUPABASE.md`](docs/SUPABASE.md).
 
+Built for small tech staffing agencies: screen candidates and send
+client-ready submittals. [Pricing](https://vonnerco.github.io/Tech-Matrix/pricing.html)
+· [agency roadmap plan](docs/PLAN-agency.md).
+
 Strapped for time?
 <br> _Take 1 minute to confirm if a candidate is a fit for the role_
 <br><br> If candidate is good fit...
@@ -16,8 +20,12 @@ Strapped for time?
 <br><br>_Three simple steps to check the fit_.
 
 1. _Open the matcher._
-2. _Upload the candidate's resume as PDF or DOCX — or switch to Batch and drop many._
-3. _Get the candidate's skill match score out of 10._
+2. _Add the job order (client + role) and the candidate's resume — or switch to Batch and drop many._
+3. _Get the fit score, add recruiter notes, then send a client-ready submittal._
+
+Submittals carry your agency name and logo, the fit score, a summary, the
+strengths and gaps, and your notes. The candidate's contact details are withheld
+by default so clients can't bypass your agency.
 
 ## Build a Tailored Resume
 

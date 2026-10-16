@@ -354,6 +354,10 @@
                 color: var(--muted);
                 font-size: 0.875rem;
             }
+            /* Section intro line, before its panel. */
+            .block-title + .hint {
+                margin: 0 0 1.25rem;
+            }
             #status {
                 font-size: 0.9375rem;
                 font-weight: 500;
@@ -440,7 +444,9 @@
         <header class="topbar wrap">
             <p class="brand">
                 <span class="brand-name">Corderio Vonner</span>
-                <span class="brand-role">tailored resume generator</span>
+                <span class="brand-role"
+                    >agency screening &amp; submittals</span
+                >
             </p>
             <button
                 class="theme-toggle"
@@ -466,21 +472,35 @@
 
         <main id="main">
             <section class="intro wrap">
-                <h1>One keyword in, a resume that matches it out.</h1>
+                <h1>
+                    Screen candidates and send client-ready submittals in 30
+                    seconds.
+                </h1>
                 <p class="lead">
-                    Companies and dates stay the same. Job titles and every
-                    bullet are rewritten to match what you enter, then download
-                    as DOCX or PDF.
-                    <span id="build" class="tag">build 20261015b</span>
+                    Built for agency recruiters placing AI, data, and
+                    engineering talent.
+                    <span id="build" class="tag">build 20261016a</span>
                 </p>
                 <div class="actions">
-                    <a class="btn btn-ghost" href="candidate-match.html"
-                        >Candidate skill match</a
+                    <a class="btn btn-primary" href="candidate-match.html"
+                        >Start a screen</a
+                    >
+                    <a class="btn btn-ghost" href="pricing.html">Pricing</a>
+                    <a class="btn btn-ghost" href="records.html"
+                        >Past submittals</a
                     >
                 </div>
             </section>
 
             <section class="block wrap">
+                <h2 class="block-title">
+                    Candidate prep: tailor a resume to the job order
+                </h2>
+                <p class="hint">
+                    Optional. Reword and re-emphasize a candidate's bullets
+                    toward the role before you submit them. Companies and dates
+                    never change.
+                </p>
                 <div class="panel">
                     <div class="panel-head">
                         <span class="dot" aria-hidden="true"></span>

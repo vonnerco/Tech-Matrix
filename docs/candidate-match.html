@@ -235,8 +235,8 @@
             .intro h1 {
                 /* 1.5x the subheadline's line height, via --lead-gap. */
                 margin: 0 0 var(--lead-gap);
-                max-width: 24ch;
-                font-size: clamp(2.5rem, 5vw + 1rem, 4rem);
+                max-width: 30ch;
+                font-size: clamp(2.25rem, 4.2vw + 0.8rem, 3.4rem);
                 font-weight: 700;
                 line-height: 1.08;
                 letter-spacing: -0.025em;
@@ -1262,17 +1262,173 @@
                 overflow-wrap: anywhere;
             }
 
-            /* Print (Export PDF): keep the score, drop the app chrome. */
+            /* ---- job order (applies to every screen in this session) ---- */
+            .joborder {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+                gap: var(--sp-2);
+            }
+            .jo-field {
+                display: grid;
+                gap: 0.3rem;
+            }
+            .jo-label {
+                color: var(--muted-strong);
+                font-size: 0.8125rem;
+                font-weight: 500;
+            }
+            .joborder input {
+                width: 100%;
+                padding: 0.55rem 0.7rem;
+                font: inherit;
+                font-size: 0.9375rem;
+                color: inherit;
+                background: var(--field-bg);
+                border: 1px solid var(--field-line);
+                border-radius: 8px;
+            }
+            .joborder input:focus {
+                border-color: var(--accent);
+                box-shadow: 0 0 0 3px
+                    color-mix(in srgb, var(--accent) 30%, transparent);
+            }
+
+            /* ---- client submittal: hidden on screen, the only thing printed ----
+               Colours are fixed (not theme tokens) because paper is always
+               white, even when the app is in dark mode. */
+            .submittal {
+                display: none;
+            }
+            .sub-head {
+                display: flex;
+                align-items: center;
+                gap: 0.9rem;
+                padding-bottom: 0.8rem;
+                border-bottom: 2px solid #141a2e;
+            }
+            .sub-logo {
+                max-width: 168px;
+                max-height: 60px;
+            }
+            .sub-agency {
+                margin: 0;
+                font-size: 1.15rem;
+                font-weight: 700;
+            }
+            .sub-meta {
+                margin: 0.15rem 0 0;
+                font-size: 0.8125rem;
+                color: #4a5163;
+            }
+            .sub-name {
+                margin: 1.1rem 0 0;
+                font-size: 1.5rem;
+            }
+            .sub-role {
+                margin: 0.15rem 0 0;
+                color: #4a5163;
+            }
+            .sub-score {
+                margin: 0.7rem 0 0;
+                font-size: 1.1rem;
+                font-weight: 700;
+            }
+            .sub-h {
+                margin: 1.1rem 0 0.35rem;
+                font-size: 0.8125rem;
+                font-weight: 700;
+                text-transform: uppercase;
+                letter-spacing: 0.06em;
+                color: #4a5163;
+            }
+            .submittal ul {
+                margin: 0;
+                padding-left: 1.1rem;
+            }
+            .submittal li {
+                margin: 0.2rem 0;
+            }
+            .sub-notes {
+                margin: 0;
+                white-space: pre-wrap;
+            }
+            .sub-foot {
+                margin-top: 1.4rem;
+                padding-top: 0.6rem;
+                border-top: 1px solid #c3cad9;
+                font-size: 0.75rem;
+                color: #4a5163;
+            }
+
+            /* ---- submittal dialog ---- */
+            .sub-body {
+                display: grid;
+                gap: var(--sp-2);
+                padding: 1rem 1.1rem;
+                max-height: 62vh;
+                overflow: auto;
+            }
+            .sub-body label {
+                display: grid;
+                gap: 0.3rem;
+                font-size: 0.8125rem;
+                font-weight: 500;
+                color: var(--muted-strong);
+            }
+            .sub-body input[type="text"],
+            .sub-body textarea {
+                width: 100%;
+                padding: 0.55rem 0.7rem;
+                font: inherit;
+                font-size: 0.9375rem;
+                font-weight: 400;
+                color: var(--ink);
+                background: var(--field-bg);
+                border: 1px solid var(--field-line);
+                border-radius: 8px;
+            }
+            .sub-body textarea {
+                min-height: 5rem;
+                resize: vertical;
+            }
+            .sub-body input:focus,
+            .sub-body textarea:focus {
+                border-color: var(--accent);
+                box-shadow: 0 0 0 3px
+                    color-mix(in srgb, var(--accent) 30%, transparent);
+            }
+            .sub-body .sub-check {
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+                font-weight: 400;
+            }
+            .sub-actions {
+                display: flex;
+                flex-wrap: wrap;
+                align-items: center;
+                gap: 0.5rem;
+                padding: 0.8rem 1.1rem;
+                border-top: 1px solid var(--line);
+            }
+            .sub-actions .spacer {
+                flex: 1 1 auto;
+            }
+
+            /* Print (Create client submittal): only the submittal, not the app. */
             @media print {
-                .topbar,
-                .skip,
-                .intro,
-                .panel,
-                #history-card,
-                .crumbs,
-                .result-actions,
-                .ranked-toolbar {
+                body > *:not(.submittal) {
                     display: none !important;
+                }
+                .submittal {
+                    display: block !important;
+                    margin: 0;
+                    padding: 0;
+                    color: #141a2e;
+                    background: #ffffff;
+                }
+                @page {
+                    margin: 16mm;
                 }
             }
 
@@ -1451,9 +1607,14 @@
 
         <main id="main">
             <section class="intro wrap">
-                <h1>Identify top talent in seconds.</h1>
+                <h1>
+                    Screen candidates and send client-ready submittals in 30
+                    seconds.
+                </h1>
                 <p class="lead">
-                    Paste a job description and resume to see the match score.
+                    Built for agency recruiters placing AI, data, and
+                    engineering talent. Add a job order and a resume to get a
+                    fit score, then send the client a branded submittal.
                 </p>
                 <div class="actions">
                     <a class="btn btn-primary btn-plus" href="#role">
@@ -1467,11 +1628,12 @@
                         >
                             <path d="M12 5v14M5 12h14"></path>
                         </svg>
-                        Screen New Candidate
+                        Start a screen
                     </a>
                     <a class="btn btn-ghost" href="records.html"
-                        >View Past Rankings</a
+                        >Past submittals</a
                     >
+                    <a class="btn btn-ghost" href="pricing.html">Pricing</a>
                 </div>
             </section>
 
@@ -1482,6 +1644,27 @@
                         <span id="panel-state">New match</span>
                     </div>
                     <div class="panel-body">
+                        <div class="joborder">
+                            <label class="jo-field" for="jo-client">
+                                <span class="jo-label">Client</span>
+                                <input
+                                    id="jo-client"
+                                    type="text"
+                                    placeholder="e.g. Northwind Health"
+                                    autocomplete="off"
+                                />
+                            </label>
+                            <label class="jo-field" for="jo-job">
+                                <span class="jo-label">Job order</span>
+                                <input
+                                    id="jo-job"
+                                    type="text"
+                                    placeholder="e.g. Senior Data Engineer, req 4471"
+                                    autocomplete="off"
+                                />
+                            </label>
+                        </div>
+
                         <div class="field" id="field-jd">
                             <h3 class="step" id="step-jd">
                                 <span class="step-num" aria-hidden="true"
@@ -1887,13 +2070,113 @@
             </section>
         </main>
 
+        <!-- Print-only client submittal. Built by the "Create client submittal"
+             action, then the browser's Save as PDF prints just this block. -->
+        <section class="submittal" id="submittal" aria-hidden="true">
+            <header class="sub-head">
+                <img class="sub-logo" id="sub-logo" alt="" hidden />
+                <div>
+                    <p class="sub-agency" id="sub-agency">Agency</p>
+                    <p class="sub-meta" id="sub-meta"></p>
+                </div>
+            </header>
+            <h1 class="sub-name" id="sub-name">Candidate</h1>
+            <p class="sub-role" id="sub-role"></p>
+            <p class="sub-score" id="sub-score"></p>
+            <h2 class="sub-h">Summary</h2>
+            <p class="sub-notes" id="sub-summary"></p>
+            <h2 class="sub-h">Strengths</h2>
+            <ul id="sub-strengths"></ul>
+            <h2 class="sub-h" id="sub-gaps-h">Gaps / to verify</h2>
+            <ul id="sub-gaps"></ul>
+            <div id="sub-contact-block" hidden>
+                <h2 class="sub-h">Candidate contact</h2>
+                <p class="sub-notes" id="sub-contact"></p>
+            </div>
+            <h2 class="sub-h">Recruiter notes</h2>
+            <p class="sub-notes" id="sub-recruiter-notes"></p>
+            <p class="sub-foot" id="sub-foot"></p>
+        </section>
+
+        <!-- Branding + notes the recruiter sets before exporting. -->
+        <dialog
+            class="resume-dialog"
+            id="submittal-dialog"
+            aria-label="Create client submittal"
+        >
+            <form method="dialog">
+                <div class="dialog-head">
+                    <h2>Create client submittal</h2>
+                    <button class="btn btn-ghost" type="submit">Close</button>
+                </div>
+                <div class="sub-body">
+                    <label for="sub-agency-input">
+                        Agency name
+                        <input
+                            id="sub-agency-input"
+                            type="text"
+                            placeholder="e.g. Northwind Talent"
+                            autocomplete="organization"
+                        />
+                    </label>
+                    <label for="sub-logo-input">
+                        Agency logo (PNG/SVG)
+                        <input
+                            id="sub-logo-input"
+                            type="file"
+                            accept="image/png,image/jpeg,image/svg+xml,image/webp"
+                        />
+                    </label>
+                    <label for="sub-notes-input">
+                        Recruiter notes
+                        <textarea
+                            id="sub-notes-input"
+                            rows="5"
+                            placeholder="Why this candidate, availability, rate, next step for the client…"
+                        ></textarea>
+                    </label>
+                    <label class="sub-check" for="sub-contact-toggle">
+                        <input id="sub-contact-toggle" type="checkbox" />
+                        Include candidate contact details
+                    </label>
+                    <p class="hint">
+                        Contact details are left off by default so the client
+                        can't bypass your agency. Add them only when you want
+                        to.
+                    </p>
+                </div>
+                <div class="sub-actions">
+                    <button
+                        class="btn btn-primary"
+                        type="button"
+                        id="sub-print"
+                    >
+                        Save as PDF
+                    </button>
+                    <button class="btn btn-ghost" type="button" id="sub-copy">
+                        Copy submittal
+                    </button>
+                    <button
+                        class="btn btn-ghost"
+                        type="button"
+                        id="sub-reset-logo"
+                        hidden
+                    >
+                        Remove logo
+                    </button>
+                    <span class="spacer"></span>
+                    <span class="hint" id="sub-status"></span>
+                </div>
+            </form>
+        </dialog>
+
         <script src="vendor/jszip.min.js"></script>
         <script src="vendor/pdf.min.js"></script>
         <script src="vendor/supabase.min.js"></script>
         <script src="config.js?v=20261014c"></script>
         <script src="auth.js?v=20261015d"></script>
         <script src="job-title.js?v=20261015d"></script>
-        <script src="candidate-match.js?v=20261016b"></script>
+        <script src="candidate-match.js?v=20261016c"></script>
         <script>
             (function () {
                 var root = document.documentElement;

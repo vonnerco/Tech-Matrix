@@ -74,6 +74,33 @@
   const batchSubEl = document.getElementById("batch-sub");
   const batchCardEl = document.getElementById("batch-card");
 
+  // Client submittal: branding, recruiter notes, and job-order metadata.
+  const submittalEl = document.getElementById("submittal");
+  const submittalDlg = document.getElementById("submittal-dialog");
+  const subLogoEl = document.getElementById("sub-logo");
+  const subAgencyEl = document.getElementById("sub-agency");
+  const subMetaEl = document.getElementById("sub-meta");
+  const subNameEl = document.getElementById("sub-name");
+  const subRoleEl = document.getElementById("sub-role");
+  const subScoreEl = document.getElementById("sub-score");
+  const subSummaryEl = document.getElementById("sub-summary");
+  const subStrengthsEl = document.getElementById("sub-strengths");
+  const subGapsEl = document.getElementById("sub-gaps");
+  const subContactBlockEl = document.getElementById("sub-contact-block");
+  const subContactEl = document.getElementById("sub-contact");
+  const subRecruiterNotesEl = document.getElementById("sub-recruiter-notes");
+  const subFootEl = document.getElementById("sub-foot");
+  const subAgencyInput = document.getElementById("sub-agency-input");
+  const subLogoInput = document.getElementById("sub-logo-input");
+  const subNotesInput = document.getElementById("sub-notes-input");
+  const subContactToggle = document.getElementById("sub-contact-toggle");
+  const subPrintBtn = document.getElementById("sub-print");
+  const subCopyBtn = document.getElementById("sub-copy");
+  const subResetLogoBtn = document.getElementById("sub-reset-logo");
+  const subStatusEl = document.getElementById("sub-status");
+  const joClientEl = document.getElementById("jo-client");
+  const joJobEl = document.getElementById("jo-job");
+
   // Job titles come from the shared helper in job-title.js; if it didn't load,
   // fall back to the first line of the role box.
   const jobTitle =
@@ -602,6 +629,209 @@
     };
   }
 
+  // ---- agency branding, job order, and the client submittal ----
+  //
+  // A submittal is the agency's artifact, not the candidate's resume: agency
+  // name/logo, fit score, summary, strengths, the recruiter's notes. The raw
+  // resume text is never included, and the candidate's own contact details are
+  // withheld unless the recruiter opts in, so a client can't bypass the agency.
+
+  const AGENCY_KEY = "csm_agency_v1";
+  const NOTES_KEY = "csm_notes_v1";
+  const JOBORDER_KEY = "csm_joborder_v1";
+
+  function readJson(key, fallback) {
+    try {
+      const raw = localStorage.getItem(key);
+      return raw ? JSON.parse(raw) : fallback;
+    } catch {
+      return fallback;
+    }
+  }
+
+  function writeJson(key, value) {
+    try {
+      localStorage.setItem(key, JSON.stringify(value));
+    } catch {
+      /* storage unavailable */
+    }
+  }
+
+  let agency = readJson(AGENCY_KEY, { name: "", logo: "" });
+  let jobOrder = readJson(JOBORDER_KEY, { client: "", jobOrder: "" });
+
+  function agencyName() {
+    return String(agency.name || "").trim() || "Your agency";
+  }
+  function jobOrderLine() {
+    return [jobOrder.client, jobOrder.jobOrder].filter(Boolean).join(" · ");
+  }
+
+  // Notes belong to a candidate, not to one score, so the key omits the score.
+  function notesKey(cr) {
+    return [cr && cr.role, cr && cr.name].join("|");
+  }
+  function getNotes(cr) {
+    return readJson(NOTES_KEY, {})[notesKey(cr)] || "";
+  }
+  function setNotes(cr, text) {
+    const all = readJson(NOTES_KEY, {});
+    const k = notesKey(cr);
+    if (text && text.trim()) all[k] = text;
+    else delete all[k];
+    writeJson(NOTES_KEY, all);
+  }
+
+  // Best-effort contact details from the resume text. Only shown when the
+  // recruiter ticks "include contact details".
+  function contactFrom(text) {
+    const s = String(text || "");
+    const email = (s.match(/[\w.+-]+@[\w-]+\.[\w.]{2,}/) || [""])[0].trim();
+    let phone = (s.match(/\+?\d[\d\s().-]{7,}\d/) || [""])[0].trim();
+    if ((phone.match(/\d/g) || []).length < 8) phone = "";
+    const linkedin = (s.match(
+      /https?:\/\/(?:www\.)?linkedin\.com\/[^\s)]+/i,
+    ) || [""])[0].trim();
+    return { email, phone, linkedin };
+  }
+
+  function buildSubmittal(cr, opts) {
+    const o = opts || {};
+    const contact = o.includeContact
+      ? contactFrom(cr.resumeText)
+      : { email: "", phone: "", linkedin: "" };
+    const contactLines = [
+      contact.email,
+      contact.phone,
+      contact.linkedin,
+    ].filter(Boolean);
+
+    subAgencyEl.textContent = agencyName();
+    if (agency.logo) {
+      subLogoEl.src = agency.logo;
+      subLogoEl.hidden = false;
+    } else {
+      subLogoEl.removeAttribute("src");
+      subLogoEl.hidden = true;
+    }
+
+    const metaBits = [new Date().toLocaleDateString()];
+    if (jobOrder.client) metaBits.push("Client: " + jobOrder.client);
+    if (jobOrder.jobOrder) metaBits.push("Job order: " + jobOrder.jobOrder);
+    subMetaEl.textContent = metaBits.join(" · ");
+
+    subNameEl.textContent = cr.name || "Candidate";
+    subRoleEl.textContent = cr.role || "";
+    subScoreEl.textContent = cr.score.toFixed(1) + "/10 — " + cr.verdict;
+    subSummaryEl.textContent = (cr.r && cr.r.summary) || "";
+
+    const strengths = (cr.r && cr.r.strengths) || [];
+    subStrengthsEl.innerHTML = strengths.length
+      ? strengths.map((s) => `<li>${esc(s)}</li>`).join("")
+      : "<li>None noted.</li>";
+
+    const gaps = ((cr.r && cr.r.gaps) || []).slice(0, 4);
+    subGapsEl.innerHTML = gaps.length
+      ? gaps.map((g) => `<li>${esc(g)}</li>`).join("")
+      : "<li>None noted.</li>";
+
+    subContactBlockEl.hidden = !o.includeContact;
+    subContactEl.textContent = contactLines.length
+      ? contactLines.join("\n")
+      : "(No contact details found in the resume.)";
+
+    subRecruiterNotesEl.textContent = String(o.notes || "").trim() || "—";
+    subFootEl.textContent =
+      agencyName() +
+      " · prepared " +
+      new Date().toLocaleDateString() +
+      " · candidate contact details withheld";
+  }
+
+  function submittalText(cr, opts) {
+    const o = opts || {};
+    const lines = [agencyName()];
+    const meta = jobOrderLine();
+    if (meta) lines.push(meta);
+    lines.push("", cr.name || "Candidate");
+    if (cr.role) lines.push(cr.role);
+    lines.push(cr.score.toFixed(1) + "/10 — " + cr.verdict);
+    const summary = (cr.r && cr.r.summary) || "";
+    if (summary) lines.push("", "Summary:", summary);
+    const strengths = (cr.r && cr.r.strengths) || [];
+    if (strengths.length)
+      lines.push("", "Strengths:", ...strengths.map((s) => "- " + s));
+    const gaps = ((cr.r && cr.r.gaps) || []).slice(0, 4);
+    if (gaps.length)
+      lines.push("", "Gaps / to verify:", ...gaps.map((g) => "- " + g));
+    if (o.includeContact) {
+      const c = contactFrom(cr.resumeText);
+      const found = [c.email, c.phone, c.linkedin].filter(Boolean);
+      if (found.length)
+        lines.push("", "Candidate contact:", ...found.map((x) => "- " + x));
+    }
+    if (o.notes && o.notes.trim())
+      lines.push("", "Recruiter notes:", o.notes.trim());
+    return lines.join("\n");
+  }
+
+  function openSubmittal() {
+    if (!currentResult || !submittalDlg) return;
+    subAgencyInput.value = agency.name || "";
+    subNotesInput.value = getNotes(currentResult);
+    // Always start unchecked: including contact details is a deliberate choice.
+    subContactToggle.checked = false;
+    subResetLogoBtn.hidden = !agency.logo;
+    subStatusEl.textContent = "";
+    if (typeof submittalDlg.showModal === "function") submittalDlg.showModal();
+    else submittalDlg.setAttribute("open", "");
+  }
+
+  function saveAgency() {
+    agency = { name: subAgencyInput.value.trim(), logo: agency.logo || "" };
+    writeJson(AGENCY_KEY, agency);
+  }
+
+  function printSubmittal() {
+    if (!currentResult) return;
+    saveAgency();
+    setNotes(currentResult, subNotesInput.value);
+    buildSubmittal(currentResult, {
+      includeContact: subContactToggle.checked,
+      notes: subNotesInput.value,
+    });
+    if (submittalDlg && submittalDlg.close) submittalDlg.close();
+    // Let the dialog close before the print dialog opens.
+    setTimeout(() => window.print(), 60);
+  }
+
+  async function copySubmittal() {
+    if (!currentResult) return;
+    const text = submittalText(currentResult, {
+      includeContact: subContactToggle.checked,
+      notes: subNotesInput.value,
+    });
+    try {
+      await navigator.clipboard.writeText(text);
+      subStatusEl.textContent = "Copied.";
+    } catch {
+      subStatusEl.textContent = "Clipboard is blocked here.";
+    }
+  }
+
+  function applyJobOrder() {
+    if (joClientEl) joClientEl.value = jobOrder.client || "";
+    if (joJobEl) joJobEl.value = jobOrder.jobOrder || "";
+  }
+
+  function saveJobOrder() {
+    jobOrder = {
+      client: joClientEl ? joClientEl.value.trim() : "",
+      jobOrder: joJobEl ? joJobEl.value.trim() : "",
+    };
+    writeJson(JOBORDER_KEY, jobOrder);
+  }
+
   // ---- AI scoring ----
 
   function workerBase() {
@@ -746,6 +976,8 @@
   // Plain-text version of the result, for the clipboard.
   function summaryText(cr) {
     const lines = [];
+    const ctx = jobOrderLine();
+    if (ctx) lines.push(ctx);
     if (cr.name) lines.push(cr.name + (cr.role ? " — " + cr.role : ""));
     lines.push(`${cr.score.toFixed(1)}/10 — ${cr.verdict}`);
     const bullets = summaryBullets(cr.r.summary);
@@ -1072,7 +1304,7 @@
                 <span class="spacer"></span>
                 <button class="btn btn-ghost" type="button" data-action="copy">Copy summary</button>
                 <button class="btn btn-ghost" type="button" data-action="docx">Export DOCX</button>
-                <button class="btn btn-ghost" type="button" data-action="pdf">Export PDF</button>
+                <button class="btn btn-ghost" type="button" data-action="submittal">Create client submittal</button>
                 <button class="btn btn-ghost" type="button" data-action="resume">View resume</button>
                 <button class="btn btn-ghost" type="button" data-action="another">Screen another</button>
             </div>
@@ -2084,8 +2316,13 @@
         : batchRunning
           ? "Scoring…"
           : "Batch results";
-    if (batchSubEl)
-      batchSubEl.textContent = batchRole ? jobTitle(batchRole, 70) : "";
+    if (batchSubEl) {
+      const bits = [];
+      if (jobOrder.client) bits.push(jobOrder.client);
+      if (batchRole) bits.push(jobTitle(batchRole, 70));
+      if (jobOrder.jobOrder) bits.push(jobOrder.jobOrder);
+      batchSubEl.textContent = bits.join(" · ");
+    }
 
     if (batchCardEl) {
       const avg = ranked.length
@@ -2181,6 +2418,8 @@
       resume_name: r.file.name,
       candidate: displayName(r.file.name) || r.file.name,
       job_title: jobTitle(batchRole, 70),
+      client: jobOrder.client,
+      job_order: jobOrder.jobOrder,
       score: Number(r.result.score) || 0,
       verdict: r.result.verdict || verdictFor(Number(r.result.score) || 0),
       strengths: (r.result.strengths || []).join("; "),
@@ -2194,6 +2433,8 @@
       "rank",
       "resume_name",
       "candidate",
+      "client",
+      "job_order",
       "job_title",
       "score",
       "verdict",
@@ -2460,7 +2701,7 @@
     else if (action === "another") screenAnother();
     else if (action === "copy") copySummary(currentResult);
     else if (action === "docx") exportDocx(currentResult);
-    else if (action === "pdf") window.print();
+    else if (action === "submittal") openSubmittal();
     else if (action === "resume") openResume();
     else if (action === "batch") {
       resultEl.hidden = true;
@@ -2638,6 +2879,48 @@
       if (batchResultEl) batchResultEl.hidden = true;
       setStatus("Cleared.");
       updateReady();
+    });
+
+  // ---- job order + submittal dialog ----
+  if (joClientEl) joClientEl.addEventListener("input", saveJobOrder);
+  if (joJobEl) joJobEl.addEventListener("input", saveJobOrder);
+  applyJobOrder();
+  if (subPrintBtn) subPrintBtn.addEventListener("click", printSubmittal);
+  if (subCopyBtn) subCopyBtn.addEventListener("click", copySubmittal);
+  if (subResetLogoBtn)
+    subResetLogoBtn.addEventListener("click", () => {
+      agency = { name: subAgencyInput.value.trim(), logo: "" };
+      writeJson(AGENCY_KEY, agency);
+      subResetLogoBtn.hidden = true;
+      subStatusEl.textContent = "Logo removed.";
+    });
+  if (subLogoInput)
+    subLogoInput.addEventListener("change", () => {
+      const file = subLogoInput.files && subLogoInput.files[0];
+      subLogoInput.value = "";
+      if (!file) return;
+      if (!/^image\//.test(file.type || "")) {
+        subStatusEl.textContent = "Logo must be a PNG, JPG, or SVG.";
+        return;
+      }
+      if (file.size > 512 * 1024) {
+        subStatusEl.textContent = "Keep the logo under 500 KB.";
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = () => {
+        agency = {
+          name: subAgencyInput.value.trim(),
+          logo: String(reader.result || ""),
+        };
+        writeJson(AGENCY_KEY, agency);
+        subResetLogoBtn.hidden = !agency.logo;
+        subStatusEl.textContent = "Logo saved.";
+      };
+      reader.onerror = () => {
+        subStatusEl.textContent = "Couldn't read that image.";
+      };
+      reader.readAsDataURL(file);
     });
 
   setMode("paste");
