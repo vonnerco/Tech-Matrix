@@ -40,9 +40,45 @@
   let historyRows = []; // what the panel is showing right now
   let historyAccount = false; // those rows came from the account, not this browser
 
+  let busyTimer = 0;
+  let busySince = 0;
+
+  function stopBusy() {
+    if (busyTimer) clearInterval(busyTimer);
+    busyTimer = 0;
+  }
+
   function setStatus(msg, kind) {
+    stopBusy();
     statusEl.textContent = msg || "";
     statusEl.style.color = kind === "err" ? "var(--bad)" : "var(--ink)";
+  }
+
+  // Same as setStatus, but adds a live "(12s)" counter and a spinner while work
+  // is in flight, so a slow score doesn't look stalled. The counter and spinner
+  // are aria-hidden so assistive tech announces the message only.
+  function setBusyStatus(msg) {
+    stopBusy();
+    statusEl.textContent = "";
+    statusEl.style.color = "var(--ink)";
+
+    const label = document.createElement("span");
+    label.textContent = msg;
+
+    const meter = document.createElement("span");
+    meter.className = "busy";
+    meter.setAttribute("aria-hidden", "true");
+    const time = document.createElement("span");
+    time.textContent = "(0s)";
+    const spinner = document.createElement("span");
+    spinner.className = "spinner";
+    meter.append(time, spinner);
+
+    statusEl.append(label, meter);
+    busySince = Date.now();
+    busyTimer = setInterval(() => {
+      time.textContent = `(${Math.round((Date.now() - busySince) / 1000)}s)`;
+    }, 1000);
   }
 
   function esc(s) {
@@ -696,7 +732,7 @@
     btn.disabled = true;
     resultEl.hidden = true;
     try {
-      setStatus("Reading resume…");
+      setBusyStatus("Reading resume…");
       let resume = await readFile(file);
       if (!resume || resume.length < 40)
         throw new Error(
@@ -704,7 +740,7 @@
         );
       resume = resume.slice(0, MAX_RESUME);
 
-      setStatus("Scoring fit…");
+      setBusyStatus("Scoring fit…");
       let result;
       let note = "";
       let recorded = false;

@@ -334,11 +334,39 @@
                 font-size: 0.875rem;
             }
             #status {
+                display: flex;
+                flex-wrap: wrap;
+                align-items: center;
+                gap: 0.5rem;
                 font-size: 0.9375rem;
                 font-weight: 500;
             }
             #status:empty {
                 display: none;
+            }
+            .busy {
+                display: inline-flex;
+                align-items: center;
+                gap: 0.4rem;
+                color: var(--muted);
+                font-family: var(--font-mono);
+                font-size: 0.875rem;
+                font-weight: 400;
+                font-variant-numeric: tabular-nums;
+            }
+            .spinner {
+                flex: none;
+                width: 0.9rem;
+                height: 0.9rem;
+                border: 2px solid var(--line);
+                border-top-color: var(--accent);
+                border-radius: 50%;
+                animation: spin 0.8s linear infinite;
+            }
+            @keyframes spin {
+                to {
+                    transform: rotate(1turn);
+                }
             }
 
             /* ---- result ---- */
@@ -812,7 +840,7 @@
         <script src="config.js?v=20261014c"></script>
         <script src="auth.js?v=20261015d"></script>
         <script src="job-title.js?v=20261015d"></script>
-        <script src="candidate-match.js?v=20261015p"></script>
+        <script src="candidate-match.js?v=20261015q"></script>
         <script>
             (function () {
                 var root = document.documentElement;
