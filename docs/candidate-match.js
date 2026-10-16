@@ -12,11 +12,15 @@
 
   const MAX_ROLE = 6000;
   const MAX_RESUME = 20000;
+  const MAX_IMAGE_BYTES = 12 * 1024 * 1024;
+  const OCR_SCALE = 3; // ~216 DPI: enough for body text, canvas stays modest
+  const MAX_OCR_PAGES = 5;
   const HISTORY_KEY = "csm_history_v1";
   const HISTORY_MAX = 50;
 
   const roleEl = document.getElementById("role");
   const fileEl = document.getElementById("file");
+  const jdFileEl = document.getElementById("jd-file");
   const btn = document.getElementById("btn-score");
   const btnClear = document.getElementById("btn-clear");
   const statusEl = document.getElementById("status");
@@ -154,6 +158,140 @@
     if (name.endsWith(".doc"))
       throw new Error("Legacy .doc isn't supported — save it as .docx or PDF.");
     throw new Error("Unsupported file. Upload a PDF or DOCX.");
+  }
+
+  // ---- the job description: pasted text, a PDF/DOCX, or a screenshot ----
+
+  // OCR is loaded only when an image is picked. The engine, its wasm core and the
+  // English model come from tesseract.js's own CDN defaults on first use; the
+  // image itself is never uploaded — only the recognized text is.
+  const TESSERACT_SRC =
+    "https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js";
+  let tesseractLoad = null;
+
+  function isImageFile(file) {
+    return (
+      /^image\//.test(file.type || "") ||
+      /\.(png|jpe?g|webp|gif|bmp|tiff?)$/i.test(file.name || "")
+    );
+  }
+
+  function loadTesseract() {
+    if (window.Tesseract) return Promise.resolve(window.Tesseract);
+    if (!tesseractLoad) {
+      tesseractLoad = new Promise((resolve, reject) => {
+        const script = document.createElement("script");
+        script.src = TESSERACT_SRC;
+        script.onload = () => resolve(window.Tesseract);
+        script.onerror = () => {
+          tesseractLoad = null;
+          reject(
+            new Error(
+              "Couldn't load the OCR engine. Check your connection, or paste the job description instead.",
+            ),
+          );
+        };
+        document.head.appendChild(script);
+      });
+    }
+    return tesseractLoad;
+  }
+
+  async function ocrImage(file) {
+    if (file.size > MAX_IMAGE_BYTES)
+      throw new Error("That image is too large. Try one under 12 MB.");
+    const worker = await newOcrWorker();
+    try {
+      return cleanOcr((await worker.recognize(file)).data.text);
+    } finally {
+      await worker.terminate();
+    }
+  }
+
+  function cleanOcr(text) {
+    return String(text || "")
+      .replace(/[ \t]+\n/g, "\n")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
+  }
+
+  async function newOcrWorker() {
+    const Tesseract = await loadTesseract();
+    if (!Tesseract) throw new Error("OCR is unavailable in this browser.");
+    return Tesseract.createWorker("eng");
+  }
+
+  // Scanned PDFs (image-only, no text layer) are rendered page by page onto one
+  // reused canvas and read the same way, so the engine loads only once.
+  async function ocrPdf(file) {
+    if (!PDFJS) throw new Error("PDF reader unavailable");
+    const doc = await PDFJS.getDocument({ data: await file.arrayBuffer() })
+      .promise;
+    const pages = Math.min(doc.numPages, MAX_OCR_PAGES);
+    const canvas = document.createElement("canvas");
+    const worker = await newOcrWorker();
+    try {
+      const parts = [];
+      for (let n = 1; n <= pages; n++) {
+        const page = await doc.getPage(n);
+        const viewport = page.getViewport({ scale: OCR_SCALE });
+        canvas.width = Math.ceil(viewport.width);
+        canvas.height = Math.ceil(viewport.height);
+        const context = canvas.getContext("2d");
+        context.fillStyle = "#ffffff";
+        context.fillRect(0, 0, canvas.width, canvas.height);
+        await page.render({ canvasContext: context, viewport }).promise;
+        parts.push(cleanOcr((await worker.recognize(canvas)).data.text));
+      }
+      return parts.join("\n\n").trim();
+    } finally {
+      await worker.terminate();
+    }
+  }
+
+  // Fill the role box from a file the recruiter picked, so a posted job can be
+  // dropped in instead of retyped.
+  async function readJobDescriptionFromFile() {
+    const file = jdFileEl.files && jdFileEl.files[0];
+    if (!file) return;
+    if (
+      roleEl.value.trim() &&
+      !window.confirm(
+        "Replace the job description you've already entered with the text from " +
+          file.name +
+          "?",
+      )
+    ) {
+      jdFileEl.value = "";
+      return;
+    }
+    const image = isImageFile(file);
+    const mayBeScanned =
+      !image &&
+      (/\.pdf$/i.test(file.name || "") || file.type === "application/pdf");
+    setBusyStatus(image ? "Reading image…" : "Reading job description…");
+    btn.disabled = true;
+    try {
+      let text = image ? await ocrImage(file) : await readFile(file);
+      if (mayBeScanned && text.length < 40) {
+        // No text layer: an image-only PDF, so read the pages instead.
+        setBusyStatus("Reading scanned PDF…");
+        text = await ocrPdf(file);
+      }
+      if (!text || text.length < 40)
+        throw new Error(
+          image
+            ? "Couldn't read text from that image. Try a sharper screenshot."
+            : "Couldn't read text from that file. Try a different PDF or DOCX.",
+        );
+      roleEl.value = text.slice(0, MAX_ROLE);
+      setStatus("Job description loaded from " + file.name + ".");
+    } catch (err) {
+      setStatus(err && err.message ? err.message : String(err), "err");
+    } finally {
+      btn.disabled = false;
+      jdFileEl.value = ""; // so the same file can be picked again
+    }
   }
 
   // ---- local fallback scoring ----
@@ -788,6 +926,7 @@
   }
 
   btn.addEventListener("click", run);
+  if (jdFileEl) jdFileEl.addEventListener("change", readJobDescriptionFromFile);
   btnClear.addEventListener("click", () => {
     roleEl.value = "";
     fileEl.value = "";

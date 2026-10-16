@@ -772,6 +772,18 @@
                                 rows="5"
                                 placeholder="Paste the job title and requirements, e.g. Senior Snowflake Data Engineer with dbt, Airflow, and Cortex Analyst experience."
                             ></textarea>
+                            <div class="controls">
+                                <input
+                                    id="jd-file"
+                                    type="file"
+                                    aria-label="Job description file (PDF, DOCX, or image)"
+                                    accept=".pdf,.docx,.png,.jpg,.jpeg,.webp,.gif,.bmp,.tif,.tiff,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/*"
+                                />
+                            </div>
+                            <p class="hint">
+                                Paste the posting, or pick a PDF, DOCX, or image
+                                (PNG, JPEG) to fill this in.
+                            </p>
                         </div>
 
                         <div class="field">
@@ -803,9 +815,11 @@
 
                         <div id="status" role="status" aria-live="polite"></div>
                         <p class="hint">
-                            The resume is parsed in your browser. Scoring uses
-                            the AI worker when available, otherwise a local
-                            keyword estimate. Nothing is uploaded except the
+                            The resume is parsed in your browser, and job
+                            description images are read with in-browser OCR (the
+                            engine is fetched on first use). Scoring uses the AI
+                            worker when available, otherwise a local keyword
+                            estimate. Nothing is uploaded except the role and
                             resume text sent to the scorer.
                         </p>
                     </div>
@@ -851,7 +865,7 @@
         <script src="config.js?v=20261014c"></script>
         <script src="auth.js?v=20261015d"></script>
         <script src="job-title.js?v=20261015d"></script>
-        <script src="candidate-match.js?v=20261015q"></script>
+        <script src="candidate-match.js?v=20261015r"></script>
         <script>
             (function () {
                 var root = document.documentElement;
