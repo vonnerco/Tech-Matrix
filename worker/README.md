@@ -163,6 +163,24 @@ npm run deploy
 Wrangler prints the Worker URL, e.g. `https://resume-tailor-api.<account>.workers.dev`.
 Put that URL in `../docs/config.js` as `window.WORKER_URL`.
 
+### Deploy automatically (CI)
+
+`.github/workflows/deploy-worker.yml` deploys this worker on every push to
+`main` that touches `worker/**`, and can be run on demand from the Actions tab.
+The Durable Object migration in `wrangler.jsonc` is applied by `wrangler deploy`,
+so no extra command is needed. D1 schema migrations are intentionally **not** run
+by CI (they change stored data) — apply those by hand with
+`npx wrangler d1 migrations apply resume-tailor-records --remote`.
+
+One-time setup, in the repo's **Settings → Secrets and variables → Actions**:
+
+| Secret                  | Where to get it                                                                      |
+| ----------------------- | ------------------------------------------------------------------------------------ |
+| `CLOUDFLARE_API_TOKEN`  | dash.cloudflare.com → My Profile → API Tokens → **Edit Cloudflare Workers** template |
+| `CLOUDFLARE_ACCOUNT_ID` | Workers & Pages sidebar, or `npx wrangler whoami`                                    |
+
+Keep the token in repo secrets only; it is never written to the repo.
+
 ## Local dev
 
 ```sh
@@ -175,9 +193,12 @@ npm run dev
 ## Invite-only access (optional)
 
 Set `SUPABASE_URL` + `SUPABASE_ANON_KEY` in `wrangler.jsonc` (both non-secret) to
-require a valid Supabase login on `POST /` and `POST /score`. Tokens are verified
-against the project's `/auth/v1/user` endpoint; unauthenticated calls get `401`.
-Leave them blank to keep the endpoints open.
+require a valid Supabase login on the AI endpoints (`POST /`, `POST /score`, and
+all `/batch` routes). Tokens are verified against the project's `/auth/v1/user`
+endpoint; unauthenticated calls get `401`. `/batch` additionally returns `501`
+when the login gate is off, because a batch job has to be keyed to a user; the
+web app then scores in the browser instead. Leave the vars blank to keep the
+other endpoints open.
 
 Once records move to Supabase, set `PERSIST_D1` to `"false"` so `/score` no
 longer writes a second copy of candidate PII to D1. See

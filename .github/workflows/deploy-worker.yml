@@ -1,0 +1,70 @@
+name: Deploy worker
+
+# Publishes the Cloudflare Worker (the /score API and the batch Durable Object)
+# when the worker's source or config changes on main, or on demand. The static
+# site in docs/ is deployed separately by GitHub Pages.
+#
+# One-time setup (repo Settings -> Secrets and variables -> Actions):
+#   CLOUDFLARE_API_TOKEN   token from dash.cloudflare.com "My Profile -> API
+#                          Tokens", using the "Edit Cloudflare Workers" template
+#   CLOUDFLARE_ACCOUNT_ID  dashboard sidebar (Workers & Pages -> Account ID),
+#                          or `npx wrangler whoami`
+# Never commit the token: only repo secrets are read here.
+
+on:
+  push:
+    branches: [main]
+    # Only the files that actually change the deployable worker. Doc-only
+    # edits under worker/ (README, etc.) do not redeploy it.
+    paths:
+      - "worker/src/**"
+      - "worker/wrangler.jsonc"
+      - "worker/package.json"
+      - "worker/package-lock.json"
+      - "worker/migrations/**"
+  # Lets you deploy the worker on demand from the Actions tab. Use this for the
+  # first run, after adding the two secrets below.
+  workflow_dispatch:
+
+# One deploy at a time; let a running deploy finish rather than cancel it.
+concurrency:
+  group: deploy-worker
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: worker/package-lock.json
+
+      - name: Install dependencies
+        working-directory: worker
+        run: npm ci
+
+      - name: Check credentials
+        working-directory: worker
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
+            echo "::error::CLOUDFLARE_API_TOKEN secret is not set. Add it under Settings -> Secrets and variables -> Actions."
+            exit 1
+          fi
+          npx wrangler whoami
+
+      # Deploys src/ and applies any pending Durable Object migration declared
+      # in wrangler.jsonc. D1 schema migrations are applied separately (they
+      # change stored data), so they are deliberately not run here.
+      - name: Deploy
+        working-directory: worker
+        run: npx wrangler deploy
