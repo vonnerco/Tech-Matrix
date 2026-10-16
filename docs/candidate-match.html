@@ -520,6 +520,11 @@
                 justify-content: space-between;
                 gap: var(--sp-1);
             }
+            .meta-actions {
+                display: flex;
+                align-items: center;
+                gap: var(--sp-3);
+            }
             .count {
                 color: var(--muted);
                 font-size: 0.8125rem;
@@ -1745,13 +1750,22 @@
                                     <span class="count" id="role-count"
                                         >0 characters · 0 words</span
                                     >
-                                    <button
-                                        class="text-btn"
-                                        id="btn-example"
-                                        type="button"
-                                    >
-                                        Try an example
-                                    </button>
+                                    <span class="meta-actions">
+                                        <button
+                                            class="text-btn"
+                                            id="btn-clear-role"
+                                            type="button"
+                                        >
+                                            Clear
+                                        </button>
+                                        <button
+                                            class="text-btn"
+                                            id="btn-example"
+                                            type="button"
+                                        >
+                                            Try an example
+                                        </button>
+                                    </span>
                                 </div>
                             </div>
 

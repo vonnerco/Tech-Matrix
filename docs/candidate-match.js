@@ -27,6 +27,7 @@
   const btnClear = document.getElementById("btn-clear");
   const btnClearAll = document.getElementById("btn-clear-all");
   const btnExample = document.getElementById("btn-example");
+  const btnClearRoleEl = document.getElementById("btn-clear-role");
   const panelStateEl = document.getElementById("panel-state");
   const roleCountEl = document.getElementById("role-count");
   const roleErrorEl = document.getElementById("role-error");
@@ -3215,6 +3216,18 @@
       setMode("paste");
       updateCount();
       updateReady();
+      roleEl.focus();
+    });
+  // Clear just the job description box, so a pasted posting can be replaced.
+  if (btnClearRoleEl)
+    btnClearRoleEl.addEventListener("click", () => {
+      roleEl.value = "";
+      jdFileText = "";
+      showChip(jdChipEl, jdChipNameEl, null, jdClearEl);
+      touched.role = false;
+      updateCount();
+      updateReady();
+      setStatus("Job description cleared.");
       roleEl.focus();
     });
 
