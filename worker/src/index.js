@@ -10,6 +10,7 @@
 //                             submittal.
 //   POST /batch/:id/recorded  mark those results as copied.
 //   POST /batch/:id/cancel    stop the job.
+//   GET /health   unauthenticated liveness + deployed-version probe.
 //   GET /records  lists saved fit records (requires RECORDS_TOKEN).
 //   DELETE /records?id=  removes one saved record (requires RECORDS_TOKEN).
 // The DeepSeek API key and the records token live only in the Worker secret
@@ -27,8 +28,9 @@ import {
   mapLimit,
   scoreWithRetry,
 } from "./scoring.js";
+import { BatchJob } from "./batch.js";
 
-export { BatchJob } from "./batch.js";
+export { BatchJob };
 
 // The deployed site's origin. Any localhost port is also accepted so the static
 // site can be previewed locally with whatever server you happen to run; the
@@ -604,6 +606,35 @@ async function handleBatch(request, env, headers, url, user) {
   return jsonResponse({ error: "method_not_allowed" }, 405, headers);
 }
 
+// Unauthenticated liveness and version probe, so "is production running the
+// build I just pushed?" is one curl. It reports booleans and the Worker version
+// id/tag/timestamp only — never a secret value, and never candidate data.
+//
+// `features` is derived from the running code (the class prototype is probed
+// directly), so it cannot be stale by accident: a deploy that predates a change
+// reports the old capability set.
+function handleHealth(env) {
+  const meta = env.CF_VERSION_METADATA || {};
+  return {
+    ok: true,
+    version: {
+      id: meta.id || null,
+      tag: meta.tag || null,
+      deployedAt: meta.timestamp || null,
+    },
+    features: {
+      score: true,
+      batch: !!env.BATCH,
+      batchItem: typeof BatchJob.prototype.item === "function",
+      records: !!env.DB,
+    },
+    config: {
+      deepseek: !!env.DEEPSEEK_API_KEY,
+      loginGate: !!(env.SUPABASE_URL && env.SUPABASE_ANON_KEY),
+    },
+  };
+}
+
 export default {
   async fetch(request, env) {
     const origin = request.headers.get("Origin");
@@ -616,12 +647,22 @@ export default {
     if (request.method === "OPTIONS") {
       return new Response(null, { status: 204, headers });
     }
-    if (origin && !isAllowedOrigin(origin)) {
-      return jsonResponse({ error: "forbidden_origin" }, 403, headers);
-    }
 
     const url = new URL(request.url);
     const path = url.pathname.replace(/\/+$/, "");
+
+    // Liveness/version probe. Public by design, and deliberately checked before
+    // the origin gate so any host can poll it. It only ever returns booleans.
+    if (path === "/health" || path.endsWith("/health")) {
+      if (request.method !== "GET" && request.method !== "HEAD") {
+        return jsonResponse({ error: "method_not_allowed" }, 405, headers);
+      }
+      return jsonResponse(handleHealth(env), 200, headers);
+    }
+
+    if (origin && !isAllowedOrigin(origin)) {
+      return jsonResponse({ error: "forbidden_origin" }, 403, headers);
+    }
 
     // Saved candidate fit records (token-protected).
     if (path.endsWith("/records")) {

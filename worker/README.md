@@ -7,6 +7,32 @@ browser. Scored results are saved to a Cloudflare D1 database.
 
 ## Endpoints
 
+### `GET /health` — liveness + deployed version
+
+Unauthenticated, and checked before the origin gate, so any host can poll it.
+Use it to confirm which build is live instead of guessing from endpoint codes.
+
+```json
+{
+  "ok": true,
+  "version": { "id": "…", "tag": "v7", "deployedAt": "2026-10-16T10:00:00Z" },
+  "features": {
+    "score": true,
+    "batch": true,
+    "batchItem": true,
+    "records": true
+  },
+  "config": { "deepseek": true, "loginGate": true }
+}
+```
+
+`features` is derived from the running code — the Durable Object class prototype
+is probed directly — so a deploy that predates a change reports the old
+capability set. `batchItem: false` means `/batch/:id/item/:i` is not live yet, so
+per-row submittals would fall back to the compact fields. `version` comes from
+the `CF_VERSION_METADATA` binding in `wrangler.jsonc`. Only booleans and the
+version id are exposed — never a secret value, and never candidate data.
+
 ### `POST /` — bullet rewrite
 
 ```json
@@ -167,7 +193,8 @@ npm run deploy
 ```
 
 Wrangler prints the Worker URL, e.g. `https://resume-tailor-api.<account>.workers.dev`.
-Put that URL in `../docs/config.js` as `window.WORKER_URL`.
+Put that URL in `../docs/config.js` as `window.WORKER_URL`, and verify the live
+build with `curl -s https://resume-tailor-api.<account>.workers.dev/health`.
 
 ### Deploy automatically (CI)
 

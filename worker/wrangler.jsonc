@@ -29,4 +29,9 @@
     "bindings": [{ "name": "BATCH", "class_name": "BatchJob" }],
   },
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["BatchJob"] }],
+  // Exposes the deployed version id/tag/timestamp to the Worker, so GET /health
+  // can report exactly which build is live.
+  "version_metadata": {
+    "binding": "CF_VERSION_METADATA",
+  },
 }
