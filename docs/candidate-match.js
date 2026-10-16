@@ -2606,11 +2606,12 @@
       const strong = ranked.filter(
         (r) => (Number(r.result.score) || 0) >= 8,
       ).length;
+      const skipped = batchRows.filter((r) => r.status === "skipped").length;
       const k = avg >= 8 ? "good" : avg >= 5.5 ? "mid" : "bad";
       batchCardEl.className = "scorecard " + k;
       batchCardEl.innerHTML = ranked.length
         ? `<div class="score-line"><span class="score-num">${avg.toFixed(1)}<span>/10</span></span><span class="verdict">avg</span></div>
-           <p class="how-note">${strong} strong fit(s) of ${ranked.length} scored${queued ? ", " + queued + " pending" : ""}.</p>`
+           <p class="how-note">${strong} strong fit(s) of ${ranked.length} scored${skipped ? ", " + skipped + " skipped" : ""}${queued ? ", " + queued + " pending" : ""}.</p>`
         : `<p class="how-note">${queued ? "Scoring " + queued + " resume(s)…" : "Add resumes, then press Score."}</p>`;
     }
 
@@ -2661,6 +2662,18 @@
           (r) => esc(r.file.name) + (r.error ? " (" + esc(r.error) + ")" : ""),
         )
         .join(", ")}</p>`;
+
+    // Pre-filtered rows are unscored on purpose. Name them here so a batch that
+    // scores fewer resumes than were dropped never looks like it lost one.
+    const skippedRows = batchRows.filter((r) => r.status === "skipped");
+    if (skippedRows.length)
+      html += `<p class="muted">Skipped ${skippedRows.length} file(s) by the pre-filter: ${skippedRows
+        .map(
+          (r) =>
+            esc((r.file && r.file.name) || r.name || "resume") +
+            (r.error ? " (" + esc(r.error) + ")" : ""),
+        )
+        .join(", ")}. Set Pre-filter to "Off" to score them.</p>`;
 
     batchTableEl.innerHTML = html;
   }
