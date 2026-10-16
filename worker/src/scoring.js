@@ -75,7 +75,7 @@ async function scoreWithModel(apiKey, role, resume) {
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: "deepseek-chat",
+        model: "deepseek-flash",
         messages: [
           {
             role: "system",
@@ -85,6 +85,10 @@ async function scoreWithModel(apiKey, role, resume) {
           { role: "user", content: scorePrompt(role, resume) },
         ],
         response_format: { type: "json_object" },
+        // Scoring is a short rubric answer, so skip the chain-of-thought: it
+        // costs ~5x the output tokens and ~40% more latency for the same JSON.
+        // Thinking mode also ignores temperature, which this path sets.
+        thinking: { type: "disabled" },
         temperature: 0.3,
         max_tokens: 900,
       }),

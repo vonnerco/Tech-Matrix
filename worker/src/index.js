@@ -402,7 +402,7 @@ async function callDeepSeek(apiKey, prompt) {
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: "deepseek-chat",
+        model: "deepseek-flash",
         messages: [
           {
             role: "system",
