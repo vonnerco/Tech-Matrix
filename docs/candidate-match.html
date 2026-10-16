@@ -26,7 +26,7 @@
             // build differs from BUILD below, reload once with a cache-busting
             // query. Bump BUILD and version.json together on every deploy.
             (function () {
-                var BUILD = "20261016h";
+                var BUILD = "20261016i";
                 try {
                     fetch("version.json?_=" + Date.now(), { cache: "no-store" })
                         .then(function (r) {
@@ -524,6 +524,30 @@
                 display: flex;
                 align-items: center;
                 gap: var(--sp-3);
+            }
+            .prefilter {
+                display: flex;
+                flex-wrap: wrap;
+                align-items: center;
+                gap: var(--sp-1);
+                margin: 0;
+                color: var(--muted-strong);
+                font-size: 0.9375rem;
+            }
+            .prefilter select {
+                font: inherit;
+                color: var(--ink);
+                background: var(--panel);
+                border: 1px solid var(--line);
+                border-radius: 8px;
+                padding: 0.4rem 0.6rem;
+                min-height: 44px;
+            }
+            .prefilter select:focus-visible {
+                outline: none;
+                border-color: var(--accent);
+                box-shadow: 0 0 0 3px
+                    color-mix(in srgb, var(--accent) 30%, transparent);
             }
             .count {
                 color: var(--muted);
@@ -2056,6 +2080,26 @@
                                     take a few minutes and keep running while
                                     this tab stays open.
                                 </p>
+                                <label class="prefilter" for="batch-prefilter">
+                                    <span
+                                        >Pre-filter: skip resumes with a low
+                                        role-term match (saves AI calls)</span
+                                    >
+                                    <select id="batch-prefilter">
+                                        <option value="0">
+                                            Off — score every resume
+                                        </option>
+                                        <option value="0.1" selected>
+                                            Skip below 10% (mild)
+                                        </option>
+                                        <option value="0.2">
+                                            Skip below 20%
+                                        </option>
+                                        <option value="0.35">
+                                            Skip below 35% (aggressive)
+                                        </option>
+                                    </select>
+                                </label>
                                 <p
                                     class="field-error"
                                     id="files-error"
@@ -2294,10 +2338,10 @@
         <script src="vendor/jszip.min.js"></script>
         <script src="vendor/pdf.min.js"></script>
         <script src="vendor/supabase.min.js"></script>
-        <script src="config.js?v=20261016h"></script>
-        <script src="auth.js?v=20261016h"></script>
-        <script src="job-title.js?v=20261016h"></script>
-        <script src="candidate-match.js?v=20261016h"></script>
+        <script src="config.js?v=20261016i"></script>
+        <script src="auth.js?v=20261016i"></script>
+        <script src="job-title.js?v=20261016i"></script>
+        <script src="candidate-match.js?v=20261016i"></script>
         <script>
             (function () {
                 var root = document.documentElement;

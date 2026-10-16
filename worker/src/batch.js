@@ -8,7 +8,13 @@
 // The Worker (not this object) verifies the Supabase token, so every method
 // takes the caller's user id and refuses a job owned by someone else.
 import { DurableObject } from "cloudflare:workers";
-import { MAX_RESUME, localScore, mapLimit, scoreWithRetry } from "./scoring.js";
+import {
+  MAX_RESUME,
+  keywordCoverage,
+  localScore,
+  mapLimit,
+  scoreWithRetry,
+} from "./scoring.js";
 
 export const MAX_BATCH_ITEMS = 300;
 const TICK = 4; // candidates handled per alarm
@@ -41,8 +47,17 @@ export class BatchJob extends DurableObject {
         "CREATE TABLE IF NOT EXISTS job (" +
           "id INTEGER PRIMARY KEY CHECK (id = 1), job_id TEXT NOT NULL, " +
           "user_id TEXT, role TEXT NOT NULL, status TEXT NOT NULL, " +
-          "created_at TEXT NOT NULL, total INTEGER NOT NULL)",
+          "created_at TEXT NOT NULL, total INTEGER NOT NULL, " +
+          "min_coverage REAL NOT NULL DEFAULT 0)",
       );
+      // Older instances predate min_coverage; add it if missing.
+      try {
+        sql.exec(
+          "ALTER TABLE job ADD COLUMN min_coverage REAL NOT NULL DEFAULT 0",
+        );
+      } catch {
+        /* already there */
+      }
       sql.exec(
         "CREATE TABLE IF NOT EXISTS items (" +
           "i INTEGER PRIMARY KEY, name TEXT, resume TEXT, status TEXT NOT NULL, " +
@@ -56,19 +71,21 @@ export class BatchJob extends DurableObject {
   // --- control (the Worker calls these for a signed-in user) ---
 
   // Create the job shell. Chunks of items follow via addItems, then go().
-  async start({ jobId, userId, role, total }) {
+  async start({ jobId, userId, role, total, minCoverage }) {
     const sql = this.ctx.storage.sql;
     const count = Math.max(0, Math.min(MAX_BATCH_ITEMS, Number(total) || 0));
+    const min = Math.max(0, Math.min(0.9, Number(minCoverage) || 0));
     sql.exec("DELETE FROM items");
     sql.exec("DELETE FROM job");
     sql.exec(
-      "INSERT INTO job (id, job_id, user_id, role, status, created_at, total) " +
-        "VALUES (1, ?, ?, ?, 'queued', ?, ?)",
+      "INSERT INTO job (id, job_id, user_id, role, status, created_at, total, min_coverage) " +
+        "VALUES (1, ?, ?, ?, 'queued', ?, ?, ?)",
       String(jobId || ""),
       userId || null,
       String(role || ""),
       new Date().toISOString(),
       count,
+      min,
     );
     return { id: jobId, total: count };
   }
@@ -223,7 +240,7 @@ export class BatchJob extends DurableObject {
   async alarm() {
     const sql = this.ctx.storage.sql;
     const job = sql
-      .exec("SELECT status, role FROM job WHERE id = 1")
+      .exec("SELECT status, role, min_coverage FROM job WHERE id = 1")
       .toArray()[0];
     if (!job || job.status !== "running") return;
 
@@ -253,6 +270,19 @@ export class BatchJob extends DurableObject {
         sql.exec(
           "UPDATE items SET status = 'error', error = ? WHERE i = ?",
           "Couldn't read text from that file.",
+          row.i,
+        );
+        return;
+      }
+      // Pre-filter: a resume that shares almost none of the role's terms is not
+      // worth a model call. Skipped, not failed, so it stays visible and unscored.
+      const coverage = keywordCoverage(job.role, text);
+      if (job.min_coverage > 0 && coverage < job.min_coverage) {
+        sql.exec(
+          "UPDATE items SET status = 'skipped', error = ? WHERE i = ?",
+          "Low keyword match (" +
+            Math.round(coverage * 100) +
+            "% of role terms).",
           row.i,
         );
         return;

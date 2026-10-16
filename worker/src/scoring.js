@@ -216,6 +216,19 @@ function keywords(text) {
   return [...set];
 }
 
+// Share of the role's keywords present in the resume (0..1). A cheap,
+// deterministic gate: lets a batch skip resumes that clearly don't match the
+// role before spending a model call. Empty role keyword set returns 1 so nothing
+// is ever skipped on an unreadable role.
+export function keywordCoverage(role, resume) {
+  const kws = keywords(role);
+  if (!kws.length) return 1;
+  const resumeToks = new Set(tokens(resume));
+  let hits = 0;
+  for (const k of kws) if (resumeToks.has(k)) hits++;
+  return hits / kws.length;
+}
+
 export function localScore(role, resume) {
   const kws = keywords(role);
   const resumeToks = new Set(tokens(resume));

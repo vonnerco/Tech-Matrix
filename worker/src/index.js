@@ -568,8 +568,18 @@ async function handleBatch(request, env, headers, url, user) {
       );
     }
     const jobId = crypto.randomUUID();
+    const minCoverage = Math.max(
+      0,
+      Math.min(0.9, Number(body.minCoverage) || 0),
+    );
     const stub = env.BATCH.getByName(jobId);
-    await stub.start({ jobId, userId: user.id, role, total: raw.length });
+    await stub.start({
+      jobId,
+      userId: user.id,
+      role,
+      total: raw.length,
+      minCoverage,
+    });
     // Chunk the resumes so each RPC stays well under the message-size limit.
     const CHUNK = 20;
     for (let off = 0; off < raw.length; off += CHUNK) {

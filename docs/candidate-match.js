@@ -69,6 +69,7 @@
   const resumeManyEl = document.getElementById("resume-many");
   const paneOneEl = document.getElementById("pane-one");
   const paneManyEl = document.getElementById("pane-many");
+  const batchPrefilterEl = document.getElementById("batch-prefilter");
   const batchResultEl = document.getElementById("batch-result");
   const batchTableEl = document.getElementById("batch-table");
   const batchTitleEl = document.getElementById("batch-title");
@@ -2016,6 +2017,22 @@
     );
   }
 
+  // Batch pre-filter: skip resumes whose role-term coverage is below this (0 =
+  // off). The worker applies the same gate; this mirrors it for the local path.
+  function batchMinCoverage() {
+    const v = batchPrefilterEl ? Number(batchPrefilterEl.value) : 0;
+    return Number.isFinite(v) ? Math.max(0, Math.min(0.9, v)) : 0;
+  }
+
+  function keywordCoverage(role, resume) {
+    const kws = keywords(role);
+    if (!kws.length) return 1;
+    const toks = new Set(tokens(resume));
+    let hits = 0;
+    for (const k of kws) if (toks.has(k)) hits++;
+    return hits / kws.length;
+  }
+
   function setResumeMode(mode) {
     resumeMode = mode === "many" ? "many" : "one";
     const many = resumeMode === "many";
@@ -2056,9 +2073,11 @@
               ? "scoring…"
               : status === "error"
                 ? "failed"
-                : status === "canceled"
-                  ? "skipped"
-                  : "queued";
+                : status === "skipped"
+                  ? "skipped (low match)"
+                  : status === "canceled"
+                    ? "canceled"
+                    : "queued";
         const cls = status === "error" ? " bad" : "";
         return `<li><span class="b-name" title="${esc(name)}">${esc(name)}</span><span class="b-state${cls}">${label}</span>${
           removable
@@ -2275,11 +2294,14 @@
     }
     const done = batchRows.filter((r) => r.status === "done").length;
     const failed = batchRows.filter((r) => r.status === "error").length;
+    const skipped = batchRows.filter((r) => r.status === "skipped").length;
     setStatus(
       "Scored " +
         done +
         " candidate(s)" +
-        (failed ? ", " + failed + " failed." : "."),
+        (failed ? ", " + failed + " failed" : "") +
+        (skipped ? ", " + skipped + " pre-filtered" : "") +
+        ".",
     );
     if (done) showToast("Batch complete — saved to your records.");
   }
@@ -2423,7 +2445,7 @@
       const res = await fetch(base + "/batch", {
         method: "POST",
         headers: await apiHeaders(),
-        body: JSON.stringify({ role, items }),
+        body: JSON.stringify({ role, items, minCoverage: batchMinCoverage() }),
       });
       if (res.status === 501) throw new Error("server_unavailable");
       if (!res.ok) throw new Error("http_" + res.status);
@@ -2867,6 +2889,12 @@
         return finish();
       }
       resume = resume.slice(0, MAX_RESUME);
+      const min = batchMinCoverage();
+      if (min > 0 && keywordCoverage(role, resume) < min) {
+        row.status = "skipped";
+        row.error = "Low keyword match vs the role.";
+        return finish();
+      }
 
       let result;
       let recorded = false;
@@ -2928,13 +2956,16 @@
     }
     const ok = batchRows.filter((r) => r.status === "done").length;
     const failed = batchRows.filter((r) => r.status === "error").length;
+    const skipped = batchRows.filter((r) => r.status === "skipped").length;
     setStatus(
       (batchCancel ? "Stopped. Scored " : "Scored ") +
         ok +
         " of " +
         total +
         " candidate(s)" +
-        (failed ? ", " + failed + " failed." : "."),
+        (failed ? ", " + failed + " failed" : "") +
+        (skipped ? ", " + skipped + " pre-filtered" : "") +
+        ".",
     );
   }
 
