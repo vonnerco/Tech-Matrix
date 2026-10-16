@@ -1,8 +1,9 @@
 name: Deploy worker
 
-# Publishes the Cloudflare Worker (the /score API and the batch Durable Object)
-# when the worker's source or config changes on main, or on demand. The static
-# site in docs/ is deployed separately by GitHub Pages.
+# Publishes the Cloudflare Worker (the /score API, the batch Durable Object, and
+# the static site in docs/) when its source, config, or the site changes on main,
+# or on demand. The Worker serves docs/ as assets (see wrangler.jsonc), so a docs
+# change must redeploy it or that origin goes stale. GitHub Pages serves docs/ too.
 #
 # One-time setup (repo Settings -> Secrets and variables -> Actions):
 #   CLOUDFLARE_API_TOKEN   token from dash.cloudflare.com "My Profile -> API
@@ -14,14 +15,20 @@ name: Deploy worker
 on:
   push:
     branches: [main]
-    # Only the files that actually change the deployable worker. Doc-only
-    # edits under worker/ (README, etc.) do not redeploy it.
+    # Only the files that actually change the deployable Worker or the site it
+    # serves. Doc-only edits under worker/ (README, etc.) do not redeploy it.
     paths:
       - "worker/src/**"
       - "worker/wrangler.jsonc"
       - "worker/package.json"
       - "worker/package-lock.json"
       - "worker/migrations/**"
+      # The Worker serves the static site from docs/ (wrangler.jsonc assets),
+      # so a site change must redeploy it.
+      - "docs/**"
+      # Editing this workflow should itself redeploy, so path-filter changes
+      # take effect without needing a separate triggering commit.
+      - ".github/workflows/deploy-worker.yml"
   # Lets you deploy the worker on demand from the Actions tab. Use this for the
   # first run, after adding the two secrets below.
   workflow_dispatch:
