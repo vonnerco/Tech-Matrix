@@ -26,6 +26,7 @@
                 --panel: #ffffff;
                 --ink: #141a2e;
                 --muted: #59607a;
+                --muted-strong: #59607a;
                 --line: #cbd1e2;
                 --line-strong: #7f8796;
                 --divider: #c3cad9;
@@ -59,6 +60,7 @@
                     --panel: #0a0a0c;
                     --ink: #ececee;
                     --muted: #8e8e96;
+                    --muted-strong: #aaaaaa;
                     --line: #1c1c20;
                     --line-strong: #5f6570;
                     --divider: #2a2a2a;
@@ -80,6 +82,7 @@
                 --panel: #0a0a0c;
                 --ink: #ececee;
                 --muted: #8e8e96;
+                --muted-strong: #aaaaaa;
                 --line: #1c1c20;
                 --line-strong: #5f6570;
                 --divider: #2a2a2a;
@@ -100,6 +103,7 @@
                 --panel: #ffffff;
                 --ink: #141a2e;
                 --muted: #59607a;
+                --muted-strong: #59607a;
                 --line: #cbd1e2;
                 --line-strong: #7f8796;
                 --divider: #c3cad9;
@@ -349,8 +353,9 @@
                 background: var(--accent-2);
             }
             .panel-body {
+                --panel-gap: 1.1rem;
                 display: grid;
-                gap: 1.1rem;
+                gap: var(--panel-gap);
                 padding: clamp(1rem, 3vw, 1.5rem);
             }
 
@@ -359,9 +364,9 @@
                 display: grid;
                 gap: 0.4rem;
             }
-            /* Divider between the two steps so the uploads aren't confused. */
+            /* 24px total between the steps: the panel's row gap plus this margin. */
             .field + .field {
-                margin-top: 1.25rem;
+                margin-top: calc(1.5rem - var(--panel-gap));
                 padding-top: 1.25rem;
                 border-top: 1px solid var(--divider);
             }
@@ -424,7 +429,7 @@
                 outline-offset: 2px;
             }
             .file-name {
-                color: var(--muted);
+                color: var(--muted-strong);
                 font-family: var(--font-mono);
                 font-size: 0.8125rem;
                 overflow-wrap: anywhere;
@@ -440,6 +445,20 @@
             .panel-body .controls .btn {
                 min-width: 11rem;
                 text-align: center;
+            }
+            .text-btn {
+                padding: 0;
+                border: 0;
+                background: transparent;
+                color: var(--muted-strong);
+                font: inherit;
+                font-size: 0.9375rem;
+                text-decoration: underline;
+                text-underline-offset: 2px;
+                cursor: pointer;
+            }
+            .text-btn:hover {
+                color: var(--ink);
             }
             .hint {
                 margin: 0;
@@ -956,7 +975,7 @@
                                     id="btn-score"
                                     type="button"
                                 >
-                                    Calculate Fit Score
+                                    Analyze Match Score
                                 </button>
                                 <button
                                     class="btn btn-ghost"
@@ -966,6 +985,13 @@
                                     hidden
                                 >
                                     Clear
+                                </button>
+                                <button
+                                    class="text-btn"
+                                    id="btn-clear-all"
+                                    type="button"
+                                >
+                                    Clear All
                                 </button>
                             </div>
                         </div>
@@ -1018,7 +1044,7 @@
         <script src="config.js?v=20261014c"></script>
         <script src="auth.js?v=20261015d"></script>
         <script src="job-title.js?v=20261015d"></script>
-        <script src="candidate-match.js?v=20261015x"></script>
+        <script src="candidate-match.js?v=20261015y"></script>
         <script>
             (function () {
                 var root = document.documentElement;

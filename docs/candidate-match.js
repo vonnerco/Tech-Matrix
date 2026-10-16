@@ -26,6 +26,7 @@
   const jdClearEl = document.getElementById("jd-clear");
   const btn = document.getElementById("btn-score");
   const btnClear = document.getElementById("btn-clear");
+  const btnClearAll = document.getElementById("btn-clear-all");
   const statusEl = document.getElementById("status");
   const resultEl = document.getElementById("result");
   const historyCard = document.getElementById("history-card");
@@ -947,6 +948,19 @@
     showFileName(fileNameEl, null, btnClear);
     setStatus("Resume file cleared.");
   });
+  // Clear All: both steps plus the result, back to a blank form.
+  if (btnClearAll)
+    btnClearAll.addEventListener("click", () => {
+      roleEl.value = "";
+      fileEl.value = "";
+      showFileName(fileNameEl, null, btnClear);
+      if (jdFileEl) jdFileEl.value = "";
+      showFileName(jdNameEl, null, jdClearEl);
+      jdFileText = "";
+      resultEl.hidden = true;
+      resultEl.innerHTML = "";
+      setStatus("Cleared.");
+    });
   document.getElementById("btn-csv").addEventListener("click", () => {
     download("candidate-matches.csv", historyCsv(), "text/csv");
   });
