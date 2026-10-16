@@ -11,14 +11,14 @@
             href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;700&display=swap"
         />
         <script>
-            </title>            // Apply a saved theme before first paint to avoid a flash.
-                        (function () {
-                            try {
-                                var t = localStorage.getItem("theme");
-                                if (t === "light" || t === "dark")
-                                    document.documentElement.setAttribute("data-theme", t);
-                            } catch (e) {}
-                        })();
+            // Apply a saved theme before first paint to avoid a flash.
+            (function () {
+                try {
+                    var t = localStorage.getItem("theme");
+                    if (t === "light" || t === "dark")
+                        document.documentElement.setAttribute("data-theme", t);
+                } catch (e) {}
+            })();
         </script>
         <style>
             :root {
@@ -701,12 +701,10 @@
 
         <main id="main">
             <section class="intro wrap">
-                <h1>
-                    Decide who is worth a screen before you open the calendar.
-                </h1>
+                <h1>Rank candidates instantly.</h1>
                 <p class="lead">
-                    Paste the role and the candidate's resume. You get a fit
-                    score with the reasons, and a record of every call you made.
+                    Filter the noise, find the fit. Quantify candidate
+                    potential.
                 </p>
                 <div class="actions">
                     <a class="btn btn-primary" href="index.html"
@@ -723,6 +721,9 @@
                         <span>new match</span>
                     </div>
                     <div class="panel-body">
+                        <p class="hint">
+                            Paste job and resume. Get an instant match score.
+                        </p>
                         <div class="field">
                             <label class="kw" for="role"
                                 >Target role or job description</label
@@ -749,7 +750,7 @@
                                     id="btn-score"
                                     type="button"
                                 >
-                                    Score fit
+                                    Score Resume
                                 </button>
                                 <button
                                     class="btn btn-ghost"
