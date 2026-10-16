@@ -1,2 +1,4 @@
-# Local secrets — never commit (DB password, service-role key).
+# Local secrets — never commit (DB password, service-role key, API tokens).
+# Add a line here before you paste any credential into a scratch notes file.
 supabase/Notes.md
+Cloudflare/Notes.md
