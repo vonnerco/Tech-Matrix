@@ -281,6 +281,8 @@
   let batchCancel = false;
   let batchShortlistOnly = false;
   let batchRole = "";
+  let batchJobId = ""; // durable server-side job id, when one is in flight
+  let batchPollTimer = 0;
 
   const EXAMPLE_JD =
     "Senior Snowflake Data Engineer — Snowflake, dbt, Airflow, SQL. Own ELT " +
@@ -602,16 +604,29 @@
 
   // ---- AI scoring ----
 
-  async function aiScore(role, resume, resumeName) {
-    const base = (window.WORKER_URL || "").replace(/\/+$/, "");
-    if (!base) throw new Error("no_worker");
+  function workerBase() {
+    return (window.WORKER_URL || "").replace(/\/+$/, "");
+  }
+
+  // JSON headers, plus the Supabase bearer token when signed in.
+  async function apiHeaders() {
     const headers = { "Content-Type": "application/json" };
     if (window.Auth && window.Auth.apiHeaders) {
-      Object.assign(headers, await window.Auth.apiHeaders());
+      try {
+        Object.assign(headers, await window.Auth.apiHeaders());
+      } catch {
+        /* not signed in yet */
+      }
     }
+    return headers;
+  }
+
+  async function aiScore(role, resume, resumeName) {
+    const base = workerBase();
+    if (!base) throw new Error("no_worker");
     const res = await fetch(base + "/score", {
       method: "POST",
-      headers,
+      headers: await apiHeaders(),
       body: JSON.stringify({ role, resume, resumeName }),
     });
     if (!res.ok) throw new Error("worker_http_" + res.status);
@@ -619,6 +634,34 @@
     const n = Number(data && data.score);
     if (!Number.isFinite(n)) throw new Error("bad_response");
     return data;
+  }
+
+  // Retry transient upstream failures (timeouts, network, 429/5xx) with
+  // backoff before giving up. A 401 (expired session) and a bad payload are
+  // not retried.
+  const AI_ATTEMPTS = 3;
+  function scoreRetryable(e) {
+    const msg = e && e.message ? String(e.message) : "";
+    if (msg === "no_worker" || msg === "bad_response") return false;
+    const http = /worker_http_(\d+)/.exec(msg);
+    if (http)
+      return [408, 425, 429, 500, 502, 503, 504].includes(Number(http[1]));
+    return true; // network drop or timeout
+  }
+  async function aiScoreWithRetry(role, resume, resumeName) {
+    for (let attempt = 0; ; attempt++) {
+      try {
+        return await aiScore(role, resume, resumeName);
+      } catch (e) {
+        if (!scoreRetryable(e) || attempt >= AI_ATTEMPTS - 1) throw e;
+        await new Promise((r) =>
+          setTimeout(
+            r,
+            Math.min(12000, 700 * 2 ** attempt) + Math.random() * 300,
+          ),
+        );
+      }
+    }
   }
 
   // Persist a scored result to the signed-in user's records (Supabase + RLS).
@@ -1522,19 +1565,25 @@
   }
 
   // One list row per queued resume: name, live status, and a remove button.
+  // Uses batchRows when present (a running or reloaded job), else batchFiles.
   function renderBatchList() {
     if (!batchListEl) return;
-    if (!batchFiles.length) {
+    const rows = batchRows.length
+      ? batchRows
+      : batchFiles.map((f, i) => ({ file: f, i, status: "queued" }));
+    if (!rows.length) {
       batchListEl.innerHTML = "";
       return;
     }
-    batchListEl.innerHTML = batchFiles
-      .map((f, i) => {
-        const row = batchRows[i];
-        const status = row ? row.status : "queued";
+    const removable = !batchRunning && !batchJobId;
+    batchListEl.innerHTML = rows
+      .map((row, i) => {
+        const name = (row.file && row.file.name) || row.name || "resume";
+        const status = row.status || "queued";
+        const score = Number(row.result && row.result.score);
         const label =
           status === "done"
-            ? (Number(row.result && row.result.score) || 0).toFixed(1) + "/10"
+            ? (Number.isFinite(score) ? score.toFixed(1) : "0.0") + "/10"
             : status === "running"
               ? "scoring…"
               : status === "error"
@@ -1543,10 +1592,10 @@
                   ? "skipped"
                   : "queued";
         const cls = status === "error" ? " bad" : "";
-        return `<li><span class="b-name" title="${esc(f.name)}">${esc(f.name)}</span><span class="b-state${cls}">${label}</span>${
-          batchRunning
-            ? "<span></span>"
-            : `<button class="chip-x" type="button" data-batch-remove="${i}" aria-label="Remove ${esc(f.name)}">&times;</button>`
+        return `<li><span class="b-name" title="${esc(name)}">${esc(name)}</span><span class="b-state${cls}">${label}</span>${
+          removable
+            ? `<button class="chip-x" type="button" data-batch-remove="${i}" aria-label="Remove ${esc(name)}">&times;</button>`
+            : "<span></span>"
         }</li>`;
       })
       .join("");
@@ -1595,12 +1644,371 @@
 
   function clearBatch() {
     if (batchRunning) return;
+    stopBatchPolling();
+    batchJobId = "";
+    clearBatchJobId();
     batchFiles = [];
     batchRows = [];
     batchShortlistOnly = false;
     renderBatchList();
     if (batchResultEl) batchResultEl.hidden = true;
     updateReady();
+  }
+
+  // ---- cloud batch: durable server-side job (survives a closed tab) ----
+
+  const BATCH_JOB_KEY = "csm_batch_job_v1";
+  function saveBatchJobId(id) {
+    try {
+      localStorage.setItem(BATCH_JOB_KEY, id);
+    } catch {
+      /* storage unavailable */
+    }
+  }
+  function readBatchJobId() {
+    try {
+      return localStorage.getItem(BATCH_JOB_KEY) || "";
+    } catch {
+      return "";
+    }
+  }
+  function clearBatchJobId() {
+    try {
+      localStorage.removeItem(BATCH_JOB_KEY);
+    } catch {
+      /* storage unavailable */
+    }
+  }
+
+  function rowByIndex(i) {
+    return batchRows.find((r) => r.i === i) || null;
+  }
+
+  function stopBatchPolling() {
+    if (batchPollTimer) clearInterval(batchPollTimer);
+    batchPollTimer = 0;
+  }
+
+  function startBatchPolling() {
+    stopBatchPolling();
+    batchPollTimer = setInterval(pollBatch, 2000);
+    pollBatch();
+  }
+
+  async function pollBatch() {
+    const base = workerBase();
+    if (!batchJobId || !base) return;
+    let data;
+    try {
+      const res = await fetch(
+        base + "/batch/" + encodeURIComponent(batchJobId),
+        {
+          headers: await apiHeaders(),
+        },
+      );
+      if (res.status === 401) {
+        // Not signed in (or the token lapsed); keep the job id for later.
+        stopBatchPolling();
+        batchRunning = false;
+        updateReady();
+        setStatus("Sign in to see your batch results.");
+        return;
+      }
+      if (res.status === 403 || res.status === 404) {
+        clearBatchJobId();
+        batchJobId = "";
+        stopBatchPolling();
+        batchRunning = false;
+        updateReady();
+        setStatus("That batch is no longer available.", "err");
+        return;
+      }
+      if (!res.ok) throw new Error("http_" + res.status);
+      data = await res.json();
+    } catch {
+      setStatus("Waiting for the server…");
+      return;
+    }
+    if (!data || data.status === "missing") {
+      clearBatchJobId();
+      batchJobId = "";
+      stopBatchPolling();
+      batchRunning = false;
+      updateReady();
+      return;
+    }
+    applyBatchProgress(data);
+    if (data.status === "done" || data.status === "canceled") {
+      stopBatchPolling();
+      await finishCloudBatch(data.status);
+    }
+  }
+
+  function applyBatchProgress(data) {
+    const items = Array.isArray(data.items) ? data.items : [];
+    if (data.role) batchRole = data.role;
+    batchRunning = data.status === "running" || data.status === "queued";
+    const previous = batchRows;
+    batchRows = items.map((it) => {
+      const prev = previous.find((p) => p.i === it.i);
+      const file = (prev && prev.file) ||
+        batchFiles[it.i] || { name: it.name, size: 0 };
+      const row = {
+        file,
+        i: it.i,
+        name: it.name,
+        status: it.status,
+        error: it.error || "",
+        resumeText: (prev && prev.resumeText) || "",
+      };
+      if (it.status === "done") {
+        // Keep the full result once pending() has merged it in.
+        row.result =
+          prev && prev.result && prev.result.dimensions
+            ? prev.result
+            : {
+                score: it.score,
+                verdict: it.verdict,
+                strengths: it.strength ? [it.strength] : [],
+                gaps: it.gap ? [it.gap] : [],
+              };
+      }
+      return row;
+    });
+    if (batchResultEl) batchResultEl.hidden = false;
+    renderBatchList();
+    renderBatch();
+    updateReady();
+    if (data.status === "running") {
+      setStatus(
+        "Scored " +
+          (data.done || 0) +
+          " of " +
+          (data.total || batchRows.length) +
+          "…",
+      );
+    }
+  }
+
+  async function finishCloudBatch(status) {
+    batchRunning = false;
+    if (btnBatchCancel) btnBatchCancel.hidden = true;
+    if (btnBatch) btnBatch.removeAttribute("aria-busy");
+    updateReady();
+    await recordPendingBatch();
+    await refreshHistory();
+    if (status === "canceled") {
+      setStatus("Batch canceled.");
+      return;
+    }
+    const done = batchRows.filter((r) => r.status === "done").length;
+    const failed = batchRows.filter((r) => r.status === "error").length;
+    setStatus(
+      "Scored " +
+        done +
+        " candidate(s)" +
+        (failed ? ", " + failed + " failed." : "."),
+    );
+    if (done) showToast("Batch complete — saved to your records.");
+  }
+
+  // Copy finished candidates into the account (and this browser's history),
+  // then mark them recorded on the server so they aren't inserted twice.
+  async function recordPendingBatch() {
+    const base = workerBase();
+    if (!batchJobId || !base) return;
+    if (!(window.Auth && window.Auth.enabled && window.Auth.userId != null))
+      return;
+    let data;
+    try {
+      const res = await fetch(
+        base + "/batch/" + encodeURIComponent(batchJobId) + "/pending",
+        { headers: await apiHeaders() },
+      );
+      if (!res.ok) return;
+      data = await res.json();
+    } catch {
+      return;
+    }
+    const items = (data && data.items) || [];
+    if (!items.length) return;
+
+    for (const it of items) {
+      const row = rowByIndex(it.i);
+      if (row) {
+        row.status = "done";
+        row.resumeText = it.resume || "";
+        row.result = {
+          score: it.score,
+          verdict: it.verdict,
+          summary: it.summary,
+          dimensions: it.dimensions || [],
+          strengths: it.strengths || [],
+          gaps: it.gaps || [],
+          local: it.source === "local",
+        };
+      }
+      saveHistory({
+        ts: Date.now(),
+        name: it.name || "resume",
+        role: batchRole,
+        score: Number(it.score) || 0,
+        verdict: it.verdict || "",
+        summary: it.summary || "",
+        dimensions: it.dimensions || [],
+        strengths: it.strengths || [],
+        gaps: it.gaps || [],
+        chars: (it.resume || "").length,
+        source: it.source || "ai",
+        recorded: true,
+      });
+    }
+    renderBatchList();
+    renderBatch();
+
+    // Bulk-insert into the account, in chunks PostgREST can take.
+    const payload = items.map((it) => ({
+      resume_name: it.name || null,
+      role: batchRole,
+      resume: it.resume || "",
+      score: Number(it.score) || 0,
+      verdict: it.verdict || null,
+      summary: it.summary || null,
+      dimensions: it.dimensions || [],
+      strengths: it.strengths || [],
+      gaps: it.gaps || [],
+      source: it.source || "ai",
+    }));
+    const CHUNK = 25;
+    for (let off = 0; off < payload.length; off += CHUNK) {
+      try {
+        const { error } = await window.Auth.client
+          .from("matches")
+          .insert(payload.slice(off, off + CHUNK));
+        if (error) return; // stays unrecorded; retried on the next poll
+      } catch {
+        return;
+      }
+    }
+    try {
+      await fetch(
+        base + "/batch/" + encodeURIComponent(batchJobId) + "/recorded",
+        {
+          method: "POST",
+          headers: await apiHeaders(),
+          body: JSON.stringify({ indexes: items.map((it) => it.i) }),
+        },
+      );
+    } catch {
+      /* the recorded flag is retried on the next poll or reload */
+    }
+  }
+
+  // Start a durable server-side job. Returns true when it owns the run, false
+  // when the server isn't available and the caller should score locally.
+  async function startCloudBatch(role) {
+    const base = workerBase();
+    if (!base) return false;
+    if (!(window.Auth && window.Auth.enabled && window.Auth.userId != null))
+      return false;
+
+    batchRunning = true;
+    batchCancel = false;
+    batchShortlistOnly = false;
+    batchRole = role;
+    resultEl.hidden = true;
+    if (btnBatchCancel) btnBatchCancel.hidden = false;
+    if (btnBatch) btnBatch.setAttribute("aria-busy", "true");
+    batchRows = batchFiles.map((f, i) => ({ file: f, i, status: "queued" }));
+    renderBatchList();
+    renderBatch();
+    updateReady();
+    if (batchResultEl)
+      batchResultEl.scrollIntoView({ behavior: "smooth", block: "start" });
+    setStatus("Reading " + batchRows.length + " resume(s)…");
+
+    // The job stores the resume text, so read every file up front.
+    const items = [];
+    for (let i = 0; i < batchFiles.length; i++) {
+      let resume = "";
+      try {
+        resume = (await readFile(batchFiles[i])).slice(0, MAX_RESUME);
+      } catch {
+        resume = "";
+      }
+      if (resume.trim().length < 40) resume = "";
+      batchRows[i].resumeText = resume;
+      if (!resume) {
+        batchRows[i].status = "error";
+        batchRows[i].error = "Couldn't read text from that file.";
+      }
+      items.push({ name: batchFiles[i].name, resume });
+    }
+    renderBatchList();
+    renderBatch();
+
+    try {
+      const res = await fetch(base + "/batch", {
+        method: "POST",
+        headers: await apiHeaders(),
+        body: JSON.stringify({ role, items }),
+      });
+      if (res.status === 501) throw new Error("server_unavailable");
+      if (!res.ok) throw new Error("http_" + res.status);
+      const data = await res.json();
+      if (!data || !data.id) throw new Error("bad_response");
+      batchJobId = data.id;
+      saveBatchJobId(batchJobId);
+      setStatus("Scoring " + data.total + " candidate(s) on the server…");
+      startBatchPolling();
+      return true;
+    } catch {
+      batchJobId = "";
+      clearBatchJobId();
+      batchRunning = false;
+      if (btnBatchCancel) btnBatchCancel.hidden = true;
+      if (btnBatch) btnBatch.removeAttribute("aria-busy");
+      setStatus(
+        "Server batch unavailable — scoring in this tab instead.",
+        "err",
+      );
+      return false;
+    }
+  }
+
+  async function cancelCloudBatch() {
+    const base = workerBase();
+    if (!batchJobId || !base) return;
+    batchCancel = true;
+    setStatus("Canceling…");
+    try {
+      await fetch(
+        base + "/batch/" + encodeURIComponent(batchJobId) + "/cancel",
+        { method: "POST", headers: await apiHeaders() },
+      );
+    } catch {
+      /* the poll will notice the canceled status */
+    }
+  }
+
+  // On load, pick up a job that was still running when the tab closed.
+  async function resumeBatchOnLoad() {
+    const id = readBatchJobId();
+    if (!id || !workerBase()) return;
+    if (!(window.Auth && window.Auth.enabled)) return;
+    // Wait for the saved session so the first poll carries a token.
+    try {
+      await window.Auth.getSession();
+    } catch {
+      /* ignore */
+    }
+    if (window.Auth.userId == null) return; // signed out; keep the id for later
+    batchJobId = id;
+    batchRunning = true;
+    if (batchResultEl) batchResultEl.hidden = false;
+    updateReady();
+    setStatus("Checking your last batch…");
+    startBatchPolling();
   }
 
   // Limited-concurrency map that preserves order (mirrors the worker's helper).
@@ -1747,7 +2155,7 @@
 
   // Open one candidate's full result, with a way back to the ranking.
   function openBatchRow(i) {
-    const row = batchRows[i];
+    const row = rowByIndex(i);
     if (!row || row.status !== "done") return;
     batchResultEl.hidden = true;
     render(row.result, {
@@ -1799,8 +2207,8 @@
     return [cols.join(","), ...rows].join("\n");
   }
 
-  // Score every queued resume, at most BATCH_CONCURRENCY at a time. A file that
-  // fails to read or score is marked and skipped; the rest keep going.
+  // Validates, then prefers a durable server job (which survives a closed tab)
+  // and falls back to scoring in this tab when the server is unavailable.
   async function runBatch() {
     const role = roleEl.value.trim().slice(0, MAX_ROLE);
     if (batchRunning || scoring || jdBusy) return;
@@ -1827,6 +2235,13 @@
     )
       return;
 
+    if (await startCloudBatch(role)) return;
+    await runLocalBatch(role);
+  }
+
+  // Fallback: score in this tab, at most BATCH_CONCURRENCY at a time. A file
+  // that fails to read or score is marked and skipped; the rest keep going.
+  async function runLocalBatch(role) {
     let sessionExpired = false;
     batchRunning = true;
     batchCancel = false;
@@ -1876,7 +2291,7 @@
       let result;
       let recorded = false;
       try {
-        result = await aiScore(role, resume, row.file.name);
+        result = await aiScoreWithRetry(role, resume, row.file.name);
         recorded = await saveRecord(role, resume, row.file.name, result);
       } catch (e) {
         if (e && e.message === "worker_http_401") {
@@ -1980,7 +2395,7 @@
       let result;
       let recorded = false;
       try {
-        result = await aiScore(role, resume, file.name);
+        result = await aiScoreWithRetry(role, resume, file.name);
         recorded = await saveRecord(role, resume, file.name, result);
       } catch (e) {
         if (
@@ -2094,8 +2509,12 @@
   if (btnBatch) btnBatch.addEventListener("click", runBatch);
   if (btnBatchCancel)
     btnBatchCancel.addEventListener("click", () => {
-      batchCancel = true;
-      setStatus("Stopping after the current resume…");
+      if (batchJobId) {
+        cancelCloudBatch();
+      } else {
+        batchCancel = true;
+        setStatus("Stopping after the current resume…");
+      }
     });
   if (btnBatchClear)
     btnBatchClear.addEventListener("click", () => {
@@ -2128,9 +2547,9 @@
       } else if (act === "open")
         openBatchRow(Number(el.getAttribute("data-i")));
       else if (act === "short")
-        batchToggle(batchRows[Number(el.getAttribute("data-i"))], "short");
+        batchToggle(rowByIndex(Number(el.getAttribute("data-i"))), "short");
       else if (act === "pass")
-        batchToggle(batchRows[Number(el.getAttribute("data-i"))], "pass");
+        batchToggle(rowByIndex(Number(el.getAttribute("data-i"))), "pass");
     });
 
   // Drops are accepted on the whole step, so a posting can be dropped whether the
@@ -2212,6 +2631,9 @@
       batchFiles = [];
       batchRows = [];
       batchShortlistOnly = false;
+      stopBatchPolling();
+      batchJobId = "";
+      clearBatchJobId();
       renderBatchList();
       if (batchResultEl) batchResultEl.hidden = true;
       setStatus("Cleared.");
@@ -2222,6 +2644,7 @@
   setResumeMode("one");
   updateCount();
   updateReady();
+  resumeBatchOnLoad();
   document.getElementById("btn-csv").addEventListener("click", () => {
     download("candidate-matches.csv", historyCsv(), "text/csv");
   });

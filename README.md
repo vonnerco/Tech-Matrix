@@ -12,7 +12,7 @@ Strapped for time?
 
 [![Candidate Skill Match](https://img.shields.io/badge/Candidate_Skill_Match-Upload_Resume-1f3057?style=for-the-badge&logo=googledrive&logoColor=white&labelColor=1f3057)](https://vonnerco.github.io/Tech-Matrix/candidate-match.html)
 <br><br>_Upload a candidate's resume and score their fit for the role out of 10._
-<br><br>_One at a time, or a whole batch — 50–300 applicants ranked best-first._
+<br><br>_One at a time, or a whole batch — 50–300 applicants ranked best-first. Large batches run on the server and keep going if you close the tab._
 <br><br>_Three simple steps to check the fit_.
 
 1. _Open the matcher._

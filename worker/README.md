@@ -64,6 +64,70 @@ result is persisted to D1 and the response echoes it plus `id` and `recorded`:
 
 The resume PDF/DOCX is parsed in the browser; only the extracted text is sent.
 
+### `POST /batch` — durable batch scoring
+
+Starts a batch job (up to 300 resumes against one role) in a Durable Object.
+The job keeps scoring after the browser tab closes: the client polls progress
+and pulls results when it returns. Requires a signed-in user; returns `501` in
+legacy mode, which tells the web app to score locally instead.
+
+```json
+{
+  "role": "Senior Snowflake Data Engineer (dbt, Airflow)",
+  "items": [{ "name": "jane_doe.pdf", "resume": "<parsed resume text>" }]
+}
+```
+
+Response:
+
+```json
+{ "id": "<job uuid>", "total": 120 }
+```
+
+The worker chunks the resumes into the object so each RPC stays small.
+
+### `GET /batch/:id` — progress (poll this)
+
+```json
+{
+  "status": "running",
+  "role": "...",
+  "total": 120,
+  "done": 47,
+  "failed": 1,
+  "items": [
+    {
+      "i": 0,
+      "name": "jane_doe.pdf",
+      "status": "done",
+      "score": 8.5,
+      "verdict": "Strong fit",
+      "strength": "...",
+      "gap": "...",
+      "error": ""
+    }
+  ]
+}
+```
+
+`status` is `queued`, `running`, `done`, or `canceled`. Resume text is not
+included, so polling stays small.
+
+### `GET /batch/:id/pending` — results to save
+
+Full records (including resume text) for `done` candidates not yet copied to the
+account. The client inserts these, then calls `POST /batch/:id/recorded` with
+`{ "indexes": [0, 1, 2] }` so they aren't inserted twice.
+
+### `POST /batch/:id/cancel`
+
+Stops the job; queued candidates are marked `canceled`.
+
+Per candidate, the object retries transient upstream failures with exponential
+backoff, then falls back to the same keyword-overlap estimate the browser uses.
+The SQLite-backed object needs no extra setup: the binding and migration live in
+`wrangler.jsonc`.
+
 ### `GET /records` — list saved records
 
 Requires `Authorization: Bearer <RECORDS_TOKEN>`. Optional `?limit=` (1-500,

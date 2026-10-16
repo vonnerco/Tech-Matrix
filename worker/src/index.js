@@ -2,15 +2,31 @@
 //   POST /        rewrites resume bullets to match a target-role keyword.
 //   POST /score   scores a candidate resume's fit against a role (0-10) and
 //                 saves the result to D1 (unless PERSIST_D1=false).
+//   POST /batch   starts a durable batch job (many resumes, one role) in a
+//                 Durable Object; returns { id, total }.
+//   GET  /batch/:id           progress for polling (compact, no resume text).
+//   GET  /batch/:id/pending   full results not yet copied to the account.
+//   POST /batch/:id/recorded  mark those results as copied.
+//   POST /batch/:id/cancel    stop the job.
 //   GET /records  lists saved fit records (requires RECORDS_TOKEN).
 //   DELETE /records?id=  removes one saved record (requires RECORDS_TOKEN).
 // The DeepSeek API key and the records token live only in the Worker secret
 // store (DEEPSEEK_API_KEY, RECORDS_TOKEN) and never reach the browser.
 //
-// Optional invite-only gate: set SUPABASE_URL + SUPABASE_ANON_KEY and the two
-// AI endpoints (POST / and /score) require a valid Supabase access token, which
-// is verified against the project's /auth/v1/user endpoint. Leave them blank to
-// keep the endpoints open (legacy mode).
+// Optional invite-only gate: set SUPABASE_URL + SUPABASE_ANON_KEY and the AI
+// endpoints require a valid Supabase access token, verified against the
+// project's /auth/v1/user endpoint. Leave them blank to keep the endpoints open
+// (legacy mode). Batch jobs always require a login, because the job is keyed to
+// the user, so /batch returns 501 in legacy mode.
+import {
+  MAX_RESUME,
+  MAX_ROLE,
+  UPSTREAM_TIMEOUT_MS,
+  mapLimit,
+  scoreWithRetry,
+} from "./scoring.js";
+
+export { BatchJob } from "./batch.js";
 
 // The deployed site's origin. Any localhost port is also accepted so the static
 // site can be previewed locally with whatever server you happen to run; the
@@ -28,12 +44,10 @@ const MAX_KEYWORD = 120;
 const MAX_FOCUS = 200;
 const MAX_PROJECTS = 2000;
 const MAX_TEXT = 500;
-const MAX_ROLE = 4000;
-const MAX_RESUME = 10000;
 const MAX_NAME = 200;
+const MAX_BATCH = 300; // resumes per batch job (mirrors the Durable Object)
 const BATCH = 8;
 const CONCURRENCY = 3;
-const UPSTREAM_TIMEOUT_MS = 30000;
 
 function corsHeaders(origin) {
   const allow =
@@ -290,100 +304,8 @@ Return JSON only, shaped exactly: {"revised": ["...", "..."]}, with ${items.leng
 ${lines}`;
 }
 
-// --- Candidate fit scoring (POST /score) ---
-
-function verdictFor(score) {
-  if (score >= 8) return "Strong fit";
-  if (score >= 5.5) return "Moderate fit";
-  return "Weak fit";
-}
-
-function clampScore(v) {
-  const n = Number(v);
-  if (!Number.isFinite(n)) return 0;
-  return Math.max(0, Math.min(10, Math.round(n * 10) / 10));
-}
-
-function scorePrompt(role, resume) {
-  return `Score how well this candidate fits the TARGET ROLE (0-10).
-
-TARGET ROLE / JOB DESCRIPTION:
-${role}
-
-CANDIDATE RESUME:
-${resume}
-
-Rules:
-- Judge only resume evidence; never assume unlisted experience.
-- Weigh must-have skills, depth, recency, scope/seniority, domain match.
-- 8+ only for a clear, well-evidenced fit. Whole or half points.
-- 3-4 dimensions (e.g. core skills, experience depth, seniority, domain), each 0-10 and consistent with the overall score.
-- Up to 4 strengths and 4 gaps, each naming a specific skill, tool, or role.
-
-JSON only:
-{"score": <0-10>,
- "verdict": "Strong fit" | "Moderate fit" | "Weak fit",
- "summary": "<2-3 sentences>",
- "dimensions": [{"name": "<dimension>", "score": <0-10>, "note": "<evidence>"}],
- "strengths": ["<strength>"],
- "gaps": ["<gap>"]}`;
-}
-
-function normalizeScore(parsed) {
-  const strArr = (a, n, m) =>
-    Array.isArray(a) ? a.slice(0, n).map((s) => String(s).slice(0, m)) : [];
-  const score = clampScore(parsed?.score);
-  const dimensions = Array.isArray(parsed?.dimensions)
-    ? parsed.dimensions.slice(0, 4).map((d) => ({
-        name: String(d?.name ?? "").slice(0, 60),
-        score: clampScore(d?.score),
-        note: String(d?.note ?? "").slice(0, 240),
-      }))
-    : [];
-  return {
-    score,
-    verdict: String(parsed?.verdict ?? "").slice(0, 40) || verdictFor(score),
-    summary: String(parsed?.summary ?? "").slice(0, 600),
-    dimensions,
-    strengths: strArr(parsed?.strengths, 4, 240),
-    gaps: strArr(parsed?.gaps, 4, 240),
-  };
-}
-
-async function scoreWithModel(apiKey, role, resume) {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), UPSTREAM_TIMEOUT_MS);
-  try {
-    const res = await fetch("https://api.deepseek.com/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: "deepseek-chat",
-        messages: [
-          {
-            role: "system",
-            content:
-              "You are a senior technical recruiter. Judge fit strictly from resume evidence, never inventing experience. Reply only with valid JSON.",
-          },
-          { role: "user", content: scorePrompt(role, resume) },
-        ],
-        response_format: { type: "json_object" },
-        temperature: 0.3,
-        max_tokens: 900,
-      }),
-      signal: controller.signal,
-    });
-    if (!res.ok) throw new Error(`deepseek_http_${res.status}`);
-    const data = await res.json();
-    const content = data?.choices?.[0]?.message?.content ?? "{}";
-    return normalizeScore(JSON.parse(content));
-  } finally {
-    clearTimeout(timer);
-  }
-}
+// --- Candidate fit scoring: prompt, model call, retry, and local fallback all
+// live in ./scoring.js, shared with the batch Durable Object. ---
 
 // Word-overlap heuristic: 1.0 = identical wording, 0 = no shared words.
 function similarity(a, b) {
@@ -443,22 +365,7 @@ function projectKeys(projects) {
   return [...set];
 }
 
-// Run async tasks with limited concurrency, preserving result order.
-async function mapLimit(items, limit, fn) {
-  const out = new Array(items.length);
-  let next = 0;
-  async function worker() {
-    while (next < items.length) {
-      const i = next++;
-      out[i] = await fn(items[i], i);
-    }
-  }
-  await Promise.all(
-    Array.from({ length: Math.min(limit, items.length) }, worker),
-  );
-  return out;
-}
-
+// Word-overlap heuristic: 1.0 = identical wording, 0 = no shared words.
 async function callDeepSeek(apiKey, prompt) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), UPSTREAM_TIMEOUT_MS);
@@ -604,6 +511,89 @@ async function handleRecords(request, env, url, headers) {
   }
 }
 
+// Durable batch jobs. The Worker verifies the Supabase user, then proxies to a
+// per-job Durable Object that owns the queue and does the work.
+async function handleBatch(request, env, headers, url, user) {
+  const parts = url.pathname.split("/").filter(Boolean);
+  const at = parts.indexOf("batch");
+  const id = at >= 0 ? parts[at + 1] || "" : "";
+  const sub = at >= 0 ? parts[at + 2] || "" : "";
+
+  // Start a job.
+  if (request.method === "POST" && !id) {
+    let body;
+    try {
+      body = await request.json();
+    } catch {
+      return jsonResponse({ error: "invalid_json" }, 400, headers);
+    }
+    const role = String(body.role ?? "")
+      .trim()
+      .slice(0, MAX_ROLE);
+    const raw = Array.isArray(body.items) ? body.items : [];
+    if (!role || !raw.length) {
+      return jsonResponse({ error: "missing_input" }, 400, headers);
+    }
+    if (raw.length > MAX_BATCH) {
+      return jsonResponse(
+        { error: "too_many_items", max: MAX_BATCH },
+        400,
+        headers,
+      );
+    }
+    const jobId = crypto.randomUUID();
+    const stub = env.BATCH.getByName(jobId);
+    await stub.start({ jobId, userId: user.id, role, total: raw.length });
+    // Chunk the resumes so each RPC stays well under the message-size limit.
+    const CHUNK = 20;
+    for (let off = 0; off < raw.length; off += CHUNK) {
+      const items = raw.slice(off, off + CHUNK).map((it) => ({
+        name: String(it?.name ?? "").slice(0, MAX_NAME),
+        resume: String(it?.resume ?? "").slice(0, MAX_RESUME),
+      }));
+      await stub.addItems({ offset: off, items });
+    }
+    await stub.go();
+    return jsonResponse({ id: jobId, total: raw.length }, 200, headers);
+  }
+
+  if (!id) return jsonResponse({ error: "missing_id" }, 400, headers);
+  const stub = env.BATCH.getByName(id);
+  try {
+    if (request.method === "GET" && !sub) {
+      return jsonResponse(await stub.progress(user.id), 200, headers);
+    }
+    if (request.method === "GET" && sub === "pending") {
+      return jsonResponse(await stub.pending(user.id), 200, headers);
+    }
+    if (request.method === "POST" && sub === "cancel") {
+      return jsonResponse(await stub.cancel(user.id), 200, headers);
+    }
+    if (request.method === "POST" && sub === "recorded") {
+      let body;
+      try {
+        body = await request.json();
+      } catch {
+        body = {};
+      }
+      const indexes = Array.isArray(body.indexes) ? body.indexes : [];
+      return jsonResponse(
+        await stub.markRecorded(user.id, indexes),
+        200,
+        headers,
+      );
+    }
+  } catch (err) {
+    const msg = String(err?.message ?? err);
+    if (msg.includes("forbidden"))
+      return jsonResponse({ error: "forbidden" }, 403, headers);
+    if (msg.includes("missing"))
+      return jsonResponse({ error: "not_found" }, 404, headers);
+    return jsonResponse({ error: "batch_failed", detail: msg }, 502, headers);
+  }
+  return jsonResponse({ error: "method_not_allowed" }, 405, headers);
+}
+
 export default {
   async fetch(request, env) {
     const origin = request.headers.get("Origin");
@@ -626,6 +616,21 @@ export default {
     // Saved candidate fit records (token-protected).
     if (path.endsWith("/records")) {
       return handleRecords(request, env, url, headers);
+    }
+
+    // Durable batch jobs: start, poll, cancel. Always requires a login, since
+    // the job is keyed to the user. 501 tells the client to score locally.
+    if (/\/batch(\/|$)/.test(path)) {
+      if (
+        !env.DEEPSEEK_API_KEY ||
+        !env.BATCH ||
+        !(env.SUPABASE_URL && env.SUPABASE_ANON_KEY)
+      ) {
+        return jsonResponse({ error: "batch_unavailable" }, 501, headers);
+      }
+      const user = await verifySupabaseUser(request, env);
+      if (!user) return jsonResponse({ error: "unauthorized" }, 401, headers);
+      return handleBatch(request, env, headers, url, user);
     }
 
     // Scoring and rewrite are POST-only.
@@ -666,7 +671,7 @@ export default {
         return jsonResponse({ error: "missing_input" }, 400, headers);
       }
       try {
-        const result = await scoreWithModel(env.DEEPSEEK_API_KEY, role, resume);
+        const result = await scoreWithRetry(env.DEEPSEEK_API_KEY, role, resume);
         const id = await recordMatch(
           env,
           role,

@@ -23,4 +23,10 @@
       "migrations_dir": "migrations",
     },
   ],
+  // One Durable Object per batch job: durable queue + results, so a batch keeps
+  // scoring after the browser tab closes. SQLite-backed (free-tier friendly).
+  "durable_objects": {
+    "bindings": [{ "name": "BATCH", "class_name": "BatchJob" }],
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["BatchJob"] }],
 }
