@@ -181,7 +181,7 @@
 
   // The native file controls are hidden; show the chosen name next to the
   // trigger. The spans are aria-live, so assistive tech hears the change too.
-  // `clearBtn` (job description only) is revealed once there's a file to drop.
+  // `clearBtn` stays hidden until there is a file to drop.
   function showFileName(el, file, clearBtn) {
     if (el) el.textContent = file ? file.name : "No file chosen";
     if (clearBtn) clearBtn.hidden = !file;
@@ -920,12 +920,12 @@
     });
   if (fileEl)
     fileEl.addEventListener("change", () =>
-      showFileName(fileNameEl, fileEl.files && fileEl.files[0]),
+      showFileName(fileNameEl, fileEl.files && fileEl.files[0], btnClear),
     );
   btnClear.addEventListener("click", () => {
     roleEl.value = "";
     fileEl.value = "";
-    showFileName(fileNameEl, null);
+    showFileName(fileNameEl, null, btnClear);
     if (jdFileEl) jdFileEl.value = "";
     showFileName(jdNameEl, null, jdClearEl);
     jdFileText = "";
