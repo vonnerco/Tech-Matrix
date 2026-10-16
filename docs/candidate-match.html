@@ -420,9 +420,18 @@
                 border: 0;
             }
             .file-btn {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                gap: 0.4rem;
                 font-size: 0.9375rem;
                 text-align: center;
                 cursor: pointer;
+            }
+            .file-btn svg {
+                flex: none;
+                width: 1em;
+                height: 1em;
             }
             .file-clear {
                 border-color: var(--quiet-line);
@@ -933,8 +942,20 @@
                                 <label
                                     class="btn btn-ghost file-btn"
                                     for="jd-file"
-                                    >Choose job description file</label
                                 >
+                                    <svg
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        stroke-width="1.8"
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        aria-hidden="true"
+                                    >
+                                        <path d="M12 19V5M6 11l6-6 6 6"></path>
+                                    </svg>
+                                    Choose job description file
+                                </label>
                                 <span
                                     class="file-name"
                                     id="jd-name"
@@ -957,7 +978,9 @@
                         </div>
 
                         <div class="field">
-                            <span class="kw">2. Candidate Resume</span>
+                            <span class="kw"
+                                >2. Candidate Resume (PDF or DOCX)</span
+                            >
                             <div class="file-row">
                                 <input
                                     class="file-input"
@@ -965,9 +988,23 @@
                                     type="file"
                                     accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                                 />
-                                <label class="btn btn-ghost file-btn" for="file"
-                                    >Choose resume file</label
+                                <label
+                                    class="btn btn-ghost file-btn"
+                                    for="file"
                                 >
+                                    <svg
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        stroke-width="1.8"
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        aria-hidden="true"
+                                    >
+                                        <path d="M12 19V5M6 11l6-6 6 6"></path>
+                                    </svg>
+                                    Choose resume file
+                                </label>
                                 <span
                                     class="file-name"
                                     id="file-name"
