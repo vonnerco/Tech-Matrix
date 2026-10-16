@@ -4,6 +4,31 @@
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <title>Sign in — Resume-Tailor</title>
+        <script>
+            // Self-healing cache check. GitHub Pages caches HTML/JS for ~10 min,
+            // so a plain reload can keep serving stale assets. If the deployed
+            // build differs from BUILD below, reload once with a cache-busting
+            // query. Bump BUILD and version.json together on every deploy.
+            (function () {
+                var BUILD = "20261016f";
+                try {
+                    fetch("version.json?_=" + Date.now(), { cache: "no-store" })
+                        .then(function (r) {
+                            return r.ok ? r.json() : null;
+                        })
+                        .then(function (d) {
+                            if (!d || !d.build || d.build === BUILD) return;
+                            var key = "cache-bust:" + d.build;
+                            if (sessionStorage.getItem(key)) return;
+                            sessionStorage.setItem(key, "1");
+                            var u = new URL(location.href);
+                            u.searchParams.set("_v", d.build);
+                            location.replace(u.toString());
+                        })
+                        .catch(function () {});
+                } catch (e) {}
+            })();
+        </script>
         <style>
             :root {
                 --ink: #1f3057;
