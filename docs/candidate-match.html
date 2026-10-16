@@ -278,9 +278,10 @@
             .btn-primary {
                 background: var(--accent);
                 color: var(--on-accent);
+                transition: background-color 0.2s ease;
             }
             .btn-primary:hover {
-                filter: brightness(0.9);
+                background: color-mix(in srgb, var(--accent) 88%, var(--paper));
             }
             .btn-ghost {
                 border-color: var(--line-strong);
@@ -332,7 +333,7 @@
                 padding: 0.6rem 0.9rem;
                 border-bottom: 1px solid var(--divider);
                 color: var(--muted);
-                font-family: var(--font-mono);
+                font-family: var(--font-sans);
                 font-size: 1.125rem;
                 font-weight: 600;
             }
@@ -384,7 +385,7 @@
                 background: var(--field-bg);
                 border: 1px solid var(--field-line);
                 border-radius: 8px;
-                resize: vertical;
+                resize: none;
             }
             textarea::placeholder {
                 color: var(--muted);
@@ -397,12 +398,14 @@
             textarea:focus-visible {
                 outline: none; /* the accent border and ring are the indicator */
             }
-            /* The native control is visually hidden; its label is the trigger. */
+            /* The native control is visually hidden; its label is the trigger. Both
+               triggers sit in the same fixed grid column, so they always render the
+               same width whatever the label says. */
             .file-row {
                 position: relative;
-                display: flex;
+                display: grid;
+                grid-template-columns: 17rem minmax(0, 1fr) auto;
                 align-items: center;
-                flex-wrap: wrap;
                 gap: 0.75rem;
             }
             .file-input {
@@ -417,7 +420,7 @@
                 border: 0;
             }
             .file-btn {
-                min-width: 12rem;
+                font-size: 0.9375rem;
                 text-align: center;
                 cursor: pointer;
             }
@@ -827,6 +830,9 @@
                 }
             }
             @media (max-width: 40rem) {
+                .file-row {
+                    grid-template-columns: 1fr;
+                }
                 #history-card button.hopen {
                     grid-template-columns: 3rem 1fr;
                 }
@@ -975,7 +981,7 @@
                                     id="btn-score"
                                     type="button"
                                 >
-                                    Analyze Match Score
+                                    Calculate Fit Score
                                 </button>
                                 <button
                                     class="btn btn-ghost"
