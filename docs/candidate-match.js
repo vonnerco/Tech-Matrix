@@ -74,6 +74,7 @@
   const batchTitleEl = document.getElementById("batch-title");
   const batchSubEl = document.getElementById("batch-sub");
   const batchCardEl = document.getElementById("batch-card");
+  const batchTopEl = document.getElementById("batch-top");
 
   // Client submittal: branding, recruiter notes, and job-order metadata.
   const submittalEl = document.getElementById("submittal");
@@ -108,6 +109,15 @@
   // fall back to the first line of the role box.
   const jobTitle =
     (window.JobTitle && window.JobTitle.from) || ((role) => roleTitle(role));
+  const jobCompany = (window.JobTitle && window.JobTitle.company) || (() => "");
+
+  // "Company — Title" when the posting names an employer, else the title alone.
+  function roleLine(role, max) {
+    const title = jobTitle(role, max);
+    const company = jobCompany(role);
+    if (!company) return title;
+    return title ? company + " — " + title : company;
+  }
 
   // Match history lives on the signed-in account (Supabase `matches`, one row per
   // scored resume), so it follows the user to any device. The browser copy stays
@@ -1395,11 +1405,12 @@
     const score = Number(r.score) || 0;
     const verdict = r.verdict || verdictFor(score);
     const posTitle = jobTitle(meta.role, 70); // job title pulled from the posting
+    const company = jobCompany(meta.role);
     const cls = score >= 8 ? "good" : score >= 5.5 ? "mid" : "bad";
-    // The candidate's name leads; the job title becomes the subtitle.
+    // The candidate's name leads; company and job title become the subtitle.
     const name = displayName(meta.name);
     const heading = name || posTitle;
-    const sub = name && posTitle ? posTitle : "";
+    const sub = name ? roleLine(meta.role, 70) : company || "";
 
     const dimArr = r.dimensions || [];
     const dimMean = dimArr.length
@@ -1639,18 +1650,35 @@
   }
 
   function openResume() {
-    const text = (currentResult && currentResult.resumeText) || "";
+    showResumeText(
+      currentResult && currentResult.name,
+      (currentResult && currentResult.resumeText) || "",
+    );
+  }
+
+  // The resume-text dialog, shared by the single result and a ranked-table row.
+  function showResumeText(name, text) {
     if (!text) {
       showToast("Resume text isn't kept for saved results.");
       return;
     }
     resumeDlg.innerHTML = `
         <div class="dialog-head">
-            <h2>${esc(currentResult.name || "Candidate")}</h2>
+            <h2>${esc(name || "Candidate")}</h2>
             <form method="dialog"><button class="btn btn-ghost" type="submit">Close</button></form>
         </div>
         <pre class="resume-text">${esc(text)}</pre>`;
     if (typeof resumeDlg.showModal === "function") resumeDlg.showModal();
+  }
+
+  // A ranked-table row's resume, opened without leaving the shortlist.
+  function openBatchResume(i) {
+    const row = rowByIndex(i);
+    if (!row || row.status !== "done") return;
+    showResumeText(
+      displayName(row.file.name) || row.file.name,
+      row.resumeText || "",
+    );
   }
 
   // Back to a blank form for the next candidate.
@@ -2092,6 +2120,10 @@
     batchShortlistOnly = false;
     renderBatchList();
     if (batchResultEl) batchResultEl.hidden = true;
+    if (batchTopEl) {
+      batchTopEl.hidden = true;
+      batchTopEl.innerHTML = "";
+    }
     updateReady();
   }
 
@@ -2509,10 +2541,45 @@
       );
   }
 
+  // The best-scoring candidate, called out above the ranking with the two actions
+  // a recruiter wants next: read the resume, or send a client proposal.
+  function renderBatchTop(ranked) {
+    if (!batchTopEl) return;
+    const top = ranked[0];
+    if (!top) {
+      batchTopEl.hidden = true;
+      batchTopEl.innerHTML = "";
+      return;
+    }
+    const s = Number(top.result.score) || 0;
+    const k = s >= 8 ? "good" : s >= 5.5 ? "mid" : "bad";
+    const name = displayName(top.file.name) || top.file.name;
+    const role = roleLine(batchRole, 70);
+    batchTopEl.className = "topfit " + k;
+    batchTopEl.hidden = false;
+    batchTopEl.innerHTML = `
+      <div class="topfit-info">
+        <p class="topfit-eyebrow">Top fit</p>
+        <h3 class="topfit-name">${esc(name)}</h3>
+        ${role ? `<p class="topfit-role">${esc(role)}</p>` : ""}
+      </div>
+      <div class="scorecard ${k}">
+        <div class="score-line">
+          <span class="score-num">${s.toFixed(1)}<span>/10</span></span>
+          <span class="verdict">${esc(top.result.verdict || verdictFor(s))}</span>
+        </div>
+      </div>
+      <div class="topfit-actions">
+        <button class="btn btn-ghost" type="button" data-batch="resume" data-i="${top.i}">View resume</button>
+        <button class="btn btn-ghost" type="button" data-batch="submittal" data-i="${top.i}">Client proposal</button>
+      </div>`;
+  }
+
   function renderBatch() {
     if (!batchResultEl) return;
     batchResultEl.hidden = false;
     const ranked = rankedRows();
+    renderBatchTop(ranked);
     const failed = batchRows.filter((r) => r.status === "error");
     const queued = batchRows.filter(
       (r) => r.status === "queued" || r.status === "running",
@@ -3059,6 +3126,8 @@
         renderBatch();
       } else if (act === "open")
         openBatchRow(Number(el.getAttribute("data-i")));
+      else if (act === "resume")
+        openBatchResume(Number(el.getAttribute("data-i")));
       else if (act === "submittal")
         openBatchSubmittal(Number(el.getAttribute("data-i")));
       else if (act === "short")

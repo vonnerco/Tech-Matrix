@@ -26,7 +26,7 @@
             // build differs from BUILD below, reload once with a cache-busting
             // query. Bump BUILD and version.json together on every deploy.
             (function () {
-                var BUILD = "20261016f";
+                var BUILD = "20261016h";
                 try {
                     fetch("version.json?_=" + Date.now(), { cache: "no-store" })
                         .then(function (r) {

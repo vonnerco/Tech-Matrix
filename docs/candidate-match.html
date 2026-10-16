@@ -26,7 +26,7 @@
             // build differs from BUILD below, reload once with a cache-busting
             // query. Bump BUILD and version.json together on every deploy.
             (function () {
-                var BUILD = "20261016f";
+                var BUILD = "20261016h";
                 try {
                     fetch("version.json?_=" + Date.now(), { cache: "no-store" })
                         .then(function (r) {
@@ -810,6 +810,64 @@
             }
             .scorecard.bad {
                 border-left-color: var(--bad);
+            }
+            /* The single top-scoring candidate, called out above the ranking. */
+            .topfit {
+                display: flex;
+                flex-wrap: wrap;
+                align-items: center;
+                justify-content: space-between;
+                gap: var(--sp-2);
+                margin-bottom: var(--sp-2);
+                padding: 0.9rem 1.1rem;
+                background: var(--panel);
+                border: 1px solid var(--line);
+                border-left-width: 4px;
+                border-left-color: var(--muted);
+                border-radius: 12px;
+            }
+            .topfit.good {
+                border-left-color: var(--good);
+            }
+            .topfit.mid {
+                border-left-color: var(--mid);
+            }
+            .topfit.bad {
+                border-left-color: var(--bad);
+            }
+            .topfit-info {
+                display: grid;
+                gap: 0.15rem;
+                min-width: 0;
+            }
+            .topfit-eyebrow {
+                margin: 0;
+                font-size: 0.6875rem;
+                font-weight: 600;
+                letter-spacing: 0.08em;
+                text-transform: uppercase;
+                color: var(--muted);
+            }
+            .topfit-name {
+                margin: 0;
+                font-size: clamp(1.15rem, 2.5vw, 1.5rem);
+            }
+            .topfit-role {
+                margin: 0;
+                color: var(--muted-strong);
+                font-size: 0.9375rem;
+            }
+            .topfit-actions {
+                display: flex;
+                flex-wrap: wrap;
+                gap: var(--sp-1);
+            }
+            /* The score rides inside the card, so drop the nested card's chrome. */
+            .topfit .scorecard {
+                min-width: 0;
+                padding: 0;
+                background: transparent;
+                border: 0;
             }
             /* Score and verdict sit together on one line in the compact card. */
             .score-line {
@@ -2056,6 +2114,7 @@
                     </div>
                     <div class="scorecard" id="batch-card"></div>
                 </div>
+                <div id="batch-top" class="topfit" hidden></div>
                 <div class="ranked-toolbar">
                     <button
                         class="btn btn-ghost"
@@ -2235,10 +2294,10 @@
         <script src="vendor/jszip.min.js"></script>
         <script src="vendor/pdf.min.js"></script>
         <script src="vendor/supabase.min.js"></script>
-        <script src="config.js?v=20261016g"></script>
-        <script src="auth.js?v=20261016g"></script>
-        <script src="job-title.js?v=20261016g"></script>
-        <script src="candidate-match.js?v=20261016g"></script>
+        <script src="config.js?v=20261016h"></script>
+        <script src="auth.js?v=20261016h"></script>
+        <script src="job-title.js?v=20261016h"></script>
+        <script src="candidate-match.js?v=20261016h"></script>
         <script>
             (function () {
                 var root = document.documentElement;

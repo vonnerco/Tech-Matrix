@@ -70,10 +70,10 @@
   // "Job Title: …" and friends — an explicit label beats every guess.
   const TITLE_LABEL = /^(?:job\s+title|title|role|position)\s*[:-]/i;
 
-  // Sign-off and contact lines that trail a pasted posting: the sender's own
-  // job ("Sr. Technical Hiring Specialist"), an email or a phone number.
+  // A line that is the sender's own function, not the job: recruiter and talent
+  // headlines, a signature, an email or a phone number.
   const TITLE_SIGNATURE =
-    /(technical recruiter|hiring specialist|talent acquisition|staffing|recruiting|resume\b|@[\w.-]+\.[a-z]{2,}|https?:\/\/|www\.|\+?\d[\d ().-]{7,}\d)/i;
+    /(recruit(?:ing|ment)|sourcer|headhunter|talent\b|staffing|resume\b|@[\w.-]+\.[a-z]{2,}|https?:\/\/|www\.|\+?\d[\d ().-]{7,}\d)/i;
 
   function jobTitle(role, max) {
     const cap = max || 70;
@@ -144,7 +144,7 @@
     for (const m of s.matchAll(re)) {
       let start = m.index;
       let head = s.slice(0, start);
-      for (let i = 0; i < 3; i++) {
+      for (let i = 0; i < 4; i++) {
         const w = head.match(/([A-Z][A-Za-z0-9&+.#/-]*)[\s,]+$/);
         if (!w) break;
         start -= w[0].length;
@@ -155,5 +155,54 @@
     return out;
   }
 
-  window.JobTitle = { from: jobTitle };
+  // The employer named in the posting, when one is clearly there. Returns "" when
+  // nothing stands out, so callers show the title alone.
+  const COMPANY_LABEL =
+    /^(?:company|employer|client|organization|organisation)\s*[:-]\s*(.+)$/im;
+  const COMPANY_SUFFIX =
+    /\b(Inc|LLC|Ltd|Corp|Corporation|Technologies|Technology|Pharmaceuticals|Pharma|Labs|Laboratories|Systems|Solutions|Group|Holdings|Health|Bank|Hospital|University|Partners|Consulting|Capital|Networks|Software)\.?$/i;
+
+  function tidyCompany(s) {
+    return String(s || "")
+      .replace(/['’]s\b.*$/, "")
+      .replace(/^[\s:*-]+|[.,;:\s]+$/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  function isCompanyish(c) {
+    if (!c) return false;
+    if (TITLE_WORD.test(c)) return false; // a role, not a company
+    if (COMPANY_SUFFIX.test(c)) return true; // "... Pharmaceuticals"
+    return c.split(" ").filter(Boolean).length >= 2; // "Vertex Pharmaceuticals"
+  }
+
+  function companyFrom(role) {
+    const text = String(role || "");
+    if (!text.trim()) return "";
+    const clip = (c) => (c.length > 60 ? c.slice(0, 57).trimEnd() + "..." : c);
+    const label = COMPANY_LABEL.exec(text);
+    if (label) {
+      const c = tidyCompany(label[1]);
+      if (c) return clip(c);
+    }
+    // "... within Vertex Pharmaceuticals' Data & AI team" → a capitalized run
+    // after an employer preposition, or before "is hiring".
+    const capRun = "((?:[A-Z][\\w&.-]*)(?:[ \\t]+[A-Z][\\w&.-]*){0,3})";
+    const patterns = [
+      new RegExp("\\b(?:within|at|join(?:ing)?|with|from)[ \\t]+" + capRun),
+      new RegExp(
+        capRun + "[ \\t]+(?:is hiring|are hiring|is looking|seeks|hiring)\\b",
+      ),
+    ];
+    for (const re of patterns) {
+      const m = re.exec(text);
+      if (!m) continue;
+      const c = tidyCompany(m[1]);
+      if (isCompanyish(c)) return clip(c);
+    }
+    return "";
+  }
+
+  window.JobTitle = { from: jobTitle, company: companyFrom };
 })();
