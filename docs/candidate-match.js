@@ -454,7 +454,7 @@
     }
   }
 
-  // ---- handoff to the resume builder ----
+  // ---- role helpers ----
 
   // A keyword-sized title: first line of the role box, capped.
   function roleTitle(role, max) {
@@ -464,33 +464,6 @@
       .trim();
     const cap = max || 120;
     return line.length > cap ? line.slice(0, cap - 3).trimEnd() + "..." : line;
-  }
-
-  // The rest of the role box (requirements), used to steer emphasis.
-  function focusFromRole(role) {
-    const text = String(role || "").trim();
-    if (!text || text === roleTitle(text)) return ""; // title already carries it
-    return text.slice(0, 1200);
-  }
-
-  // The match's summary + strengths, as a starter projects/experience note,
-  // with the gaps carried across as targets to address.
-  function projectsBlurb(r) {
-    const parts = [];
-    const summary = String(r.summary || "").trim();
-    if (summary) parts.push(summary);
-    const strengths = (r.strengths || [])
-      .map((s) => String(s).trim())
-      .filter(Boolean)
-      .slice(0, 12);
-    if (strengths.length)
-      parts.push("Strengths: " + strengths.join(", ") + ".");
-    const gaps = (r.gaps || [])
-      .map((s) => String(s).trim())
-      .filter(Boolean)
-      .slice(0, 8);
-    if (gaps.length) parts.push("Gaps to address: " + gaps.join(", ") + ".");
-    return parts.join(" ").slice(0, 1800);
   }
 
   // ---- render current result ----
@@ -515,16 +488,6 @@
       arr && arr.length
         ? `<ul class="chips ${k}">${arr.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>`
         : `<p class="muted">None noted.</p>`;
-    const kw = jobTitle(meta.role);
-    const blurb = projectsBlurb(r);
-    const focus = focusFromRole(meta.role);
-    const q = [];
-    if (kw) q.push("kw=" + encodeURIComponent(kw));
-    if (blurb) q.push("projects=" + encodeURIComponent(blurb));
-    if (focus) q.push("focus=" + encodeURIComponent(focus));
-    const handoff = q.length
-      ? `<p class="handoff-row"><a class="handoff" href="index.html?${q.join("&amp;")}">Build a tailored resume for this role &rarr;</a></p>`
-      : "";
     resultEl.innerHTML = `
             ${posTitle ? `<h2 class="role-title">${esc(posTitle)}</h2>` : ""}
             <div class="scorecard ${cls}">
@@ -539,8 +502,7 @@
             <div class="cols">
                 <div><h2 class="section">Strengths</h2>${list(r.strengths, "good")}</div>
                 <div><h2 class="section">Gaps &amp; risks</h2>${list(r.gaps, "bad")}</div>
-            </div>
-            ${handoff}`;
+            </div>`;
     resultEl.hidden = false;
     resultEl.scrollIntoView({ behavior: "smooth", block: "start" });
   }
@@ -754,8 +716,8 @@
       .join("");
   }
 
-  // Re-open a stored result in the result panel (the handoff button works here
-  // too, since role, summary, strengths and gaps are all kept).
+  // Re-open a stored result in the result panel (role, summary, strengths and
+  // gaps are all kept, so the panel renders the same way).
   function openHistory(h) {
     render(h, {
       name: h.name || "resume",
