@@ -21,6 +21,8 @@
   const roleEl = document.getElementById("role");
   const fileEl = document.getElementById("file");
   const jdFileEl = document.getElementById("jd-file");
+  const fileNameEl = document.getElementById("file-name");
+  const jdNameEl = document.getElementById("jd-name");
   const btn = document.getElementById("btn-score");
   const btnClear = document.getElementById("btn-clear");
   const statusEl = document.getElementById("status");
@@ -174,6 +176,12 @@
       /^image\//.test(file.type || "") ||
       /\.(png|jpe?g|webp|gif|bmp|tiff?)$/i.test(file.name || "")
     );
+  }
+
+  // The native file controls are hidden; show the chosen name next to the
+  // trigger. The spans are aria-live, so assistive tech hears the change too.
+  function showFileName(el, file) {
+    if (el) el.textContent = file ? file.name : "No file chosen";
   }
 
   function loadTesseract() {
@@ -888,10 +896,19 @@
   }
 
   btn.addEventListener("click", run);
-  if (jdFileEl) jdFileEl.addEventListener("change", readJobDescriptionFromFile);
+  if (jdFileEl)
+    jdFileEl.addEventListener("change", () => {
+      showFileName(jdNameEl, jdFileEl.files && jdFileEl.files[0]);
+      readJobDescriptionFromFile();
+    });
+  if (fileEl)
+    fileEl.addEventListener("change", () =>
+      showFileName(fileNameEl, fileEl.files && fileEl.files[0]),
+    );
   btnClear.addEventListener("click", () => {
     roleEl.value = "";
     fileEl.value = "";
+    showFileName(fileNameEl, null);
     resultEl.hidden = true;
     setStatus("");
   });
