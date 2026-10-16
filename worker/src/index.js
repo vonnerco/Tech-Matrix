@@ -32,15 +32,34 @@ import { BatchJob } from "./batch.js";
 
 export { BatchJob };
 
-// The deployed site's origin. Any localhost port is also accepted so the static
-// site can be previewed locally with whatever server you happen to run; the
-// Supabase access token, not the origin, is what guards the endpoints.
-const ALLOWED_ORIGINS = new Set(["https://vonnerco.github.io"]);
+// Browser origins allowed to call this API. Any localhost port is also accepted
+// so the static site can be previewed locally, and the Worker's own host is
+// always accepted (same-origin), which covers a custom domain without config.
+// The Supabase access token, not the origin, is what guards the endpoints.
+const ALLOWED_ORIGINS = new Set([
+  // GitHub Pages copy of the site.
+  "https://vonnerco.github.io",
+  // Cloudflare-hosted copy of the site (Workers static assets).
+  "https://tech-matrix.corderio-vonner.workers.dev",
+]);
 
 const LOCALHOST_ORIGIN = /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/;
 
-function isAllowedOrigin(origin) {
-  return ALLOWED_ORIGINS.has(origin) || LOCALHOST_ORIGIN.test(origin);
+// `selfUrl` is the URL of the request being served. When the site and the API
+// share a host (Workers static assets, or a custom domain routed to this Worker)
+// the request's own origin must be accepted, or the app 403s itself.
+function isAllowedOrigin(origin, selfUrl) {
+  if (!origin) return true; // curl, or a same-origin request with no Origin
+  if (ALLOWED_ORIGINS.has(origin)) return true;
+  if (LOCALHOST_ORIGIN.test(origin)) return true;
+  if (selfUrl) {
+    try {
+      if (new URL(origin).host === selfUrl.host) return true;
+    } catch {
+      /* malformed Origin: fall through to deny */
+    }
+  }
+  return false;
 }
 
 const MAX_ITEMS = 80;
@@ -53,9 +72,11 @@ const MAX_BATCH = 300; // resumes per batch job (mirrors the Durable Object)
 const BATCH = 8;
 const CONCURRENCY = 3;
 
-function corsHeaders(origin) {
+function corsHeaders(origin, selfUrl) {
   const allow =
-    origin && isAllowedOrigin(origin) ? origin : "https://vonnerco.github.io";
+    origin && isAllowedOrigin(origin, selfUrl)
+      ? origin
+      : [...ALLOWED_ORIGINS][0];
   return {
     "Access-Control-Allow-Origin": allow,
     "Access-Control-Allow-Methods": "POST, GET, DELETE, OPTIONS",
@@ -638,8 +659,9 @@ function handleHealth(env) {
 export default {
   async fetch(request, env) {
     const origin = request.headers.get("Origin");
+    const url = new URL(request.url);
     const headers = {
-      ...corsHeaders(origin),
+      ...corsHeaders(origin, url),
       "Content-Type": "application/json",
       "Cache-Control": "no-store",
     };
@@ -648,7 +670,6 @@ export default {
       return new Response(null, { status: 204, headers });
     }
 
-    const url = new URL(request.url);
     const path = url.pathname.replace(/\/+$/, "");
 
     // Liveness/version probe. Public by design, and deliberately checked before
@@ -660,7 +681,7 @@ export default {
       return jsonResponse(handleHealth(env), 200, headers);
     }
 
-    if (origin && !isAllowedOrigin(origin)) {
+    if (!isAllowedOrigin(origin, url)) {
       return jsonResponse({ error: "forbidden_origin" }, 403, headers);
     }
 

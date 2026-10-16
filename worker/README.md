@@ -237,6 +237,26 @@ Once records move to Supabase, set `PERSIST_D1` to `"false"` so `/score` no
 longer writes a second copy of candidate PII to D1. See
 [`../docs/SUPABASE.md`](../docs/SUPABASE.md).
 
+## Hosting and origins
+
+The browser may call this API from:
+
+- `https://vonnerco.github.io` — the GitHub Pages copy of the site
+- `https://tech-matrix.corderio-vonner.workers.dev` — the Cloudflare-hosted copy
+  (Workers static assets)
+- any `http://localhost:<port>` — local preview
+- **this Worker's own host** — so if the site and the API ever share a host
+  (static assets on this Worker, or a custom domain routed here), same-origin
+  calls work with no config change
+
+Anything else gets `403 {"error":"forbidden_origin"}`. To add a host, extend
+`ALLOWED_ORIGINS` in `src/index.js`; to avoid needing to, serve the site from this
+same Worker.
+
+The API is deployed by `wrangler deploy` (locally, or by the `Deploy worker`
+workflow). The static site is deployed separately — GitHub Pages and/or a
+Cloudflare Workers static-assets project — so the two are independent.
+
 ## Security notes
 
 - CORS is limited to the allowed origins in `src/index.js`.
