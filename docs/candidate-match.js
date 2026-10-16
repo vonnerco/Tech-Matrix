@@ -795,6 +795,68 @@
     return (base || "candidate-match") + "-match.docx";
   }
 
+  // ---- result helpers: gap severity, interview prompts, headline ----
+
+  // Absence-of-evidence and prior-context items are things to confirm in the
+  // interview, not hard misses; the rest read as a missing requirement.
+  function isVerifyGap(text) {
+    const s = String(text || "");
+    if (/^seniority:/i.test(s)) return false; // a real risk, not a verify item
+    return /\b(no evidence|no mention|not mentioned|not listed|not specified|not shown|not clear|couldn'?t (?:confirm|verify)|unclear|unknown|unconfirmed|unverified|insufficient|prior role|previous role|earlier role|past role|other role)\b/i.test(
+      s,
+    );
+  }
+
+  // "No evidence of Vertex AI" -> "Vertex AI": the skill, minus the hedging.
+  function stripGapLead(s) {
+    return String(s || "")
+      .replace(
+        /^(there is |no evidence of |no mention of |no explicit |no |not |without |lacks? |missing |insufficient |unclear |unverified )/i,
+        "",
+      )
+      .trim();
+  }
+
+  // A specific interview prompt, so a gap becomes a next step, not a verdict.
+  function askFor(text) {
+    const s = String(text || "").trim();
+    if (/^seniority:/i.test(s))
+      return "Ask: what level and salary are you targeting?";
+    let t = stripGapLead(s.replace(/[.!?]+$/, ""));
+    t = t.replace(
+      /^(evidence of |mention of |experience (?:with|in|of) |exposure to |background in |familiarity with |hands-on )/i,
+      "",
+    );
+    t = t.replace(
+      /\s+from (?:a |the |their )?(?:prior|previous|earlier|past) role$/i,
+      "",
+    );
+    return t ? "Ask: have they used " + t + "?" : "";
+  }
+
+  function gapItem(icon, text) {
+    const ask = askFor(text);
+    return `<li><span class="ico" aria-hidden="true">${icon}</span><span class="txt">${esc(text)}</span>${
+      ask ? `<span class="ask">${esc(ask)}</span>` : ""
+    }</li>`;
+  }
+
+  // One line carrying the decision, instead of bullets that restate the lists.
+  function headlineLine(strengths, verify, gaps) {
+    const first = String((strengths && strengths[0]) || "")
+      .trim()
+      .replace(/[.;:]+$/, "");
+    const target = stripGapLead(
+      String((verify && verify[0]) || (gaps && gaps[0]) || "")
+        .trim()
+        .replace(/[.;:]+$/, ""),
+    );
+    const parts = [];
+    if (first) parts.push(first);
+    if (target) parts.push((parts.length ? "verify " : "Verify ") + target);
+    return parts.length ? parts.join("; ") + "." : "";
+  }
+
   // ---- render current result ----
 
   function render(r, meta) {
@@ -806,41 +868,58 @@
     const name = displayName(meta.name);
     const heading = name || posTitle;
     const sub = name && posTitle ? posTitle : "";
-    const chars = Number(meta.chars) || 0;
 
-    const dims = (r.dimensions || [])
+    const dimArr = r.dimensions || [];
+    const dimMean = dimArr.length
+      ? dimArr.reduce((a, d) => a + (Number(d.score) || 0), 0) / dimArr.length
+      : 0;
+    const dims = dimArr
       .map((d) => {
         const s = Number(d.score) || 0;
         const k = s >= 8 ? "good" : s >= 5.5 ? "mid" : "bad";
         return `
             <div class="dim">
-                <div class="dim-head">${esc(d.name)}</div>
-                <div class="dim-meter">
-                    <div class="bar"><span class="${k}" style="width:${Math.max(0, Math.min(100, s * 10))}%"></span></div>
-                    <span class="dim-score ${k}">${s.toFixed(1)}</span>
+                <div class="dim-head">
+                    <span class="dim-name">${esc(d.name)}</span>
+                    <span class="dim-score ${k}">${s.toFixed(1)}<span class="dim-of">/10</span></span>
                 </div>
+                <div class="bar"><span class="${k}" style="width:${Math.max(0, Math.min(100, s * 10))}%"></span></div>
                 ${d.note ? `<div class="dim-note">${esc(d.note)}</div>` : ""}
             </div>`;
       })
       .join("");
-
-    const bullets = summaryBullets(r.summary)
-      .map((b) => `<li>${esc(b)}</li>`)
+    const howList = dimArr
+      .map(
+        (d) =>
+          `<li><span>${esc(d.name)}</span><span>${(Number(d.score) || 0).toFixed(1)}/10</span></li>`,
+      )
       .join("");
 
     const strengths = (r.strengths || []).slice(0, 3);
     const seniority = seniorityWarning(meta.role, r);
-    const gaps = (seniority ? [seniority] : []).concat(
+    const allGaps = (seniority ? [seniority] : []).concat(
       (r.gaps || []).slice(0, 8),
     );
+    const hardGaps = allGaps.filter((g) => !isVerifyGap(g));
+    const verifyGaps = allGaps.filter((g) => isVerifyGap(g));
+
     const strengthHtml = strengths.length
-      ? `<ul class="chips good">${strengths.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>`
-      : `<p class="muted">None noted.</p>`;
-    const gapHtml = gaps.length
-      ? `<ul class="chips bad">${gaps
-          .map((x) => `<li><span aria-hidden="true">⚠</span> ${esc(x)}</li>`)
+      ? `<ul class="chips good">${strengths
+          .map((x) => gapItem("✓", x))
           .join("")}</ul>`
       : `<p class="muted">None noted.</p>`;
+    const gapHtml = hardGaps.length
+      ? `<ul class="chips bad">${hardGaps
+          .map((x) => gapItem("⚠", x))
+          .join("")}</ul>`
+      : `<p class="muted">None — no hard requirement is missing on the resume.</p>`;
+    const verifyHtml = verifyGaps.length
+      ? `<ul class="chips verify">${verifyGaps
+          .map((x) => gapItem("?", x))
+          .join("")}</ul>`
+      : `<p class="muted">Nothing outstanding to verify.</p>`;
+
+    const verdictLine = headlineLine(strengths, verifyGaps, hardGaps);
 
     currentResult = {
       r,
@@ -852,46 +931,60 @@
       resumeText: meta.resumeText || "",
     };
     const shorted = shortlist().includes(shortlistKey(currentResult));
+    const passed = passList().includes(shortlistKey(currentResult));
 
     resultEl.innerHTML = `
             <nav class="crumbs" aria-label="Breadcrumb">
-                <a href="#role">New match</a>
-                <span aria-hidden="true">/</span>
-                <span aria-current="page">Result</span>
+                <a href="#role">Screening</a>
+                <span class="sep" aria-hidden="true">→</span>
+                <span aria-current="page">Results</span>
             </nav>
-            ${
-              heading
-                ? `<div class="result-head">
-                <h2 class="candidate-name">${esc(heading)}</h2>
-                ${sub ? `<p class="candidate-role">${esc(sub)}</p>` : ""}
-            </div>`
-                : ""
-            }
-            <div class="scorecard ${cls}">
-                <div class="score-num">${score.toFixed(1)}<span>/10</span></div>
-                <div class="verdict">${esc(verdict)}</div>
-                <div class="score-cta">
-                    <button class="btn btn-primary" type="button" data-action="shortlist" aria-pressed="${shorted}">${
-                      shorted ? "Shortlisted ✓" : "Shortlist Candidate"
-                    }</button>
+            <div class="result-hero">
+                <div class="result-head">
+                    ${heading ? `<h2 class="candidate-name">${esc(heading)}</h2>` : ""}
+                    ${sub ? `<p class="candidate-role">${esc(sub)}</p>` : ""}
                 </div>
-                <div class="meta">
-                    <a href="records.html" title="${chars ? chars.toLocaleString() + " characters parsed. " : ""}View this candidate's saved record">${esc(meta.name || "resume")}</a>
+                <div class="scorecard ${cls}">
+                    <div class="score-line">
+                        <span class="score-num">${score.toFixed(1)}<span>/10</span></span>
+                        <span class="verdict">${esc(verdict)}</span>
+                    </div>
+                    ${
+                      howList
+                        ? `<details class="how-score">
+                        <summary>How this score is calculated</summary>
+                        <div class="how-body">
+                            <ul class="how-list">${howList}</ul>
+                            <p class="how-note">Overall is a holistic 0–10 judgment weighing must-have skills, depth, recency, scope/seniority, and domain match. The dimension scores are the evidence behind it${dimArr.length ? `; their average is ${dimMean.toFixed(1)}/10` : ""}.</p>
+                        </div>
+                    </details>`
+                        : ""
+                    }
                 </div>
-                ${bullets ? `<ul class="summary-list">${bullets}</ul>` : ""}
+            </div>
+            ${verdictLine ? `<p class="verdict-line">${esc(verdictLine)}</p>` : ""}
+            <div class="cols">
+                <div><h2 class="section">Strengths</h2>${strengthHtml}</div>
+                <div>
+                    <div class="group"><h2 class="section">Gaps</h2>${gapHtml}</div>
+                    <div class="group"><h2 class="section">To verify with the candidate</h2>${verifyHtml}</div>
+                </div>
             </div>
             <div class="result-actions">
-                <button class="btn btn-ghost" type="button" data-action="another">Screen another</button>
+                <button class="btn btn-primary" type="button" data-action="shortlist" aria-pressed="${shorted}">${
+                  shorted ? "Shortlisted ✓" : "Shortlist"
+                }</button>
+                <button class="btn btn-pass" type="button" data-action="pass" aria-pressed="${passed}">${
+                  passed ? "Passed ✓" : "Pass"
+                }</button>
+                <span class="spacer"></span>
                 <button class="btn btn-ghost" type="button" data-action="copy">Copy summary</button>
                 <button class="btn btn-ghost" type="button" data-action="docx">Export DOCX</button>
                 <button class="btn btn-ghost" type="button" data-action="pdf">Export PDF</button>
                 <button class="btn btn-ghost" type="button" data-action="resume">View resume</button>
+                <button class="btn btn-ghost" type="button" data-action="another">Screen another</button>
             </div>
-            ${dims ? `<h2 class="section">Fit by dimension</h2><div class="dims">${dims}</div>` : ""}
-            <div class="cols">
-                <div><h2 class="section">Strengths</h2>${strengthHtml}</div>
-                <div><h2 class="section">Gaps / Verify</h2>${gapHtml}</div>
-            </div>`;
+            ${dims ? `<h2 class="section">Fit by dimension</h2><p class="dim-legend"><span><i class="good" aria-hidden="true"></i>8–10 strong</span><span><i class="mid" aria-hidden="true"></i>5.5–7.9 mixed</span><span><i class="bad" aria-hidden="true"></i>0–5.4 weak</span></p><div class="dims">${dims}</div>` : ""}`;
     resultEl.hidden = false;
     resultEl.scrollIntoView({ behavior: "smooth", block: "start" });
   }
@@ -931,6 +1024,16 @@
       return [];
     }
   }
+  // The reject path: the same local store, so a decision either way is one click.
+  const PASS_KEY = "csm_pass_v1";
+  function passList() {
+    try {
+      const arr = JSON.parse(localStorage.getItem(PASS_KEY) || "[]");
+      return Array.isArray(arr) ? arr : [];
+    } catch {
+      return [];
+    }
+  }
   function toggleShortlist(btnEl, cr) {
     const key = shortlistKey(cr);
     const arr = shortlist();
@@ -944,8 +1047,25 @@
       /* storage unavailable */
     }
     btnEl.setAttribute("aria-pressed", String(!on));
-    btnEl.textContent = !on ? "Shortlisted ✓" : "Shortlist Candidate";
+    btnEl.textContent = !on ? "Shortlisted ✓" : "Shortlist";
     showToast(!on ? "Candidate shortlisted." : "Removed from shortlist.");
+  }
+
+  function togglePass(btnEl, cr) {
+    const key = shortlistKey(cr);
+    const arr = passList();
+    const on = arr.includes(key);
+    try {
+      localStorage.setItem(
+        PASS_KEY,
+        JSON.stringify(on ? arr.filter((k) => k !== key) : arr.concat(key)),
+      );
+    } catch {
+      /* storage unavailable */
+    }
+    btnEl.setAttribute("aria-pressed", String(!on));
+    btnEl.textContent = !on ? "Passed ✓" : "Pass";
+    showToast(!on ? "Candidate passed." : "Pass cleared.");
   }
 
   async function copySummary(cr) {
@@ -1421,6 +1541,7 @@
     if (!el || !currentResult) return;
     const action = el.getAttribute("data-action");
     if (action === "shortlist") toggleShortlist(el, currentResult);
+    else if (action === "pass") togglePass(el, currentResult);
     else if (action === "another") screenAnother();
     else if (action === "copy") copySummary(currentResult);
     else if (action === "docx") exportDocx(currentResult);

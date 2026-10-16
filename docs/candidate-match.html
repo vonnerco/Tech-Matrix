@@ -704,30 +704,46 @@
                 margin-top: 2rem;
             }
 
-            /* This is a full page, not a modal, so the result gets a breadcrumb
-               trail instead of an ambiguous close X. */
+            /* A stepper reads the flow (Screening -> Results) better than a
+               "New match / Result" trail, and the current step is bold ink so
+               its contrast clears AA in both themes. */
             .crumbs {
                 display: flex;
                 align-items: center;
-                gap: 0.45rem;
-                margin: 0 0 0.9rem;
+                gap: 0.5rem;
+                margin: 0 0 1rem;
                 font-size: 0.8125rem;
-                color: var(--muted);
+                font-weight: 500;
+                color: var(--muted-strong);
             }
             .crumbs a {
-                color: var(--muted);
+                color: var(--muted-strong);
                 text-decoration: none;
                 border-bottom: 1px solid var(--quiet-line);
             }
             .crumbs a:hover {
                 color: var(--ink);
             }
+            .crumbs .sep {
+                color: var(--line-strong);
+            }
             .crumbs [aria-current="page"] {
                 color: var(--ink);
+                font-weight: 700;
             }
 
+            /* Compact horizontal hero: identity left, score right. Keeps the
+               decision above the fold instead of a tall centered stack. */
+            .result-hero {
+                display: grid;
+                grid-template-columns: minmax(0, 1fr) auto;
+                align-items: center;
+                gap: 1rem 2rem;
+                margin: 0 0 1rem;
+            }
             .result-head {
-                margin: 0 0 1.25rem;
+                margin: 0;
+                min-width: 0;
             }
             .candidate-name {
                 margin: 0;
@@ -739,35 +755,40 @@
             }
             .candidate-role {
                 margin: 0.25rem 0 0;
-                font-size: 1.0625rem;
-                color: var(--muted);
+                font-size: 1rem;
+                color: var(--muted-strong);
             }
 
             .scorecard {
                 display: grid;
-                justify-items: center;
-                text-align: center;
-                gap: 0.35rem;
-                padding: clamp(1.4rem, 4vw, 2.25rem) clamp(1.1rem, 3vw, 1.5rem);
+                gap: 0.6rem;
+                min-width: min(20rem, 100%);
+                padding: 0.9rem 1.1rem;
                 background: var(--panel);
                 border: 1px solid var(--line);
-                border-top-width: 3px;
-                border-top-color: var(--muted);
-                border-radius: 14px;
+                border-left-width: 4px;
+                border-left-color: var(--muted);
+                border-radius: 12px;
             }
             .scorecard.good {
-                border-top-color: var(--good);
+                border-left-color: var(--good);
             }
             .scorecard.mid {
-                border-top-color: var(--mid);
+                border-left-color: var(--mid);
             }
             .scorecard.bad {
-                border-top-color: var(--bad);
+                border-left-color: var(--bad);
             }
-            /* The score is the card's anchor: biggest, centered, and colored. */
+            /* Score and verdict sit together on one line in the compact card. */
+            .score-line {
+                display: flex;
+                align-items: baseline;
+                flex-wrap: wrap;
+                gap: 0.5rem 0.75rem;
+            }
             .score-num {
                 font-family: var(--font-sans);
-                font-size: clamp(3.5rem, 10vw, 5rem);
+                font-size: clamp(2.25rem, 6vw, 3rem);
                 font-weight: 700;
                 line-height: 1;
                 letter-spacing: -0.035em;
@@ -809,9 +830,6 @@
             .scorecard.bad .verdict {
                 color: var(--bad);
             }
-            .score-cta {
-                margin-top: 0.9rem;
-            }
             .btn-primary[aria-pressed="true"] {
                 background: transparent;
                 border-color: var(--good);
@@ -820,69 +838,117 @@
             .btn-primary[aria-pressed="true"]:hover {
                 background: color-mix(in srgb, var(--good) 12%, transparent);
             }
-            /* File name as a pill link; the character count lives in its tooltip. */
-            .meta {
-                margin-top: 0.9rem;
-            }
-            .meta a {
-                display: inline-block;
-                max-width: 100%;
-                overflow: hidden;
-                text-overflow: ellipsis;
-                white-space: nowrap;
-                padding: 0.25rem 0.7rem;
-                font-size: 0.8125rem;
-                color: var(--muted);
-                text-decoration: none;
-                background: var(--field-bg);
-                border: 1px solid var(--line);
-                border-radius: 999px;
-            }
-            .meta a:hover {
-                color: var(--ink);
+            /* The reject path mirrors shortlist: an outline that fills on press. */
+            .btn-pass {
                 border-color: var(--line-strong);
+                color: var(--ink);
+                background: transparent;
             }
-            /* Summary bullets: short lines, capped measure, left-aligned. */
-            .summary-list {
-                margin: 1.1rem 0 0;
+            .btn-pass[aria-pressed="true"] {
+                border-color: var(--bad);
+                color: var(--bad);
+                background: color-mix(in srgb, var(--bad) 10%, transparent);
+            }
+
+            /* One-line verdict: the decision, without repeating the lists below. */
+            .verdict-line {
+                margin: 0 0 1.5rem;
+                max-width: 68ch;
+                font-size: 1.0625rem;
+                line-height: 1.5;
+            }
+
+            /* Score transparency: the factors and the dimension evidence, on
+               demand, so the number is not a black box. */
+            .how-score {
+                font-size: 0.8125rem;
+            }
+            .how-score summary {
+                color: var(--muted-strong);
+                cursor: pointer;
+            }
+            .how-score summary:hover {
+                color: var(--ink);
+            }
+            .how-body {
+                margin-top: 0.6rem;
+                color: var(--muted-strong);
+                line-height: 1.5;
+            }
+            .how-body .how-list {
+                margin: 0 0 0.5rem;
                 padding: 0;
                 list-style: none;
-                max-width: 65ch;
                 display: grid;
-                gap: 0.4rem;
-                text-align: left;
-                font-size: 0.9375rem;
-                line-height: 1.55;
+                gap: 0.2rem;
             }
-            .summary-list li {
-                position: relative;
-                padding-left: 1rem;
+            .how-body li {
+                display: flex;
+                justify-content: space-between;
+                gap: 1rem;
             }
-            .summary-list li::before {
-                content: "";
-                position: absolute;
-                left: 0;
-                top: 0.62em;
-                width: 5px;
-                height: 5px;
-                border-radius: 50%;
-                background: var(--muted);
+            .how-body .how-note {
+                margin: 0;
             }
+
+            /* Action bar: one row, the decision first, the utilities last. It
+               sticks to the bottom of the viewport so the choice stays in
+               reach while the dimensions are read. */
             .result-actions {
+                position: sticky;
+                bottom: 0;
+                z-index: 5;
                 display: flex;
                 flex-wrap: wrap;
-                justify-content: center;
+                align-items: center;
                 gap: 0.5rem;
+                padding: 0.75rem 0;
+                background: color-mix(in srgb, var(--paper) 88%, transparent);
+                border-top: 1px solid var(--divider);
             }
             .result-actions .btn {
                 padding: 0.55rem 0.95rem;
                 font-size: 0.9375rem;
             }
+            .result-actions .spacer {
+                flex: 1 1 auto;
+            }
 
-            /* Dimension cards: name, a colored micro-bar, score at the bar's end. */
+            /* Legend: the bar scale in words, so color is never the only cue. */
+            .dim-legend {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 0.35rem 1rem;
+                margin: 0 0 0.9rem;
+                color: var(--muted-strong);
+                font-size: 0.8125rem;
+            }
+            .dim-legend span {
+                display: inline-flex;
+                align-items: center;
+                gap: 0.4rem;
+            }
+            .dim-legend i {
+                width: 0.7rem;
+                height: 0.7rem;
+                border-radius: 999px;
+                background: var(--muted);
+            }
+            .dim-legend i.good {
+                background: var(--good);
+            }
+            .dim-legend i.mid {
+                background: var(--mid);
+            }
+            .dim-legend i.bad {
+                background: var(--bad);
+            }
+
+            /* Dimension cards: 2x2 or 4-up so no card is orphaned, and the bar
+               sits below the head so a wrapping title never misaligns it. */
             .dims {
                 display: grid;
-                grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+                grid-template-columns: repeat(2, minmax(0, 1fr));
                 gap: 0.75rem;
             }
             .dim {
@@ -892,17 +958,15 @@
                 border-radius: 12px;
             }
             .dim-head {
+                display: flex;
+                align-items: baseline;
+                justify-content: space-between;
+                gap: 0.6rem;
                 margin-bottom: 0.5rem;
                 font-size: 0.9375rem;
                 font-weight: 500;
             }
-            .dim-meter {
-                display: flex;
-                align-items: center;
-                gap: 0.6rem;
-            }
             .bar {
-                flex: 1;
                 height: 7px;
                 background: var(--line);
                 border-radius: 999px;
@@ -926,12 +990,15 @@
             }
             .dim-score {
                 flex: none;
-                min-width: 2.6rem;
-                text-align: right;
                 font-family: var(--font-sans);
                 font-size: 0.875rem;
                 font-weight: 600;
                 font-variant-numeric: tabular-nums;
+                white-space: nowrap;
+                color: var(--muted-strong);
+            }
+            .dim-of {
+                font-weight: 500;
                 color: var(--muted);
             }
             .dim-score.good {
@@ -960,15 +1027,9 @@
             .dim:nth-child(4) .bar span {
                 animation-delay: 0.21s;
             }
-            .dim:nth-child(5) .bar span {
-                animation-delay: 0.28s;
-            }
-            .dim:nth-child(6) .bar span {
-                animation-delay: 0.35s;
-            }
             .dim-note {
                 margin: 0.5rem 0 0;
-                color: var(--muted);
+                color: var(--muted-strong);
                 font-size: 0.8125rem;
             }
 
@@ -976,34 +1037,51 @@
                 display: grid;
                 grid-template-columns: 1fr 1fr;
                 gap: 2rem;
+                align-items: start;
             }
+            .group + .group {
+                margin-top: 1.5rem;
+            }
+            /* Full-width icon lists: equal measure, scanned by glyph first. */
             ul.chips {
                 list-style: none;
                 margin: 0;
                 padding: 0;
-                display: flex;
-                flex-wrap: wrap;
+                display: grid;
                 gap: 0.5rem;
             }
             ul.chips li {
-                padding: 0.35rem 0.6rem;
-                font-size: 0.875rem;
-                border: 1px solid var(--line);
-                border-radius: 8px;
+                display: grid;
+                grid-template-columns: 1.1rem 1fr;
+                gap: 0.5rem;
+                font-size: 0.9375rem;
+                line-height: 1.5;
             }
-            ul.chips.good li {
-                border-color: var(--good);
+            ul.chips .ico {
+                font-size: 0.9rem;
+                line-height: 1.55;
+            }
+            ul.chips .ask {
+                grid-column: 2;
+                margin-top: 0.15rem;
+                color: var(--muted-strong);
+                font-size: 0.8125rem;
+                font-style: italic;
+            }
+            ul.chips.good .ico {
                 color: var(--good);
             }
-            /* Gaps read as warnings: tinted, warning-colored, never color alone. */
-            ul.chips.bad li {
-                border-color: var(--bad);
+            /* Gaps read as warnings: warning glyph and color, never color alone. */
+            ul.chips.bad .ico {
                 color: var(--bad);
-                background: color-mix(in srgb, var(--bad) 10%, transparent);
+            }
+            /* Verification items are neutral: amber glyph, plain text. */
+            ul.chips.verify .ico {
+                color: var(--mid);
             }
             .muted {
                 margin: 0;
-                color: var(--muted);
+                color: var(--muted-strong);
                 font-size: 0.9375rem;
             }
 
@@ -1076,8 +1154,7 @@
                 .panel,
                 #history-card,
                 .crumbs,
-                .result-actions,
-                .score-cta {
+                .result-actions {
                     display: none !important;
                 }
             }
@@ -1186,12 +1263,24 @@
                 box-shadow: var(--shadow);
             }
 
+            /* Four dimensions across on wide screens; no orphan at three-up. */
+            @media (min-width: 56rem) {
+                .dims {
+                    grid-template-columns: repeat(4, minmax(0, 1fr));
+                }
+            }
             @media (max-width: 48rem) {
                 .cols {
                     grid-template-columns: 1fr;
                 }
+                .result-hero {
+                    grid-template-columns: minmax(0, 1fr);
+                }
             }
             @media (max-width: 40rem) {
+                .dims {
+                    grid-template-columns: 1fr;
+                }
                 #history-card button.hopen {
                     grid-template-columns: 3rem 1fr;
                 }
