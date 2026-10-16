@@ -667,6 +667,134 @@
     return lines.join("\n");
   }
 
+  // ---- DOCX export (a minimal, self-contained Word document) ----
+
+  const DOCX_MIME =
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+  const DOCX_SCORE_COLOR = { good: "0E9C8A", mid: "8F5A10", bad: "C0392B" };
+
+  // Runs and paragraphs are built by hand so the file stays self-contained
+  // (a styles.xml part would be one more thing to get right). Sizes are
+  // half-points, as OOXML expects, so 36 is 18pt.
+  function docxRun(text, opts) {
+    const o = opts || {};
+    const rpr = [];
+    if (o.bold) rpr.push("<w:b/>");
+    if (o.color) rpr.push(`<w:color w:val="${o.color}"/>`);
+    if (o.size)
+      rpr.push(`<w:sz w:val="${o.size}"/><w:szCs w:val="${o.size}"/>`);
+    const props = rpr.length ? `<w:rPr>${rpr.join("")}</w:rPr>` : "";
+    return `<w:r>${props}<w:t xml:space="preserve">${esc(text)}</w:t></w:r>`;
+  }
+
+  function docxPara(runs, opts) {
+    const o = opts || {};
+    const ppr = [];
+    if (o.before || o.after)
+      ppr.push(
+        `<w:spacing w:before="${o.before || 0}" w:after="${o.after || 0}"/>`,
+      );
+    if (o.indent) ppr.push(`<w:ind w:left="${o.indent}"/>`);
+    return `<w:p>${ppr.length ? `<w:pPr>${ppr.join("")}</w:pPr>` : ""}${runs || ""}</w:p>`;
+  }
+
+  function docxBody(cr, cls) {
+    const out = [];
+    const color = DOCX_SCORE_COLOR[cls] || DOCX_SCORE_COLOR.mid;
+    if (cr.name) out.push(docxPara(docxRun(cr.name, { bold: true, size: 36 })));
+    if (cr.role)
+      out.push(docxPara(docxRun(cr.role, { color: "59607A", size: 24 })));
+    out.push(
+      docxPara(
+        docxRun(`${cr.score.toFixed(1)}/10 — ${cr.verdict}`, {
+          bold: true,
+          size: 32,
+          color,
+        }),
+        { before: 240, after: 200 },
+      ),
+    );
+
+    const section = (title) =>
+      docxPara(docxRun(title, { bold: true, size: 26 }), {
+        before: 280,
+        after: 80,
+      });
+    const bullet = (text) =>
+      docxPara(docxRun(text, { size: 22 }), { after: 60, indent: 360 });
+
+    const bullets = summaryBullets(cr.r.summary);
+    if (bullets.length) {
+      out.push(section("Summary"));
+      bullets.forEach((b) => out.push(bullet("•  " + b)));
+    }
+
+    const dims = cr.r.dimensions || [];
+    if (dims.length) {
+      out.push(section("Fit by dimension"));
+      dims.forEach((d) => {
+        const line = `${d.name} — ${(Number(d.score) || 0).toFixed(1)}/10`;
+        out.push(bullet(d.note ? `${line} (${d.note})` : line));
+      });
+    }
+
+    const strengths = cr.r.strengths || [];
+    if (strengths.length) {
+      out.push(section("Strengths"));
+      strengths.forEach((s) => out.push(bullet("•  " + s)));
+    }
+
+    const gaps = cr.r.gaps || [];
+    if (gaps.length) {
+      out.push(section("Gaps / Verify"));
+      gaps.forEach((g) => out.push(bullet("•  " + g)));
+    }
+
+    out.push(
+      docxPara(
+        docxRun(
+          `Source: ${(cr.meta && cr.meta.name) || "resume"} · exported ${new Date().toLocaleString()}`,
+          { color: "59607A", size: 18 },
+        ),
+        { before: 320 },
+      ),
+    );
+    return out.join("");
+  }
+
+  function docxDocument(body) {
+    return (
+      '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>' +
+      body +
+      '<w:sectPr><w:pgSz w:w="12240" w:h="15840"/>' +
+      '<w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440"/>' +
+      "</w:sectPr></w:body></w:document>"
+    );
+  }
+
+  const DOCX_CONTENT_TYPES =
+    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+    '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+    '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
+    '<Default Extension="xml" ContentType="application/xml"/>' +
+    '<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>' +
+    "</Types>";
+
+  const DOCX_RELS =
+    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+    '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+    '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>' +
+    "</Relationships>";
+
+  function docxFileName(cr) {
+    const base = String(cr.name || cr.role || "candidate-match")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "");
+    return (base || "candidate-match") + "-match.docx";
+  }
+
   // ---- render current result ----
 
   function render(r, meta) {
@@ -755,6 +883,7 @@
             <div class="result-actions">
                 <button class="btn btn-ghost" type="button" data-action="another">Screen another</button>
                 <button class="btn btn-ghost" type="button" data-action="copy">Copy summary</button>
+                <button class="btn btn-ghost" type="button" data-action="docx">Export DOCX</button>
                 <button class="btn btn-ghost" type="button" data-action="pdf">Export PDF</button>
                 <button class="btn btn-ghost" type="button" data-action="resume">View resume</button>
             </div>
@@ -825,6 +954,35 @@
       showToast("Summary copied to clipboard.");
     } catch {
       showToast("Couldn't copy — the clipboard is blocked here.");
+    }
+  }
+
+  async function exportDocx(cr) {
+    if (!window.JSZip) {
+      showToast("DOCX export needs the JSZip script, which didn't load.");
+      return;
+    }
+    try {
+      const cls = cr.score >= 8 ? "good" : cr.score >= 5.5 ? "mid" : "bad";
+      const zip = new window.JSZip();
+      // createFolders:false keeps the archive to real parts only, no stray
+      // directory entries that some readers flag.
+      zip.file("[Content_Types].xml", DOCX_CONTENT_TYPES, {
+        createFolders: false,
+      });
+      zip.file("_rels/.rels", DOCX_RELS, { createFolders: false });
+      zip.file("word/document.xml", docxDocument(docxBody(cr, cls)), {
+        createFolders: false,
+      });
+      const blob = await zip.generateAsync({
+        type: "blob",
+        mimeType: DOCX_MIME,
+        compression: "DEFLATE",
+      });
+      downloadBlob(docxFileName(cr), blob);
+      showToast("DOCX downloaded.");
+    } catch {
+      showToast("Couldn't build the DOCX file.");
     }
   }
 
@@ -1116,8 +1274,7 @@
     await refreshHistory();
   }
 
-  function download(filename, text, mime) {
-    const blob = new Blob([text], { type: mime + ";charset=utf-8" });
+  function downloadBlob(filename, blob) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -1126,6 +1283,10 @@
     a.click();
     a.remove();
     URL.revokeObjectURL(url);
+  }
+
+  function download(filename, text, mime) {
+    downloadBlob(filename, new Blob([text], { type: mime + ";charset=utf-8" }));
   }
 
   function csvCell(v) {
@@ -1262,6 +1423,7 @@
     if (action === "shortlist") toggleShortlist(el, currentResult);
     else if (action === "another") screenAnother();
     else if (action === "copy") copySummary(currentResult);
+    else if (action === "docx") exportDocx(currentResult);
     else if (action === "pdf") window.print();
     else if (action === "resume") openResume();
   });
