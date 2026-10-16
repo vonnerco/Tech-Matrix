@@ -161,6 +161,16 @@
                 font-weight: 700;
                 letter-spacing: -0.01em;
             }
+            /* Pure white on the black theme; the light theme keeps dark ink so
+               the wordmark stays legible. */
+            @media (prefers-color-scheme: dark) {
+                :root:not([data-theme]) .brand-name {
+                    color: #ffffff;
+                }
+            }
+            :root[data-theme="dark"] .brand-name {
+                color: #ffffff;
+            }
             .brand-role {
                 color: var(--muted);
                 font-size: 0.9375rem;
@@ -202,7 +212,7 @@
                 margin: 0 0 1.75rem;
                 color: var(--ink);
                 font-weight: 500;
-                font-size: 1.125rem;
+                font-size: 1.25rem;
             }
             .actions {
                 display: flex;
@@ -219,6 +229,7 @@
                 font-weight: 500;
                 text-decoration: none;
                 cursor: pointer;
+                transition: filter 0.15s ease;
             }
             .btn:hover {
                 filter: brightness(1.06);
@@ -226,6 +237,9 @@
             .btn-primary {
                 background: var(--accent);
                 color: var(--on-accent);
+            }
+            .btn-primary:hover {
+                filter: brightness(0.9);
             }
             .btn-ghost {
                 border-color: var(--line);
