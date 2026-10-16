@@ -3085,31 +3085,97 @@
   );
 
   // ---- paste: drop a screenshot straight into a step ----
-  // A screenshot on the clipboard arrives as an unnamed image file, so name it and
-  // route it to the focused step. The job description step reads images with OCR;
-  // the resume step takes a PDF or DOCX, not a screenshot.
-  function pastedImageFiles(dt) {
+  // A screenshot on the clipboard arrives in different shapes: a direct image file
+  // (Chrome/Edge, a screen-capture tool), or — from Firefox and some apps — only an
+  // <img> data: URL inside the pasted HTML. Handle both, name the result, and route
+  // it to the focused step. The job description step reads images with OCR; the
+  // resume step takes a PDF or DOCX, not a screenshot.
+  function imageExt(type) {
+    return (String(type).split("/")[1] || "png")
+      .replace("jpeg", "jpg")
+      .replace("svg+xml", "svg")
+      .replace(/[^a-z0-9]/gi, "");
+  }
+
+  function namedImage(blob, type, tag) {
+    const ext = imageExt(type);
+    return new File([blob], "screenshot-" + (tag || Date.now()) + "." + ext, {
+      type: type || "image/png",
+    });
+  }
+
+  function dataImageFile(url, tag) {
+    const m = /^data:(image\/[a-z0-9.+-]+);base64,([a-z0-9+/=\s]+)$/i.exec(
+      String(url || "").trim(),
+    );
+    if (!m) return null;
+    try {
+      const bin = atob(m[2].replace(/\s/g, ""));
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      return namedImage(bytes, m[1].toLowerCase(), tag);
+    } catch {
+      return null;
+    }
+  }
+
+  function clipboardGet(dt, kind) {
+    try {
+      return dt.getData(kind) || "";
+    } catch {
+      return "";
+    }
+  }
+
+  function imageFilesFromClipboard(dt) {
+    // 1. A real image file item, as a screenshot or "Copy image" provides.
     const items = (dt && dt.items) || [];
-    const out = [];
     for (let i = 0; i < items.length; i++) {
       const it = items[i];
-      if (it.kind !== "file" || !/^image\//.test(it.type || "")) continue;
+      if (it.kind !== "file" || it.type.indexOf("image/") !== 0) continue;
       const blob = it.getAsFile();
-      if (!blob) continue;
-      const ext = (it.type.split("/")[1] || "png").replace("jpeg", "jpg");
-      out.push(
-        new File([blob], "screenshot-" + Date.now() + "-" + i + "." + ext, {
-          type: it.type,
-        }),
-      );
+      if (blob) return [namedImage(blob, it.type, Date.now() + "-" + i)];
     }
-    return out;
+    // 2. Firefox and some apps copy only HTML, with the image inline as a data URL.
+    const html = clipboardGet(dt, "text/html");
+    const src = /<img\b[^>]*\bsrc\s*=\s*["'](data:image\/[^"']+)["']/i.exec(
+      html,
+    );
+    if (src) {
+      const f = dataImageFile(src[1], "html");
+      if (f) return [f];
+    }
+    // 3. A bare data: image URL in the plain text.
+    const text = clipboardGet(dt, "text/plain");
+    if (/^data:image\//i.test(text.trim())) {
+      const f = dataImageFile(text, "text");
+      if (f) return [f];
+    }
+    return [];
+  }
+
+  function clipboardHasImage(dt) {
+    const types = (dt && dt.types) || [];
+    for (let i = 0; i < types.length; i++) {
+      const t = String(types[i] || "");
+      if (t.indexOf("image/") === 0 || t === "Files") return true;
+    }
+    return false;
   }
 
   document.addEventListener("paste", (e) => {
     if (!e.clipboardData) return;
-    const files = pastedImageFiles(e.clipboardData);
-    if (!files.length) return; // leave text pastes untouched
+    const files = imageFilesFromClipboard(e.clipboardData);
+    if (!files.length) {
+      // Leave text pastes to the field. Only speak up when the clipboard held an
+      // image we couldn't read, so a failed paste isn't silent.
+      if (clipboardHasImage(e.clipboardData))
+        setStatus(
+          "Couldn't read the image on your clipboard. Save it, then use the Upload tab.",
+          "err",
+        );
+      return;
+    }
     const active = document.activeElement;
     // Don't hijack a paste into some other text field on the page.
     if (
