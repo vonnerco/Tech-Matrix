@@ -208,6 +208,13 @@
                 flex-wrap: wrap;
                 gap: 0.75rem;
             }
+            .actions + .hint {
+                margin-top: 1rem;
+            }
+            .text-link {
+                color: var(--accent);
+                text-underline-offset: 2px;
+            }
 
             .btn {
                 display: inline-block;
@@ -731,15 +738,22 @@
             <section class="intro wrap">
                 <h1>Rank candidates instantly.</h1>
                 <p class="lead">
-                    Filter the noise, find the fit. Quantify candidate
-                    potential.
+                    Paste a job description and resume to instantly see if
+                    they're a fit.
                 </p>
                 <div class="actions">
-                    <a class="btn btn-primary" href="index.html"
-                        >Build a tailored resume</a
+                    <a class="btn btn-primary" href="#role"
+                        >Score Candidate Match</a
                     >
-                    <a class="btn btn-ghost" href="records.html">All records</a>
+                    <a class="btn btn-ghost" href="records.html"
+                        >View Past Rankings</a
+                    >
                 </div>
+                <p class="hint">
+                    <a class="text-link" href="index.html"
+                        >Build a tailored resume &rarr;</a
+                    >
+                </p>
             </section>
 
             <section class="block wrap">
@@ -749,9 +763,6 @@
                         <span>new match</span>
                     </div>
                     <div class="panel-body">
-                        <p class="hint">
-                            Paste job and resume. Get an instant match score.
-                        </p>
                         <div class="field">
                             <label class="kw" for="role"
                                 >Target role or job description</label
