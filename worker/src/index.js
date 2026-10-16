@@ -412,7 +412,10 @@ async function callDeepSeek(apiKey, prompt) {
           { role: "user", content: prompt },
         ],
         response_format: { type: "json_object" },
-        temperature: 0.85,
+        // Rewrites stay in thinking mode: one interactive call per resume, and
+        // the quality of the bullets matters more than the extra latency. Note
+        // that thinking mode ignores temperature, so there is nothing to tune
+        // here — setting one would look like a control that isn't.
         max_tokens: 2400,
       }),
       signal: controller.signal,

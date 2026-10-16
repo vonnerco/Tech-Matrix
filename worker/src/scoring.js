@@ -87,7 +87,8 @@ async function scoreWithModel(apiKey, role, resume) {
         response_format: { type: "json_object" },
         // Scoring is a short rubric answer, so skip the chain-of-thought: it
         // costs ~5x the output tokens and ~40% more latency for the same JSON.
-        // Thinking mode also ignores temperature, which this path sets.
+        // Thinking mode also ignores the temperature set below, so disabling it
+        // restores that control.
         thinking: { type: "disabled" },
         temperature: 0.3,
         max_tokens: 900,
