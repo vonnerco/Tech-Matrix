@@ -23,6 +23,7 @@
   const jdFileEl = document.getElementById("jd-file");
   const fileNameEl = document.getElementById("file-name");
   const jdNameEl = document.getElementById("jd-name");
+  const jdClearEl = document.getElementById("jd-clear");
   const btn = document.getElementById("btn-score");
   const btnClear = document.getElementById("btn-clear");
   const statusEl = document.getElementById("status");
@@ -180,9 +181,15 @@
 
   // The native file controls are hidden; show the chosen name next to the
   // trigger. The spans are aria-live, so assistive tech hears the change too.
-  function showFileName(el, file) {
+  // `clearBtn` (job description only) is revealed once there's a file to drop.
+  function showFileName(el, file, clearBtn) {
     if (el) el.textContent = file ? file.name : "No file chosen";
+    if (clearBtn) clearBtn.hidden = !file;
   }
+
+  // Text that came from the job description file, so "Clear file" can tell it
+  // apart from text the recruiter typed themselves.
+  let jdFileText = "";
 
   function loadTesseract() {
     if (window.Tesseract) return Promise.resolve(window.Tesseract);
@@ -293,6 +300,7 @@
             : "Couldn't read text from that file. Try a different PDF or DOCX.",
         );
       roleEl.value = text.slice(0, MAX_ROLE);
+      jdFileText = roleEl.value;
       setStatus("Job description loaded from " + file.name + ".");
     } catch (err) {
       setStatus(err && err.message ? err.message : String(err), "err");
@@ -898,8 +906,17 @@
   btn.addEventListener("click", run);
   if (jdFileEl)
     jdFileEl.addEventListener("change", () => {
-      showFileName(jdNameEl, jdFileEl.files && jdFileEl.files[0]);
+      showFileName(jdNameEl, jdFileEl.files && jdFileEl.files[0], jdClearEl);
       readJobDescriptionFromFile();
+    });
+  if (jdClearEl)
+    jdClearEl.addEventListener("click", () => {
+      if (jdFileEl) jdFileEl.value = "";
+      showFileName(jdNameEl, null, jdClearEl);
+      // Drop text this file filled in, but never text the recruiter typed.
+      if (jdFileText && roleEl.value === jdFileText) roleEl.value = "";
+      jdFileText = "";
+      setStatus("Job description file cleared.");
     });
   if (fileEl)
     fileEl.addEventListener("change", () =>
@@ -909,6 +926,9 @@
     roleEl.value = "";
     fileEl.value = "";
     showFileName(fileNameEl, null);
+    if (jdFileEl) jdFileEl.value = "";
+    showFileName(jdNameEl, null, jdClearEl);
+    jdFileText = "";
     resultEl.hidden = true;
     setStatus("");
   });
