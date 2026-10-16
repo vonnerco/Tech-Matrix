@@ -909,6 +909,7 @@
       showFileName(jdNameEl, jdFileEl.files && jdFileEl.files[0], jdClearEl);
       readJobDescriptionFromFile();
     });
+  // Step 1's own clear: the posting file and the text it filled in.
   if (jdClearEl)
     jdClearEl.addEventListener("click", () => {
       if (jdFileEl) jdFileEl.value = "";
@@ -922,15 +923,12 @@
     fileEl.addEventListener("change", () =>
       showFileName(fileNameEl, fileEl.files && fileEl.files[0], btnClear),
     );
+  // Step 2's own clear: the resume file only, so the posting above it, the role
+  // text and the current result are all left untouched.
   btnClear.addEventListener("click", () => {
-    roleEl.value = "";
     fileEl.value = "";
     showFileName(fileNameEl, null, btnClear);
-    if (jdFileEl) jdFileEl.value = "";
-    showFileName(jdNameEl, null, jdClearEl);
-    jdFileText = "";
-    resultEl.hidden = true;
-    setStatus("");
+    setStatus("Resume file cleared.");
   });
   document.getElementById("btn-csv").addEventListener("click", () => {
     download("candidate-matches.csv", historyCsv(), "text/csv");
