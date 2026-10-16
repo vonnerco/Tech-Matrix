@@ -26,10 +26,10 @@ function isAllowedOrigin(origin) {
 const MAX_ITEMS = 80;
 const MAX_KEYWORD = 120;
 const MAX_FOCUS = 200;
-const MAX_PROJECTS = 4000;
-const MAX_TEXT = 700;
-const MAX_ROLE = 6000;
-const MAX_RESUME = 20000;
+const MAX_PROJECTS = 2000;
+const MAX_TEXT = 500;
+const MAX_ROLE = 4000;
+const MAX_RESUME = 10000;
 const MAX_NAME = 200;
 const BATCH = 8;
 const CONCURRENCY = 3;
@@ -305,7 +305,7 @@ function clampScore(v) {
 }
 
 function scorePrompt(role, resume) {
-  return `Rate how well this candidate fits the TARGET ROLE for a hiring manager.
+  return `Score how well this candidate fits the TARGET ROLE (0-10).
 
 TARGET ROLE / JOB DESCRIPTION:
 ${role}
@@ -313,21 +313,20 @@ ${role}
 CANDIDATE RESUME:
 ${resume}
 
-Scoring rules:
-- Judge only on evidence in the resume. Do NOT assume unlisted experience.
-- Weigh must-have skills, depth of relevant experience, recency, scope/seniority, and domain match.
-- Overall score is 0-10, whole or half points. Be discriminating: 8+ only for clear, well-evidenced fit.
-- Cover 3-5 dimensions such as Core skills match, Relevant experience depth, Seniority/scope, Domain fit, Tools/tech overlap. Each dimension scores 0-10.
-- The overall score must be consistent with the dimensions.
-- Strengths and gaps must cite concrete resume evidence (name the skill, tool, or role).
+Rules:
+- Judge only resume evidence; never assume unlisted experience.
+- Weigh must-have skills, depth, recency, scope/seniority, domain match.
+- 8+ only for a clear, well-evidenced fit. Whole or half points.
+- 3-4 dimensions (e.g. core skills, experience depth, seniority, domain), each 0-10 and consistent with the overall score.
+- Up to 4 strengths and 4 gaps, each naming a specific skill, tool, or role.
 
-Return JSON only, shaped exactly:
+JSON only:
 {"score": <0-10>,
  "verdict": "Strong fit" | "Moderate fit" | "Weak fit",
- "summary": "<2-3 sentence rationale>",
- "dimensions": [{"name": "<dimension>", "score": <0-10>, "note": "<one line of evidence>"}],
- "strengths": ["<concrete strength>"],
- "gaps": ["<concrete gap or risk>"]}`;
+ "summary": "<2-3 sentences>",
+ "dimensions": [{"name": "<dimension>", "score": <0-10>, "note": "<evidence>"}],
+ "strengths": ["<strength>"],
+ "gaps": ["<gap>"]}`;
 }
 
 function normalizeScore(parsed) {
@@ -335,7 +334,7 @@ function normalizeScore(parsed) {
     Array.isArray(a) ? a.slice(0, n).map((s) => String(s).slice(0, m)) : [];
   const score = clampScore(parsed?.score);
   const dimensions = Array.isArray(parsed?.dimensions)
-    ? parsed.dimensions.slice(0, 6).map((d) => ({
+    ? parsed.dimensions.slice(0, 4).map((d) => ({
         name: String(d?.name ?? "").slice(0, 60),
         score: clampScore(d?.score),
         note: String(d?.note ?? "").slice(0, 240),
@@ -346,8 +345,8 @@ function normalizeScore(parsed) {
     verdict: String(parsed?.verdict ?? "").slice(0, 40) || verdictFor(score),
     summary: String(parsed?.summary ?? "").slice(0, 600),
     dimensions,
-    strengths: strArr(parsed?.strengths, 6, 240),
-    gaps: strArr(parsed?.gaps, 6, 240),
+    strengths: strArr(parsed?.strengths, 4, 240),
+    gaps: strArr(parsed?.gaps, 4, 240),
   };
 }
 
@@ -367,13 +366,13 @@ async function scoreWithModel(apiKey, role, resume) {
           {
             role: "system",
             content:
-              "You are a senior technical recruiter. You assess candidate-role fit strictly from resume evidence, never inventing experience. You respond only with valid JSON.",
+              "You are a senior technical recruiter. Judge fit strictly from resume evidence, never inventing experience. Reply only with valid JSON.",
           },
           { role: "user", content: scorePrompt(role, resume) },
         ],
         response_format: { type: "json_object" },
         temperature: 0.3,
-        max_tokens: 1500,
+        max_tokens: 900,
       }),
       signal: controller.signal,
     });
@@ -476,13 +475,13 @@ async function callDeepSeek(apiKey, prompt) {
           {
             role: "system",
             content:
-              "You are a senior technical resume writer. You write authentic, high-impact resume bullets tailored to a target role, grounded strictly in the candidate's real work. You never invent facts. You respond only with valid JSON.",
+              "You are a senior technical resume writer. Rewrite bullets for the target role using only the candidate's real work; never invent facts. Reply only with valid JSON.",
           },
           { role: "user", content: prompt },
         ],
         response_format: { type: "json_object" },
         temperature: 0.85,
-        max_tokens: 4000,
+        max_tokens: 2400,
       }),
       signal: controller.signal,
     });

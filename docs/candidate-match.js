@@ -10,8 +10,10 @@
     PDFJS.GlobalWorkerOptions.workerSrc = "vendor/pdf.worker.min.js";
   }
 
-  const MAX_ROLE = 6000;
-  const MAX_RESUME = 20000;
+  // Kept in step with the worker's MAX_ROLE / MAX_RESUME, which bound the
+  // tokens each score can spend.
+  const MAX_ROLE = 4000;
+  const MAX_RESUME = 10000;
   const MAX_IMAGE_BYTES = 12 * 1024 * 1024;
   const OCR_SCALE = 3; // ~216 DPI: enough for body text, canvas stays modest
   const MAX_OCR_PAGES = 5;
