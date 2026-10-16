@@ -608,54 +608,247 @@
     return line.length > cap ? line.slice(0, cap - 3).trimEnd() + "..." : line;
   }
 
+  // ---- result helpers ----
+
+  // "Corderio_Vonner_Resume.pdf" -> "Corderio Vonner": a human name from the
+  // file name, with resume noise and the extension dropped.
+  function displayName(fileName) {
+    const base = String(fileName || "")
+      .replace(/\.[a-z0-9]+$/i, "")
+      .replace(/[_\-]+/g, " ")
+      .replace(/\b(resume|cv|final|draft|copy|updated|new|v\d+)\b/gi, " ")
+      .replace(/[^A-Za-z' ]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+    if (!base) return "";
+    return base
+      .split(" ")
+      .slice(0, 4)
+      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+      .join(" ");
+  }
+
+  // A paragraph becomes 2-4 scannable bullets; overflow folds into the last one.
+  function summaryBullets(text) {
+    const parts = (String(text || "").match(/[^.!?]+[.!?]*/g) || [])
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (parts.length <= 4) return parts;
+    return parts.slice(0, 3).concat(parts.slice(3).join(" "));
+  }
+
+  // A principal/staff profile against an early-career role is a real risk
+  // (overqualification, salary, flight), so flag it ahead of the other gaps.
+  function seniorityWarning(role, r) {
+    const early =
+      /\b(level\s*[1-3]|junior|jr\.?|entry[- ]level|associate|graduate|intern)\b/i;
+    const senior =
+      /\b(principal|staff|senior|sr\.?|lead|head of|director|chief|vp)\b/i;
+    if (!early.test(String(role || ""))) return "";
+    const profile = [r.summary, (r.strengths || []).join(" ")].join(" ");
+    return senior.test(profile)
+      ? "Seniority: senior or principal profile for an early-career role — verify level and salary fit."
+      : "";
+  }
+
+  // Plain-text version of the result, for the clipboard.
+  function summaryText(cr) {
+    const lines = [];
+    if (cr.name) lines.push(cr.name + (cr.role ? " — " + cr.role : ""));
+    lines.push(`${cr.score.toFixed(1)}/10 — ${cr.verdict}`);
+    const bullets = summaryBullets(cr.r.summary);
+    if (bullets.length) lines.push("", ...bullets.map((b) => "- " + b));
+    const strengths = cr.r.strengths || [];
+    if (strengths.length)
+      lines.push("", "Strengths:", ...strengths.map((s) => "- " + s));
+    const gaps = cr.r.gaps || [];
+    if (gaps.length)
+      lines.push("", "Gaps / Verify:", ...gaps.map((g) => "- " + g));
+    return lines.join("\n");
+  }
+
   // ---- render current result ----
 
   function render(r, meta) {
     const score = Number(r.score) || 0;
     const verdict = r.verdict || verdictFor(score);
-    // The role heading is the job title pulled out of the pasted posting.
-    const posTitle = jobTitle(meta.role, 70);
+    const posTitle = jobTitle(meta.role, 70); // job title pulled from the posting
     const cls = score >= 8 ? "good" : score >= 5.5 ? "mid" : "bad";
+    // The candidate's name leads; the job title becomes the subtitle.
+    const name = displayName(meta.name);
+    const heading = name || posTitle;
+    const sub = name && posTitle ? posTitle : "";
+    const chars = Number(meta.chars) || 0;
+
     const dims = (r.dimensions || [])
-      .map(
-        (d) => `
+      .map((d) => {
+        const s = Number(d.score) || 0;
+        const k = s >= 8 ? "good" : s >= 5.5 ? "mid" : "bad";
+        return `
             <div class="dim">
-                <div class="dim-head"><span>${esc(d.name)}</span><span>${(Number(d.score) || 0).toFixed(1)}/10</span></div>
-                <div class="bar"><span style="width:${Math.max(0, Math.min(100, (Number(d.score) || 0) * 10))}%"></span></div>
-                ${d.note ? `<div class="dim-note">${esc(d.note)}</div>` : ""}
-            </div>`,
-      )
-      .join("");
-    const list = (arr, k) =>
-      arr && arr.length
-        ? `<ul class="chips ${k}">${arr.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>`
-        : `<p class="muted">None noted.</p>`;
-    resultEl.innerHTML = `
-            ${posTitle ? `<h2 class="role-title">${esc(posTitle)}</h2>` : ""}
-            <div class="scorecard ${cls}">
-                <button
-                    class="dismiss"
-                    type="button"
-                    data-dismiss-result
-                    aria-label="Dismiss this result"
-                    title="Dismiss this result"
-                >
-                    &times;
-                </button>
-                <div class="score-num">${score.toFixed(1)}<span>/10</span></div>
-                <div class="score-side">
-                    <div class="verdict">${esc(verdict)}</div>
-                    <div class="meta">${esc(meta.name)}${meta.chars ? " &middot; " + meta.chars.toLocaleString() + " chars parsed" : ""}${meta.note ? " &middot; " + esc(meta.note) : ""}</div>
-                    <p class="summary">${esc(r.summary)}</p>
+                <div class="dim-head">${esc(d.name)}</div>
+                <div class="dim-meter">
+                    <div class="bar"><span class="${k}" style="width:${Math.max(0, Math.min(100, s * 10))}%"></span></div>
+                    <span class="dim-score ${k}">${s.toFixed(1)}</span>
                 </div>
+                ${d.note ? `<div class="dim-note">${esc(d.note)}</div>` : ""}
+            </div>`;
+      })
+      .join("");
+
+    const bullets = summaryBullets(r.summary)
+      .map((b) => `<li>${esc(b)}</li>`)
+      .join("");
+
+    const strengths = (r.strengths || []).slice(0, 3);
+    const seniority = seniorityWarning(meta.role, r);
+    const gaps = (seniority ? [seniority] : []).concat(
+      (r.gaps || []).slice(0, 8),
+    );
+    const strengthHtml = strengths.length
+      ? `<ul class="chips good">${strengths.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>`
+      : `<p class="muted">None noted.</p>`;
+    const gapHtml = gaps.length
+      ? `<ul class="chips bad">${gaps
+          .map((x) => `<li><span aria-hidden="true">⚠</span> ${esc(x)}</li>`)
+          .join("")}</ul>`
+      : `<p class="muted">None noted.</p>`;
+
+    currentResult = {
+      r,
+      meta,
+      score,
+      verdict,
+      name: heading,
+      role: posTitle,
+      resumeText: meta.resumeText || "",
+    };
+    const shorted = shortlist().includes(shortlistKey(currentResult));
+
+    resultEl.innerHTML = `
+            <nav class="crumbs" aria-label="Breadcrumb">
+                <a href="#role">New match</a>
+                <span aria-hidden="true">/</span>
+                <span aria-current="page">Result</span>
+            </nav>
+            ${
+              heading
+                ? `<div class="result-head">
+                <h2 class="candidate-name">${esc(heading)}</h2>
+                ${sub ? `<p class="candidate-role">${esc(sub)}</p>` : ""}
+            </div>`
+                : ""
+            }
+            <div class="scorecard ${cls}">
+                <div class="score-num">${score.toFixed(1)}<span>/10</span></div>
+                <div class="verdict">${esc(verdict)}</div>
+                <div class="score-cta">
+                    <button class="btn btn-primary" type="button" data-action="shortlist" aria-pressed="${shorted}">${
+                      shorted ? "Shortlisted ✓" : "Shortlist Candidate"
+                    }</button>
+                </div>
+                <div class="meta">
+                    <a href="records.html" title="${chars ? chars.toLocaleString() + " characters parsed. " : ""}View this candidate's saved record">${esc(meta.name || "resume")}</a>
+                </div>
+                ${bullets ? `<ul class="summary-list">${bullets}</ul>` : ""}
+            </div>
+            <div class="result-actions">
+                <button class="btn btn-ghost" type="button" data-action="another">Screen another</button>
+                <button class="btn btn-ghost" type="button" data-action="copy">Copy summary</button>
+                <button class="btn btn-ghost" type="button" data-action="pdf">Export PDF</button>
+                <button class="btn btn-ghost" type="button" data-action="resume">View resume</button>
             </div>
             ${dims ? `<h2 class="section">Fit by dimension</h2><div class="dims">${dims}</div>` : ""}
             <div class="cols">
-                <div><h2 class="section">Strengths</h2>${list(r.strengths, "good")}</div>
-                <div><h2 class="section">Gaps &amp; risks</h2>${list(r.gaps, "bad")}</div>
+                <div><h2 class="section">Strengths</h2>${strengthHtml}</div>
+                <div><h2 class="section">Gaps / Verify</h2>${gapHtml}</div>
             </div>`;
     resultEl.hidden = false;
     resultEl.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  // ---- result actions ----
+
+  const SHORTLIST_KEY = "csm_shortlist_v1";
+  let currentResult = null; // what the action buttons act on
+
+  const toastEl = document.createElement("div");
+  toastEl.className = "toast";
+  toastEl.setAttribute("aria-live", "polite");
+  toastEl.setAttribute("aria-atomic", "true");
+  document.body.appendChild(toastEl);
+  let toastTimer = 0;
+  function showToast(msg) {
+    if (!msg) return;
+    toastEl.textContent = msg;
+    toastEl.classList.add("is-on");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toastEl.classList.remove("is-on"), 2800);
+  }
+
+  const resumeDlg = document.createElement("dialog");
+  resumeDlg.className = "resume-dialog";
+  resumeDlg.setAttribute("aria-label", "Parsed resume text");
+  document.body.appendChild(resumeDlg);
+
+  function shortlistKey(cr) {
+    return [cr.role, cr.name, cr.score].join("|");
+  }
+  function shortlist() {
+    try {
+      const arr = JSON.parse(localStorage.getItem(SHORTLIST_KEY) || "[]");
+      return Array.isArray(arr) ? arr : [];
+    } catch {
+      return [];
+    }
+  }
+  function toggleShortlist(btnEl, cr) {
+    const key = shortlistKey(cr);
+    const arr = shortlist();
+    const on = arr.includes(key);
+    try {
+      localStorage.setItem(
+        SHORTLIST_KEY,
+        JSON.stringify(on ? arr.filter((k) => k !== key) : arr.concat(key)),
+      );
+    } catch {
+      /* storage unavailable */
+    }
+    btnEl.setAttribute("aria-pressed", String(!on));
+    btnEl.textContent = !on ? "Shortlisted ✓" : "Shortlist Candidate";
+    showToast(!on ? "Candidate shortlisted." : "Removed from shortlist.");
+  }
+
+  async function copySummary(cr) {
+    try {
+      await navigator.clipboard.writeText(summaryText(cr));
+      showToast("Summary copied to clipboard.");
+    } catch {
+      showToast("Couldn't copy — the clipboard is blocked here.");
+    }
+  }
+
+  function openResume() {
+    const text = (currentResult && currentResult.resumeText) || "";
+    if (!text) {
+      showToast("Resume text isn't kept for saved results.");
+      return;
+    }
+    resumeDlg.innerHTML = `
+        <div class="dialog-head">
+            <h2>${esc(currentResult.name || "Candidate")}</h2>
+            <form method="dialog"><button class="btn btn-ghost" type="submit">Close</button></form>
+        </div>
+        <pre class="resume-text">${esc(text)}</pre>`;
+    if (typeof resumeDlg.showModal === "function") resumeDlg.showModal();
+  }
+
+  // Back to a blank form for the next candidate.
+  function screenAnother() {
+    const clearAll = document.getElementById("btn-clear-all");
+    if (clearAll) clearAll.click();
+    roleEl.focus();
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   // ---- local history (this browser) ----
@@ -873,11 +1066,14 @@
     render(h, {
       name: h.name || "resume",
       chars: Number(h.chars) || 0,
-      note:
-        new Date(h.ts).toLocaleString() +
-        (h.source === "local" ? " (local estimate)" : ""),
       role: h.role || "",
     });
+    showToast(
+      "Opened saved result from " +
+        new Date(h.ts).toLocaleString() +
+        (h.source === "local" ? " (local estimate)" : "") +
+        ".",
+    );
   }
 
   // Delete one row: the account record, or the browser-only copy it came from.
@@ -1001,12 +1197,10 @@
 
       setBusyStatus("Scoring fit…");
       let result;
-      let note = "";
       let recorded = false;
       try {
         result = await aiScore(role, resume, file.name);
         recorded = await saveRecord(role, resume, file.name, result);
-        note = recorded ? "saved to records" : "not saved";
       } catch (e) {
         if (
           window.Auth &&
@@ -1019,9 +1213,20 @@
           return;
         }
         result = localScore(role, resume);
-        note = "local estimate (not saved)";
       }
-      render(result, { name: file.name, chars: resume.length, note, role });
+      render(result, {
+        name: file.name,
+        chars: resume.length,
+        role,
+        resumeText: resume,
+      });
+      showToast(
+        recorded
+          ? "Saved to records."
+          : result.local
+            ? "Local estimate — not saved to records."
+            : "Not saved to records.",
+      );
 
       saveHistory({
         ts: Date.now(),
@@ -1049,13 +1254,16 @@
   }
 
   btn.addEventListener("click", run);
-  // Dismiss the current scorecard without rescoring; the match itself stays in
-  // the saved records.
+  // Result actions: shortlist, next candidate, copy, print, view resume.
   resultEl.addEventListener("click", (e) => {
-    if (!e.target.closest("[data-dismiss-result]")) return;
-    resultEl.hidden = true;
-    resultEl.innerHTML = "";
-    setStatus("Result hidden.");
+    const el = e.target.closest("[data-action]");
+    if (!el || !currentResult) return;
+    const action = el.getAttribute("data-action");
+    if (action === "shortlist") toggleShortlist(el, currentResult);
+    else if (action === "another") screenAnother();
+    else if (action === "copy") copySummary(currentResult);
+    else if (action === "pdf") window.print();
+    else if (action === "resume") openResume();
   });
   // ---- input methods ----
   if (modePasteEl)
@@ -1156,6 +1364,7 @@
       updateCount();
       resultEl.hidden = true;
       resultEl.innerHTML = "";
+      currentResult = null;
       setStatus("Cleared.");
       updateReady();
     });

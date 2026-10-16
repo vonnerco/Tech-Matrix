@@ -704,80 +704,100 @@
                 margin-top: 2rem;
             }
 
-            .role-title {
+            /* This is a full page, not a modal, so the result gets a breadcrumb
+               trail instead of an ambiguous close X. */
+            .crumbs {
+                display: flex;
+                align-items: center;
+                gap: 0.45rem;
+                margin: 0 0 0.9rem;
+                font-size: 0.8125rem;
+                color: var(--muted);
+            }
+            .crumbs a {
+                color: var(--muted);
+                text-decoration: none;
+                border-bottom: 1px solid var(--quiet-line);
+            }
+            .crumbs a:hover {
+                color: var(--ink);
+            }
+            .crumbs [aria-current="page"] {
+                color: var(--ink);
+            }
+
+            .result-head {
+                margin: 0 0 1.25rem;
+            }
+            .candidate-name {
                 margin: 0;
-                font-size: clamp(1.25rem, 2.5vw, 1.6rem);
-                font-weight: 500;
-                letter-spacing: -0.01em;
+                font-size: clamp(1.5rem, 3.4vw, 2.1rem);
+                font-weight: 700;
+                line-height: 1.1;
+                letter-spacing: -0.02em;
+                text-wrap: balance;
+            }
+            .candidate-role {
+                margin: 0.25rem 0 0;
+                font-size: 1.0625rem;
+                color: var(--muted);
             }
 
             .scorecard {
-                position: relative;
                 display: grid;
-                grid-template-columns: auto 1fr;
-                align-items: center;
-                gap: 0.75rem 1.5rem;
-                padding: clamp(1.1rem, 3vw, 1.5rem);
+                justify-items: center;
+                text-align: center;
+                gap: 0.35rem;
+                padding: clamp(1.4rem, 4vw, 2.25rem) clamp(1.1rem, 3vw, 1.5rem);
                 background: var(--panel);
                 border: 1px solid var(--line);
-                border-left-width: 3px;
-                border-left-color: var(--muted);
-                border-radius: 12px;
-            }
-            /* Dismiss the scorecard without rescoring. */
-            .dismiss {
-                position: absolute;
-                top: 0.5rem;
-                right: 0.5rem;
-                display: inline-flex;
-                align-items: center;
-                justify-content: center;
-                width: 2rem;
-                height: 2rem;
-                padding: 0;
-                border: 1px solid transparent;
-                border-radius: 8px;
-                background: transparent;
-                color: var(--muted);
-                font: inherit;
-                font-size: 1.125rem;
-                line-height: 1;
-                cursor: pointer;
-            }
-            .dismiss:hover {
-                border-color: var(--quiet-line);
-                color: var(--ink);
+                border-top-width: 3px;
+                border-top-color: var(--muted);
+                border-radius: 14px;
             }
             .scorecard.good {
-                border-left-color: var(--good);
+                border-top-color: var(--good);
             }
             .scorecard.mid {
-                border-left-color: var(--mid);
+                border-top-color: var(--mid);
             }
             .scorecard.bad {
-                border-left-color: var(--bad);
+                border-top-color: var(--bad);
             }
+            /* The score is the card's anchor: biggest, centered, and colored. */
             .score-num {
-                font-size: clamp(2.25rem, 5vw, 3rem);
+                font-family: var(--font-sans);
+                font-size: clamp(3.5rem, 10vw, 5rem);
                 font-weight: 700;
                 line-height: 1;
-                letter-spacing: -0.02em;
-                white-space: nowrap;
+                letter-spacing: -0.035em;
+                font-variant-numeric: tabular-nums;
+                color: var(--ink);
+            }
+            .scorecard.good .score-num {
+                color: var(--good);
+            }
+            .scorecard.mid .score-num {
+                color: var(--mid);
+            }
+            .scorecard.bad .score-num {
+                color: var(--bad);
             }
             .score-num span {
                 margin-left: 0.15rem;
-                font-family: var(--font-mono);
-                font-size: 0.9375rem;
-                font-weight: 400;
+                font-size: 0.3em;
+                font-weight: 500;
                 color: var(--muted);
             }
-            .score-side {
-                min-width: 0;
-                padding-right: 1.75rem; /* clears the dismiss button */
-            }
+            /* The verdict sits right under the number, sans-serif, color-paired. */
             .verdict {
-                font-family: var(--font-mono);
-                font-size: 0.875rem;
+                display: inline-block;
+                padding: 0.2rem 0.75rem;
+                font-family: var(--font-sans);
+                font-size: 0.9375rem;
+                font-weight: 600;
+                border: 1px solid currentColor;
+                border-radius: 999px;
                 color: var(--mid);
             }
             .scorecard.good .verdict {
@@ -789,36 +809,101 @@
             .scorecard.bad .verdict {
                 color: var(--bad);
             }
-            .meta {
-                margin-top: 0.35rem;
-                font-family: var(--font-mono);
-                font-size: 0.75rem;
-                color: var(--muted);
+            .score-cta {
+                margin-top: 0.9rem;
             }
-            .summary {
-                margin: 0.6rem 0 0;
-                max-width: 62ch;
+            .btn-primary[aria-pressed="true"] {
+                background: transparent;
+                border-color: var(--good);
+                color: var(--good);
+            }
+            .btn-primary[aria-pressed="true"]:hover {
+                background: color-mix(in srgb, var(--good) 12%, transparent);
+            }
+            /* File name as a pill link; the character count lives in its tooltip. */
+            .meta {
+                margin-top: 0.9rem;
+            }
+            .meta a {
+                display: inline-block;
+                max-width: 100%;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+                padding: 0.25rem 0.7rem;
+                font-size: 0.8125rem;
+                color: var(--muted);
+                text-decoration: none;
+                background: var(--field-bg);
+                border: 1px solid var(--line);
+                border-radius: 999px;
+            }
+            .meta a:hover {
+                color: var(--ink);
+                border-color: var(--line-strong);
+            }
+            /* Summary bullets: short lines, capped measure, left-aligned. */
+            .summary-list {
+                margin: 1.1rem 0 0;
+                padding: 0;
+                list-style: none;
+                max-width: 65ch;
+                display: grid;
+                gap: 0.4rem;
+                text-align: left;
+                font-size: 0.9375rem;
+                line-height: 1.55;
+            }
+            .summary-list li {
+                position: relative;
+                padding-left: 1rem;
+            }
+            .summary-list li::before {
+                content: "";
+                position: absolute;
+                left: 0;
+                top: 0.62em;
+                width: 5px;
+                height: 5px;
+                border-radius: 50%;
+                background: var(--muted);
+            }
+            .result-actions {
+                display: flex;
+                flex-wrap: wrap;
+                justify-content: center;
+                gap: 0.5rem;
+            }
+            .result-actions .btn {
+                padding: 0.55rem 0.95rem;
+                font-size: 0.9375rem;
             }
 
+            /* Dimension cards: name, a colored micro-bar, score at the bar's end. */
             .dims {
                 display: grid;
-                gap: 1.1rem;
+                grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+                gap: 0.75rem;
+            }
+            .dim {
+                padding: 0.8rem 0.95rem;
+                background: var(--panel);
+                border: 1px solid var(--line);
+                border-radius: 12px;
             }
             .dim-head {
-                display: flex;
-                justify-content: space-between;
-                gap: 1rem;
-                margin-bottom: 0.4rem;
+                margin-bottom: 0.5rem;
                 font-size: 0.9375rem;
                 font-weight: 500;
             }
-            .dim-head span:last-child {
-                font-family: var(--font-mono);
-                font-size: 0.8125rem;
-                color: var(--muted);
+            .dim-meter {
+                display: flex;
+                align-items: center;
+                gap: 0.6rem;
             }
             .bar {
-                height: 6px;
+                flex: 1;
+                height: 7px;
                 background: var(--line);
                 border-radius: 999px;
                 overflow: hidden;
@@ -826,9 +911,37 @@
             .bar span {
                 display: block;
                 height: 100%;
-                background: var(--accent);
+                border-radius: 999px;
                 transform-origin: left;
                 animation: grow 0.5s ease both;
+            }
+            .bar span.good {
+                background: var(--good);
+            }
+            .bar span.mid {
+                background: var(--mid);
+            }
+            .bar span.bad {
+                background: var(--bad);
+            }
+            .dim-score {
+                flex: none;
+                min-width: 2.6rem;
+                text-align: right;
+                font-family: var(--font-sans);
+                font-size: 0.875rem;
+                font-weight: 600;
+                font-variant-numeric: tabular-nums;
+                color: var(--muted);
+            }
+            .dim-score.good {
+                color: var(--good);
+            }
+            .dim-score.mid {
+                color: var(--mid);
+            }
+            .dim-score.bad {
+                color: var(--bad);
             }
             @keyframes grow {
                 from {
@@ -854,9 +967,9 @@
                 animation-delay: 0.35s;
             }
             .dim-note {
-                margin: 0.4rem 0 0;
+                margin: 0.5rem 0 0;
                 color: var(--muted);
-                font-size: 0.875rem;
+                font-size: 0.8125rem;
             }
 
             .cols {
@@ -882,14 +995,91 @@
                 border-color: var(--good);
                 color: var(--good);
             }
+            /* Gaps read as warnings: tinted, warning-colored, never color alone. */
             ul.chips.bad li {
                 border-color: var(--bad);
                 color: var(--bad);
+                background: color-mix(in srgb, var(--bad) 10%, transparent);
             }
             .muted {
                 margin: 0;
                 color: var(--muted);
                 font-size: 0.9375rem;
+            }
+
+            /* ---- toast + resume dialog ---- */
+            .toast {
+                position: fixed;
+                left: 50%;
+                bottom: 1.25rem;
+                z-index: 70;
+                max-width: min(30rem, 90vw);
+                padding: 0.6rem 1rem;
+                background: var(--ink);
+                color: var(--paper);
+                border-radius: 999px;
+                font-size: 0.875rem;
+                box-shadow: var(--shadow);
+                opacity: 0;
+                transform: translate(-50%, 0.5rem);
+                transition:
+                    opacity 0.25s ease,
+                    transform 0.25s ease;
+                pointer-events: none;
+            }
+            .toast.is-on {
+                opacity: 1;
+                transform: translate(-50%, 0);
+            }
+            .resume-dialog {
+                width: min(46rem, 92vw);
+                max-height: 82vh;
+                padding: 0;
+                border: 1px solid var(--line);
+                border-radius: 14px;
+                background: var(--panel);
+                color: var(--ink);
+                box-shadow: var(--shadow);
+            }
+            .resume-dialog::backdrop {
+                background: rgba(0, 0, 0, 0.5);
+            }
+            .dialog-head {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 1rem;
+                padding: 0.9rem 1.1rem;
+                border-bottom: 1px solid var(--line);
+            }
+            .dialog-head h2 {
+                margin: 0;
+                font-size: 1.05rem;
+            }
+            .resume-text {
+                margin: 0;
+                padding: 1.1rem;
+                max-height: 62vh;
+                overflow: auto;
+                font-family: var(--font-mono);
+                font-size: 0.8125rem;
+                line-height: 1.55;
+                white-space: pre-wrap;
+                overflow-wrap: anywhere;
+            }
+
+            /* Print (Export PDF): keep the score, drop the app chrome. */
+            @media print {
+                .topbar,
+                .skip,
+                .intro,
+                .panel,
+                #history-card,
+                .crumbs,
+                .result-actions,
+                .score-cta {
+                    display: none !important;
+                }
             }
 
             /* ---- history ---- */
@@ -997,9 +1187,6 @@
             }
 
             @media (max-width: 48rem) {
-                .scorecard {
-                    grid-template-columns: 1fr;
-                }
                 .cols {
                     grid-template-columns: 1fr;
                 }
@@ -1329,7 +1516,7 @@
         <script src="config.js?v=20261014c"></script>
         <script src="auth.js?v=20261015d"></script>
         <script src="job-title.js?v=20261015d"></script>
-        <script src="candidate-match.js?v=20261016b"></script>
+        <script src="candidate-match.js?v=20261015c"></script>
         <script>
             (function () {
                 var root = document.documentElement;
