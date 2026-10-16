@@ -553,6 +553,25 @@
     }
   }
 
+  // Fill the box from text already on the clipboard (a web copy carries the page
+  // text beside the image), skipping OCR. Instant, and exact where OCR is a guess.
+  function loadJobDescriptionText(text) {
+    if (
+      roleEl.value.trim() &&
+      !window.confirm(
+        "Replace the job description you've already entered with the copied text?",
+      )
+    )
+      return;
+    roleEl.value = String(text).slice(0, MAX_ROLE);
+    jdFileText = roleEl.value;
+    showChip(jdChipEl, jdChipNameEl, null, jdClearEl);
+    updateCount();
+    setMode("paste");
+    setStatus("Job description loaded from the copied text.");
+    updateReady();
+  }
+
   // ---- local fallback scoring ----
 
   const STOP = new Set([
@@ -3176,6 +3195,13 @@
     return false;
   }
 
+  // Text worth preferring over OCR: long enough to be the posting, not a stray
+  // caption or a data: URL the HTML fallback already handles.
+  function usableClipboardText(s) {
+    const t = String(s || "").trim();
+    return t.length >= 120 && !/^data:/i.test(t);
+  }
+
   document.addEventListener("paste", (e) => {
     if (!e.clipboardData) return;
     const files = imageFilesFromClipboard(e.clipboardData);
@@ -3209,7 +3235,10 @@
       );
       return;
     }
-    loadJobDescription(files);
+    // The image came with the page text: use it, and skip the slow OCR pass.
+    const text = clipboardGet(e.clipboardData, "text/plain");
+    if (usableClipboardText(text)) loadJobDescriptionText(text);
+    else loadJobDescription(files);
   });
 
   // ---- textarea ----
