@@ -49,3 +49,30 @@ by default so clients can't bypass your agency.
 
 - `JD Fit Matrix` — target-role requirements mapped to proficiency and evidence.
 - `Full Tech Stack` — full grouped technical stack with self-assessed proficiency.
+
+## Deploying
+
+Two hosts serve `docs/`:
+
+- **GitHub Pages** — https://vonnerco.github.io/Tech-Matrix/
+- **Cloudflare Worker** — `resume-tailor-api.corderio-vonner.workers.dev`, which
+  serves the API _and_ the same static site from `docs/` (see
+  `worker/wrangler.jsonc`). This is the origin the app runs on.
+
+A push to `main` that touches `docs/**`, `worker/**`, or the deploy workflow
+redeploys the Worker (`.github/workflows/deploy-worker.yml`); GitHub Pages
+publishes `docs/` on its own.
+
+**Secrets** (repo → Settings → Secrets and variables → Actions):
+`CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`. Setup:
+[`docs/Add-Cloudflare-API-Token.md`](docs/Add-Cloudflare-API-Token.md).
+
+**Deploy on demand** — Actions → _Deploy worker_ → **Run workflow**, or locally:
+
+```
+cd worker && npx wrangler deploy
+```
+
+**Cache** — each page fetches `docs/version.json` on load and reloads once if the
+deployed build differs, so a deploy refreshes stale clients. Bump `BUILD` (in each
+`docs/*.html`) and `docs/version.json` together whenever you ship a change.
