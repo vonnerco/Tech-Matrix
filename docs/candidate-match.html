@@ -44,6 +44,11 @@
                 --lead-size: 1.25rem;
                 --lead-line: 1.6;
                 --lead-gap: calc(var(--lead-size) * var(--lead-line) * 1.5);
+                /* Spacing scale: 8 / 16 / 24 / 32px. */
+                --sp-1: 0.5rem;
+                --sp-2: 1rem;
+                --sp-3: 1.5rem;
+                --sp-4: 2rem;
                 --font-sans:
                     "Space Grotesk", system-ui, -apple-system, "Segoe UI",
                     sans-serif;
@@ -231,9 +236,9 @@
                 /* 1.5x the subheadline's line height, via --lead-gap. */
                 margin: 0 0 var(--lead-gap);
                 max-width: 24ch;
-                font-size: clamp(2.25rem, 4vw + 1rem, 3.5rem);
+                font-size: clamp(2.5rem, 5vw + 1rem, 4rem);
                 font-weight: 700;
-                line-height: 1.12;
+                line-height: 1.08;
                 letter-spacing: -0.025em;
                 text-wrap: balance;
             }
@@ -282,6 +287,19 @@
             }
             .btn-primary:hover {
                 background: color-mix(in srgb, var(--accent) 88%, var(--paper));
+            }
+            /* Busy state: the button keeps its label and gains a spinner. */
+            .btn-primary[aria-busy="true"]::after {
+                content: "";
+                display: inline-block;
+                width: 0.9rem;
+                height: 0.9rem;
+                margin-left: 0.5rem;
+                border: 2px solid currentColor;
+                border-top-color: transparent;
+                border-radius: 50%;
+                vertical-align: -0.1em;
+                animation: spin 0.8s linear infinite;
             }
             .btn-ghost {
                 border-color: var(--line-strong);
@@ -332,10 +350,10 @@
                 gap: 0.5rem;
                 padding: 0.6rem 0.9rem;
                 border-bottom: 1px solid var(--divider);
-                color: var(--muted);
+                color: var(--muted-strong);
                 font-family: var(--font-sans);
-                font-size: 1.125rem;
-                font-weight: 600;
+                font-size: 0.9375rem;
+                font-weight: 500;
             }
             /* White on the black theme; the light theme keeps dark ink. */
             @media (prefers-color-scheme: dark) {
@@ -354,7 +372,7 @@
                 background: var(--accent-2);
             }
             .panel-body {
-                --panel-gap: 1.1rem;
+                --panel-gap: var(--sp-3);
                 display: grid;
                 gap: var(--panel-gap);
                 padding: clamp(1rem, 3vw, 1.5rem);
@@ -363,18 +381,75 @@
             /* ---- form ---- */
             .field {
                 display: grid;
-                gap: 0.4rem;
+                gap: var(--sp-2);
             }
-            /* 24px total between the steps: the panel's row gap plus this margin. */
+            /* 24px between the steps: the panel gap alone. */
             .field + .field {
-                margin-top: calc(1.5rem - var(--panel-gap));
-                padding-top: 1.25rem;
+                padding-top: var(--panel-gap);
                 border-top: 1px solid var(--divider);
             }
-            .kw {
+            /* ---- stepper ---- */
+            .step {
+                display: flex;
+                align-items: center;
+                gap: var(--sp-1);
+                margin: 0;
                 font-size: 0.9375rem;
+                font-weight: 600;
+                letter-spacing: -0.01em;
+            }
+            .step-num {
+                display: inline-flex;
+                flex: none;
+                align-items: center;
+                justify-content: center;
+                width: 1.5rem;
+                height: 1.5rem;
+                border: 1px solid var(--line-strong);
+                border-radius: 50%;
+                color: var(--muted-strong);
+                font-size: 0.8125rem;
                 font-weight: 500;
             }
+            .step.is-set .step-num {
+                border-color: var(--accent);
+                color: var(--accent);
+            }
+            .step-note {
+                color: var(--muted);
+                font-weight: 400;
+            }
+
+            /* ---- paste / upload segmented control ---- */
+            .seg {
+                display: inline-flex;
+                padding: 0.15rem;
+                border: 1px solid var(--line-strong);
+                border-radius: 8px;
+            }
+            .seg-btn {
+                padding: 0.3rem 0.85rem;
+                border: 0;
+                border-radius: 6px;
+                background: transparent;
+                color: var(--muted-strong);
+                font: inherit;
+                font-size: 0.875rem;
+                cursor: pointer;
+            }
+            .seg-btn:hover {
+                color: var(--ink);
+            }
+            .seg-btn.is-on {
+                background: color-mix(in srgb, var(--accent) 22%, transparent);
+                color: var(--ink);
+            }
+            #pane-paste,
+            #pane-upload {
+                display: grid;
+                gap: var(--sp-1);
+            }
+
             textarea {
                 width: 100%;
                 min-height: 7rem;
@@ -398,16 +473,22 @@
             textarea:focus-visible {
                 outline: none; /* the accent border and ring are the indicator */
             }
-            /* The native control is visually hidden; its label is the trigger. Both
-               triggers sit in the same fixed grid column, so they always render the
-               same width whatever the label says. */
-            .file-row {
-                position: relative;
-                display: grid;
-                grid-template-columns: 17rem minmax(0, 1fr) auto;
+            .meta-row {
+                display: flex;
                 align-items: center;
-                gap: 0.75rem;
+                justify-content: space-between;
+                gap: var(--sp-1);
             }
+            .count {
+                color: var(--muted);
+                font-size: 0.8125rem;
+                font-variant-numeric: tabular-nums;
+            }
+            .count.is-over {
+                color: var(--mid);
+            }
+            /* The native input is visually hidden; the drop zone is its label, so the
+               whole area is clickable and takes a drop. */
             .file-input {
                 position: absolute;
                 width: 1px;
@@ -419,44 +500,116 @@
                 white-space: nowrap;
                 border: 0;
             }
-            .file-btn {
-                display: inline-flex;
+            .dropzone {
+                display: flex;
                 align-items: center;
-                justify-content: center;
-                gap: 0.4rem;
+                gap: 0.6rem;
+                padding: var(--sp-2);
+                border: 1px dashed var(--line-strong);
+                border-radius: 10px;
+                color: var(--muted-strong);
                 font-size: 0.9375rem;
-                text-align: center;
                 cursor: pointer;
             }
-            .file-btn svg {
-                flex: none;
-                width: 1em;
-                height: 1em;
+            .dropzone:hover,
+            .dropzone.is-over {
+                border-color: var(--accent);
+                background: color-mix(in srgb, var(--accent) 8%, transparent);
+                color: var(--ink);
             }
-            .file-clear {
-                border-color: var(--quiet-line);
-            }
-            .file-input:focus-visible + .file-btn {
+            .file-input:focus-visible + .dropzone {
                 outline: 2px solid var(--accent-2);
                 outline-offset: 2px;
             }
-            .file-name {
+            .drop-icon {
+                display: inline-flex;
+                flex: none;
+            }
+            .drop-icon svg {
+                width: 1.1rem;
+                height: 1.1rem;
+            }
+            .drop-link {
+                color: var(--accent);
+                text-decoration: underline;
+                text-underline-offset: 2px;
+            }
+
+            /* ---- selected file chips ---- */
+            .chip-row {
+                display: flex;
+                flex-wrap: wrap;
+                gap: var(--sp-1);
+            }
+            .file-chip {
+                display: inline-flex;
+                align-items: center;
+                gap: var(--sp-1);
+                max-width: 100%;
+                padding: 0.3rem 0.3rem 0.3rem 0.7rem;
+                border: 1px solid var(--line-strong);
+                border-radius: 999px;
+                color: var(--ink);
+                font-size: 0.875rem;
+            }
+            .chip-name {
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+            .chip-x {
+                display: inline-flex;
+                flex: none;
+                align-items: center;
+                justify-content: center;
+                width: 1.4rem;
+                height: 1.4rem;
+                border: 0;
+                border-radius: 50%;
+                background: transparent;
                 color: var(--muted-strong);
-                font-family: var(--font-mono);
-                font-size: 0.8125rem;
-                overflow-wrap: anywhere;
+                font: inherit;
+                font-size: 1rem;
+                line-height: 1;
+                cursor: pointer;
+            }
+            .chip-x:hover {
+                background: color-mix(in srgb, var(--ink) 14%, transparent);
+                color: var(--ink);
+            }
+
+            .field-error {
+                margin: 0;
+                color: var(--bad);
+                font-size: 0.875rem;
+            }
+            .info-banner {
+                margin: 0;
+                padding: 0.6rem 0.85rem;
+                border: 1px solid var(--divider);
+                border-left: 3px solid var(--quiet-line);
+                border-radius: 8px;
+                color: var(--muted-strong);
+                font-size: 0.875rem;
             }
             .controls {
                 display: flex;
                 align-items: center;
                 flex-wrap: wrap;
-                gap: 0.75rem;
+                gap: var(--sp-2);
             }
-            /* Keep Calculate Fit Score and Clear the same width so the pair reads
+            /* Keep Calculate Fit Score and Clear All the same width so the pair reads
                as a set; the history toolbar is left alone. */
-            .panel-body .controls .btn {
+            .panel-body .controls .btn:not(.btn-quiet) {
                 min-width: 11rem;
                 text-align: center;
+            }
+            .btn-quiet {
+                border-color: var(--quiet-line);
+                font-size: 0.9375rem;
+            }
+            .btn-quiet:hover {
+                border-color: var(--ink);
             }
             .text-btn {
                 padding: 0;
@@ -499,8 +652,7 @@
                 display: inline-flex;
                 align-items: center;
                 gap: 0.4rem;
-                color: var(--muted);
-                font-family: var(--font-mono);
+                color: var(--muted-strong);
                 font-size: 0.875rem;
                 font-weight: 400;
                 font-variant-numeric: tabular-nums;
@@ -839,9 +991,6 @@
                 }
             }
             @media (max-width: 40rem) {
-                .file-row {
-                    grid-template-columns: 1fr;
-                }
                 #history-card button.hopen {
                     grid-template-columns: 3rem 1fr;
                 }
@@ -920,78 +1069,133 @@
                 <div class="panel">
                     <div class="panel-head">
                         <span class="dot" aria-hidden="true"></span>
-                        <span>Screen New Candidate</span>
+                        <span id="panel-state">New match</span>
                     </div>
                     <div class="panel-body">
                         <div class="field">
-                            <label class="kw" for="role"
-                                >1. Job Description</label
+                            <h3 class="step" id="step-jd">
+                                <span class="step-num" aria-hidden="true"
+                                    >1</span
+                                >
+                                Job Description
+                            </h3>
+                            <div
+                                class="seg"
+                                role="group"
+                                aria-label="Job description input method"
                             >
-                            <textarea
-                                id="role"
-                                rows="5"
-                                placeholder="Paste the job title and requirements, e.g. Senior Snowflake Data Engineer with dbt, Airflow, and Cortex Analyst experience."
-                            ></textarea>
-                            <div class="file-row">
+                                <button
+                                    class="seg-btn is-on"
+                                    id="mode-paste"
+                                    type="button"
+                                    aria-pressed="true"
+                                    aria-controls="pane-paste"
+                                >
+                                    Paste
+                                </button>
+                                <button
+                                    class="seg-btn"
+                                    id="mode-upload"
+                                    type="button"
+                                    aria-pressed="false"
+                                    aria-controls="pane-upload"
+                                >
+                                    Upload
+                                </button>
+                            </div>
+
+                            <div id="pane-paste">
+                                <textarea
+                                    id="role"
+                                    rows="5"
+                                    aria-labelledby="step-jd"
+                                    placeholder="Paste the job title and requirements…"
+                                ></textarea>
+                                <div class="meta-row">
+                                    <span class="count" id="role-count"
+                                        >0 characters · 0 words</span
+                                    >
+                                    <button
+                                        class="text-btn"
+                                        id="btn-example"
+                                        type="button"
+                                    >
+                                        Try an example
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div id="pane-upload" hidden>
                                 <input
                                     class="file-input"
                                     id="jd-file"
                                     type="file"
+                                    aria-label="Job description file"
                                     accept=".pdf,.docx,.png,.jpg,.jpeg,.webp,.gif,.bmp,.tif,.tiff,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/*"
                                 />
                                 <label
-                                    class="btn btn-ghost file-btn"
+                                    class="dropzone"
                                     for="jd-file"
+                                    id="drop-jd"
                                 >
-                                    <svg
-                                        viewBox="0 0 24 24"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        stroke-width="1.8"
-                                        stroke-linecap="round"
-                                        stroke-linejoin="round"
-                                        aria-hidden="true"
+                                    <span class="drop-icon" aria-hidden="true">
+                                        <svg
+                                            viewBox="0 0 24 24"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            stroke-width="1.8"
+                                            stroke-linecap="round"
+                                            stroke-linejoin="round"
+                                        >
+                                            <path
+                                                d="M12 19V5M6 11l6-6 6 6"
+                                            ></path>
+                                        </svg>
+                                    </span>
+                                    <span class="drop-text"
+                                        >Drop a PDF, DOCX, or image here, or
+                                        <span class="drop-link"
+                                            >choose a file</span
+                                        ></span
                                     >
-                                        <path d="M12 19V5M6 11l6-6 6 6"></path>
-                                    </svg>
-                                    Choose job description file
                                 </label>
-                                <span
-                                    class="file-name"
-                                    id="jd-name"
-                                    aria-live="polite"
-                                    >No file chosen</span
-                                >
-                                <button
-                                    class="btn btn-ghost file-clear"
-                                    id="jd-clear"
-                                    type="button"
-                                    aria-label="Clear the job description file"
-                                    hidden
-                                >
-                                    Clear file
-                                </button>
+                                <div class="chip-row">
+                                    <span class="file-chip" id="jd-chip" hidden>
+                                        <span
+                                            class="chip-name"
+                                            id="jd-chip-name"
+                                        ></span>
+                                        <button
+                                            class="chip-x"
+                                            id="jd-chip-x"
+                                            type="button"
+                                            aria-label="Remove the job description file"
+                                        >
+                                            &times;
+                                        </button>
+                                    </span>
+                                </div>
                             </div>
-                            <p class="hint">
-                                Paste text directly or upload a PDF/Image.
-                            </p>
+                            <p class="field-error" id="role-error" hidden></p>
                         </div>
 
                         <div class="field">
-                            <span class="kw"
-                                >2. Candidate Resume (PDF or DOCX)</span
-                            >
-                            <div class="file-row">
-                                <input
-                                    class="file-input"
-                                    id="file"
-                                    type="file"
-                                    accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                                />
-                                <label
-                                    class="btn btn-ghost file-btn"
-                                    for="file"
+                            <h3 class="step" id="step-resume">
+                                <span class="step-num" aria-hidden="true"
+                                    >2</span
                                 >
+                                Candidate Resume
+                                <span class="step-note">(PDF or DOCX)</span>
+                            </h3>
+                            <input
+                                class="file-input"
+                                id="file"
+                                type="file"
+                                aria-label="Candidate resume file"
+                                accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                            />
+                            <label class="dropzone" for="file" id="drop-resume">
+                                <span class="drop-icon" aria-hidden="true">
                                     <svg
                                         viewBox="0 0 24 24"
                                         fill="none"
@@ -999,38 +1203,46 @@
                                         stroke-width="1.8"
                                         stroke-linecap="round"
                                         stroke-linejoin="round"
-                                        aria-hidden="true"
                                     >
                                         <path d="M12 19V5M6 11l6-6 6 6"></path>
                                     </svg>
-                                    Choose resume file
-                                </label>
-                                <span
-                                    class="file-name"
-                                    id="file-name"
-                                    aria-live="polite"
-                                    >No file chosen</span
+                                </span>
+                                <span class="drop-text"
+                                    >Drop the resume here, or
+                                    <span class="drop-link"
+                                        >choose a file</span
+                                    ></span
                                 >
+                            </label>
+                            <div class="chip-row">
+                                <span class="file-chip" id="file-chip" hidden>
+                                    <span
+                                        class="chip-name"
+                                        id="file-chip-name"
+                                    ></span>
+                                    <button
+                                        class="chip-x"
+                                        id="file-chip-x"
+                                        type="button"
+                                        aria-label="Remove the resume file"
+                                    >
+                                        &times;
+                                    </button>
+                                </span>
                             </div>
+                            <p class="field-error" id="file-error" hidden></p>
+
                             <div class="controls">
                                 <button
                                     class="btn btn-primary"
                                     id="btn-score"
                                     type="button"
+                                    disabled
                                 >
                                     Calculate Fit Score
                                 </button>
                                 <button
-                                    class="btn btn-ghost"
-                                    id="btn-clear"
-                                    type="button"
-                                    aria-label="Clear the resume file"
-                                    hidden
-                                >
-                                    Clear
-                                </button>
-                                <button
-                                    class="text-btn"
+                                    class="btn btn-ghost btn-quiet"
                                     id="btn-clear-all"
                                     type="button"
                                 >
@@ -1040,9 +1252,8 @@
                         </div>
 
                         <div id="status" role="status" aria-live="polite"></div>
-                        <p class="hint">
-                            🔒 Privacy First: All parsing happens in your
-                            browser. Only text is sent for scoring.
+                        <p class="info-banner">
+                            🔒 Processed locally — only text sent for scoring
                         </p>
                     </div>
                 </div>
@@ -1087,7 +1298,7 @@
         <script src="config.js?v=20261014c"></script>
         <script src="auth.js?v=20261015d"></script>
         <script src="job-title.js?v=20261015d"></script>
-        <script src="candidate-match.js?v=20261015z"></script>
+        <script src="candidate-match.js?v=20261016a"></script>
         <script>
             (function () {
                 var root = document.documentElement;

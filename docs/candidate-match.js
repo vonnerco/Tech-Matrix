@@ -23,12 +23,27 @@
   const roleEl = document.getElementById("role");
   const fileEl = document.getElementById("file");
   const jdFileEl = document.getElementById("jd-file");
-  const fileNameEl = document.getElementById("file-name");
-  const jdNameEl = document.getElementById("jd-name");
-  const jdClearEl = document.getElementById("jd-clear");
   const btn = document.getElementById("btn-score");
-  const btnClear = document.getElementById("btn-clear");
   const btnClearAll = document.getElementById("btn-clear-all");
+  const btnExample = document.getElementById("btn-example");
+  const panelStateEl = document.getElementById("panel-state");
+  const roleCountEl = document.getElementById("role-count");
+  const roleErrorEl = document.getElementById("role-error");
+  const fileErrorEl = document.getElementById("file-error");
+  const fileChipEl = document.getElementById("file-chip");
+  const fileChipNameEl = document.getElementById("file-chip-name");
+  const fileChipX = document.getElementById("file-chip-x");
+  const jdChipEl = document.getElementById("jd-chip");
+  const jdChipNameEl = document.getElementById("jd-chip-name");
+  const jdChipX = document.getElementById("jd-chip-x");
+  const stepJdEl = document.getElementById("step-jd");
+  const stepResumeEl = document.getElementById("step-resume");
+  const panePasteEl = document.getElementById("pane-paste");
+  const paneUploadEl = document.getElementById("pane-upload");
+  const modePasteEl = document.getElementById("mode-paste");
+  const modeUploadEl = document.getElementById("mode-upload");
+  const dropJdEl = document.getElementById("drop-jd");
+  const dropResumeEl = document.getElementById("drop-resume");
   const statusEl = document.getElementById("status");
   const resultEl = document.getElementById("result");
   const historyCard = document.getElementById("history-card");
@@ -182,17 +197,99 @@
     );
   }
 
-  // The native file controls are hidden; show the chosen name next to the
-  // trigger. The spans are aria-live, so assistive tech hears the change too.
-  // `clearBtn` stays hidden until there is a file to drop.
-  function showFileName(el, file, clearBtn) {
-    if (el) el.textContent = file ? file.name : "No file chosen";
-    if (clearBtn) clearBtn.hidden = !file;
+  // The native file controls are hidden, so the chosen file is tracked here and
+  // shown as a chip. Picking or dropping clears the input value, which keeps the
+  // same file reselectable.
+  function showChip(chip, name, file) {
+    if (chip) chip.hidden = !file;
+    if (name) {
+      name.textContent = file ? file.name : "";
+      name.title = file ? file.name : "";
+    }
   }
 
-  // Text that came from the job description file, so "Clear file" can tell it
-  // apart from text the recruiter typed themselves.
-  let jdFileText = "";
+  function setStep(el, done) {
+    if (el) el.classList.toggle("is-set", !!done);
+  }
+
+  function setMode(mode) {
+    const upload = mode === "upload";
+    if (panePasteEl) panePasteEl.hidden = upload;
+    if (paneUploadEl) paneUploadEl.hidden = !upload;
+    if (modePasteEl) {
+      modePasteEl.classList.toggle("is-on", !upload);
+      modePasteEl.setAttribute("aria-pressed", String(!upload));
+    }
+    if (modeUploadEl) {
+      modeUploadEl.classList.toggle("is-on", upload);
+      modeUploadEl.setAttribute("aria-pressed", String(upload));
+    }
+  }
+
+  function updateCount() {
+    if (!roleCountEl) return;
+    const text = roleEl.value;
+    const words = text.trim() ? text.trim().split(/\s+/).length : 0;
+    const over = text.length >= MAX_ROLE;
+    roleCountEl.textContent =
+      text.length.toLocaleString() +
+      " characters · " +
+      words.toLocaleString() +
+      " words" +
+      (over ? " · trimmed for scoring" : "");
+    roleCountEl.classList.toggle("is-over", over);
+  }
+
+  // Form state. The file inputs are hidden, so the chosen files live here.
+  let resumeFile = null;
+  let jdFileText = ""; // text the posting file filled in, so a remove can tell
+  const touched = { role: false, resume: false };
+  let scoring = false;
+
+  const EXAMPLE_JD =
+    "Senior Snowflake Data Engineer — Snowflake, dbt, Airflow, SQL. Own ELT " +
+    "pipelines, model in dbt, orchestrate with Airflow, and partner with " +
+    "analysts on data products.";
+
+  function setRoleError(msg) {
+    if (!roleErrorEl) return;
+    roleErrorEl.textContent = msg || "";
+    roleErrorEl.hidden = !msg;
+    roleEl.setAttribute("aria-invalid", String(!!msg));
+  }
+
+  function setFileError(msg) {
+    if (!fileErrorEl) return;
+    fileErrorEl.textContent = msg || "";
+    fileErrorEl.hidden = !msg;
+  }
+
+  // Drives the disabled primary, the panel's status line and the inline errors.
+  function updateReady() {
+    const hasRole = !!roleEl.value.trim();
+    const ready = hasRole && !!resumeFile;
+    btn.disabled = !ready || scoring;
+    setRoleError(touched.role && !hasRole ? "Add the job description." : "");
+    setFileError(touched.resume && !resumeFile ? "Add the resume file." : "");
+    setStep(stepJdEl, hasRole);
+    setStep(stepResumeEl, !!resumeFile);
+    if (panelStateEl)
+      panelStateEl.textContent = scoring
+        ? "Analyzing…"
+        : ready
+          ? "Ready to score"
+          : "Needs a job description and a resume";
+  }
+
+  function setResumeFile(file) {
+    resumeFile = file || null;
+    showChip(fileChipEl, fileChipNameEl, resumeFile);
+    if (file) {
+      touched.resume = true;
+      setStatus("Resume added: " + file.name + ".");
+    }
+    updateReady();
+  }
 
   function loadTesseract() {
     if (window.Tesseract) return Promise.resolve(window.Tesseract);
@@ -267,10 +364,8 @@
     }
   }
 
-  // Fill the role box from a file the recruiter picked, so a posted job can be
-  // dropped in instead of retyped.
-  async function readJobDescriptionFromFile() {
-    const file = jdFileEl.files && jdFileEl.files[0];
+  // Fill the role box from a file the recruiter picked or dropped.
+  async function loadJobDescription(file) {
     if (!file) return;
     if (
       roleEl.value.trim() &&
@@ -279,10 +374,8 @@
           file.name +
           "?",
       )
-    ) {
-      jdFileEl.value = "";
+    )
       return;
-    }
     const image = isImageFile(file);
     const mayBeScanned =
       !image &&
@@ -304,12 +397,15 @@
         );
       roleEl.value = text.slice(0, MAX_ROLE);
       jdFileText = roleEl.value;
+      showChip(jdChipEl, jdChipNameEl, file);
+      updateCount();
+      // Show the text so the recruiter can check and edit what was read.
+      setMode("paste");
       setStatus("Job description loaded from " + file.name + ".");
     } catch (err) {
       setStatus(err && err.message ? err.message : String(err), "err");
     } finally {
-      btn.disabled = false;
-      jdFileEl.value = ""; // so the same file can be picked again
+      updateReady();
     }
   }
 
@@ -848,17 +944,24 @@
 
   async function run() {
     const role = roleEl.value.trim().slice(0, MAX_ROLE);
-    const file = fileEl.files && fileEl.files[0];
+    const file = resumeFile;
     if (!role) {
-      setStatus("Enter the target role or paste the job description.", "err");
+      touched.role = true;
+      updateReady();
+      roleEl.focus();
+      setStatus("Add the job description before scoring.", "err");
       return;
     }
     if (!file) {
-      setStatus("Choose the candidate's resume (PDF or DOCX).", "err");
+      touched.resume = true;
+      updateReady();
+      setStatus("Add the resume file before scoring.", "err");
       return;
     }
-    btn.disabled = true;
+    scoring = true;
+    btn.setAttribute("aria-busy", "true");
     resultEl.hidden = true;
+    updateReady();
     try {
       setBusyStatus("Reading resume…");
       let resume = await readFile(file);
@@ -911,7 +1014,9 @@
     } catch (err) {
       setStatus(err && err.message ? err.message : String(err), "err");
     } finally {
-      btn.disabled = false;
+      scoring = false;
+      btn.removeAttribute("aria-busy");
+      updateReady();
     }
   }
 
@@ -924,45 +1029,111 @@
     resultEl.innerHTML = "";
     setStatus("Result hidden.");
   });
+  // ---- input methods ----
+  if (modePasteEl)
+    modePasteEl.addEventListener("click", () => setMode("paste"));
+  if (modeUploadEl)
+    modeUploadEl.addEventListener("click", () => setMode("upload"));
+
+  // ---- job description: picker, drop zone, chip ----
   if (jdFileEl)
     jdFileEl.addEventListener("change", () => {
-      showFileName(jdNameEl, jdFileEl.files && jdFileEl.files[0], jdClearEl);
-      readJobDescriptionFromFile();
+      const file = jdFileEl.files && jdFileEl.files[0];
+      jdFileEl.value = ""; // so the same file can be picked again
+      if (file) loadJobDescription(file);
     });
-  // Step 1's own clear: the posting file and the text it filled in.
-  if (jdClearEl)
-    jdClearEl.addEventListener("click", () => {
-      if (jdFileEl) jdFileEl.value = "";
-      showFileName(jdNameEl, null, jdClearEl);
+  if (jdChipX)
+    jdChipX.addEventListener("click", () => {
+      showChip(jdChipEl, jdChipNameEl, null);
       // Drop text this file filled in, but never text the recruiter typed.
       if (jdFileText && roleEl.value === jdFileText) roleEl.value = "";
       jdFileText = "";
-      setStatus("Job description file cleared.");
+      updateCount();
+      updateReady();
+      setStatus("Job description file removed.");
     });
+
+  // ---- resume: picker, drop zone, chip ----
   if (fileEl)
-    fileEl.addEventListener("change", () =>
-      showFileName(fileNameEl, fileEl.files && fileEl.files[0], btnClear),
-    );
-  // Step 2's own clear: the resume file only, so the posting above it, the role
-  // text and the current result are all left untouched.
-  btnClear.addEventListener("click", () => {
-    fileEl.value = "";
-    showFileName(fileNameEl, null, btnClear);
-    setStatus("Resume file cleared.");
+    fileEl.addEventListener("change", () => {
+      const file = fileEl.files && fileEl.files[0];
+      fileEl.value = "";
+      if (file) setResumeFile(file);
+    });
+  if (fileChipX)
+    fileChipX.addEventListener("click", () => {
+      setResumeFile(null);
+      setStatus("Resume file removed.");
+    });
+
+  // Drop zones: the whole area is the input's label, so a drop behaves exactly
+  // like picking the file.
+  function wireDropzone(zone, onFile) {
+    if (!zone) return;
+    zone.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      zone.classList.add("is-over");
+    });
+    zone.addEventListener("dragleave", () => zone.classList.remove("is-over"));
+    zone.addEventListener("drop", (e) => {
+      e.preventDefault();
+      zone.classList.remove("is-over");
+      const file =
+        e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+      if (file) onFile(file);
+    });
+  }
+  wireDropzone(dropJdEl, loadJobDescription);
+  wireDropzone(dropResumeEl, setResumeFile);
+  // Keep a stray drop elsewhere on the page from navigating to the file.
+  ["dragover", "drop"].forEach((type) =>
+    document.addEventListener(type, (e) => {
+      if (!e.target.closest(".dropzone")) e.preventDefault();
+    }),
+  );
+
+  // ---- textarea ----
+  roleEl.addEventListener("input", () => {
+    updateCount();
+    updateReady();
   });
+  roleEl.addEventListener("blur", () => {
+    touched.role = true;
+    updateReady();
+  });
+  if (btnExample)
+    btnExample.addEventListener("click", () => {
+      roleEl.value = EXAMPLE_JD;
+      touched.role = true;
+      setMode("paste");
+      updateCount();
+      updateReady();
+      roleEl.focus();
+    });
+
   // Clear All: both steps plus the result, back to a blank form.
   if (btnClearAll)
     btnClearAll.addEventListener("click", () => {
       roleEl.value = "";
-      fileEl.value = "";
-      showFileName(fileNameEl, null, btnClear);
+      resumeFile = null;
+      showChip(fileChipEl, fileChipNameEl, null);
+      if (fileEl) fileEl.value = "";
       if (jdFileEl) jdFileEl.value = "";
-      showFileName(jdNameEl, null, jdClearEl);
+      showChip(jdChipEl, jdChipNameEl, null);
       jdFileText = "";
+      touched.role = false;
+      touched.resume = false;
+      setMode("paste");
+      updateCount();
       resultEl.hidden = true;
       resultEl.innerHTML = "";
       setStatus("Cleared.");
+      updateReady();
     });
+
+  setMode("paste");
+  updateCount();
+  updateReady();
   document.getElementById("btn-csv").addEventListener("click", () => {
     download("candidate-matches.csv", historyCsv(), "text/csv");
   });
