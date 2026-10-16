@@ -97,6 +97,8 @@
   const subPrintBtn = document.getElementById("sub-print");
   const subCopyBtn = document.getElementById("sub-copy");
   const subResetLogoBtn = document.getElementById("sub-reset-logo");
+  const subRegenNotesBtn = document.getElementById("sub-regen-notes");
+  const subNotesHintEl = document.getElementById("sub-notes-hint");
   const subStatusEl = document.getElementById("sub-status");
   const joClientEl = document.getElementById("jo-client");
   const joJobEl = document.getElementById("jo-job");
@@ -682,6 +684,41 @@
     writeJson(NOTES_KEY, all);
   }
 
+  // A ready-to-send draft for the recruiter, built from the candidate's own
+  // score so the submittal never ships blank. Bracketed parts are placeholders
+  // meant to be edited before sending.
+  function defaultNotes(cr) {
+    const name = String((cr && cr.name) || "").trim();
+    const first = name.split(/\s+/)[0] || "This candidate";
+    const role = (cr && cr.role) || "the role";
+    const strengths = ((cr && cr.r && cr.r.strengths) || [])
+      .slice()
+      .map((s) =>
+        String(s || "")
+          .trim()
+          .replace(/[.;,]+$/, ""),
+      )
+      .filter(Boolean)
+      .slice(0, 3);
+    const score = cr && typeof cr.score === "number" ? cr.score.toFixed(1) : "";
+    const verdict = (cr && cr.verdict) || "";
+
+    const lines = [];
+    lines.push(
+      score
+        ? `${first} is a strong fit for ${role} — ${score}/10${verdict ? " (" + verdict + ")" : ""}.`
+        : `${first} is a strong fit for ${role}.`,
+    );
+    if (strengths.length)
+      lines.push(`Standout strengths: ${strengths.join("; ")}.`);
+    lines.push(
+      "Availability: [start date / notice period].",
+      "Rate: [rate, currency, basis].",
+      "Next step: [intro call / interview] — happy to set it up, just say when.",
+    );
+    return lines.join("\n");
+  }
+
   // Best-effort contact details from the resume text. Only shown when the
   // recruiter ticks "include contact details".
   function contactFrom(text) {
@@ -784,13 +821,35 @@
     if (!cr || !submittalDlg) return;
     submittalTarget = cr;
     subAgencyInput.value = agency.name || "";
-    subNotesInput.value = getNotes(cr);
+    const saved = getNotes(cr);
+    subNotesInput.value = saved || defaultNotes(cr);
+    // Persist a generated draft on open so closing the dialog keeps it and the
+    // recruiter can refine it later instead of retyping from scratch.
+    if (!saved) setNotes(cr, subNotesInput.value);
+    if (subNotesHintEl) subNotesHintEl.textContent = "";
     // Always start unchecked: including contact details is a deliberate choice.
     subContactToggle.checked = false;
     subResetLogoBtn.hidden = !agency.logo;
     subStatusEl.textContent = "";
     if (typeof submittalDlg.showModal === "function") submittalDlg.showModal();
     else submittalDlg.setAttribute("open", "");
+  }
+
+  // Rebuild the notes draft from the candidate's current score, replacing what
+  // is in the box and the saved copy.
+  function regenerateNotes() {
+    if (!submittalTarget) return;
+    subNotesInput.value = defaultNotes(submittalTarget);
+    setNotes(submittalTarget, subNotesInput.value);
+    if (subNotesHintEl) {
+      subNotesHintEl.textContent = "Notes regenerated.";
+      // Clear the confirmation unless a newer one replaces it first.
+      setTimeout(() => {
+        if (subNotesHintEl.textContent === "Notes regenerated.")
+          subNotesHintEl.textContent = "";
+      }, 3000);
+    }
+    subNotesInput.focus();
   }
 
   function saveAgency() {
@@ -2973,6 +3032,8 @@
   applyJobOrder();
   if (subPrintBtn) subPrintBtn.addEventListener("click", printSubmittal);
   if (subCopyBtn) subCopyBtn.addEventListener("click", copySubmittal);
+  if (subRegenNotesBtn)
+    subRegenNotesBtn.addEventListener("click", regenerateNotes);
   if (subResetLogoBtn)
     subResetLogoBtn.addEventListener("click", () => {
       agency = { name: subAgencyInput.value.trim(), logo: "" };

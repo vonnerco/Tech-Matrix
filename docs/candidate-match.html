@@ -1414,6 +1414,18 @@
             .sub-actions .spacer {
                 flex: 1 1 auto;
             }
+            .sub-note-tools {
+                display: flex;
+                flex-wrap: wrap;
+                align-items: center;
+                justify-content: space-between;
+                gap: 0.5rem;
+                margin-top: -0.3rem;
+            }
+            .sub-note-tools .btn {
+                padding: 0.35rem 0.6rem;
+                font-size: 0.8125rem;
+            }
 
             /* Print (Create client submittal): only the submittal, not the app. */
             @media print {
@@ -2135,6 +2147,16 @@
                             placeholder="Why this candidate, availability, rate, next step for the client…"
                         ></textarea>
                     </label>
+                    <div class="sub-note-tools">
+                        <span class="hint" id="sub-notes-hint"></span>
+                        <button
+                            class="btn btn-ghost"
+                            type="button"
+                            id="sub-regen-notes"
+                        >
+                            Regenerate notes
+                        </button>
+                    </div>
                     <label class="sub-check" for="sub-contact-toggle">
                         <input id="sub-contact-toggle" type="checkbox" />
                         Include candidate contact details
@@ -2176,7 +2198,7 @@
         <script src="config.js?v=20261014c"></script>
         <script src="auth.js?v=20261015d"></script>
         <script src="job-title.js?v=20261015d"></script>
-        <script src="candidate-match.js?v=20261016e"></script>
+        <script src="candidate-match.js?v=20261016f"></script>
         <script>
             (function () {
                 var root = document.documentElement;
