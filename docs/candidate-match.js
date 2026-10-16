@@ -2146,23 +2146,11 @@
     updateReady();
   }
 
-  // ---- cloud batch: durable server-side job (survives a closed tab) ----
+  // ---- cloud batch: durable server-side job (scored on the worker) ----
 
+  // Leftover job ids from older builds are purged on load; nothing persists a
+  // new one, so a reload never resurrects a previous shortlist.
   const BATCH_JOB_KEY = "csm_batch_job_v1";
-  function saveBatchJobId(id) {
-    try {
-      localStorage.setItem(BATCH_JOB_KEY, id);
-    } catch {
-      /* storage unavailable */
-    }
-  }
-  function readBatchJobId() {
-    try {
-      return localStorage.getItem(BATCH_JOB_KEY) || "";
-    } catch {
-      return "";
-    }
-  }
   function clearBatchJobId() {
     try {
       localStorage.removeItem(BATCH_JOB_KEY);
@@ -2288,6 +2276,9 @@
     updateReady();
     await recordPendingBatch();
     await refreshHistory();
+    // Purge any stale key from an older build. Keep batchJobId in memory so
+    // rows can still fetch their full record in this tab.
+    clearBatchJobId();
     if (status === "canceled") {
       setStatus("Batch canceled.");
       return;
@@ -2452,7 +2443,6 @@
       const data = await res.json();
       if (!data || !data.id) throw new Error("bad_response");
       batchJobId = data.id;
-      saveBatchJobId(batchJobId);
       setStatus("Scoring " + data.total + " candidate(s) on the server…");
       startBatchPolling();
       return true;
@@ -2485,24 +2475,11 @@
     }
   }
 
-  // On load, pick up a job that was still running when the tab closed.
-  async function resumeBatchOnLoad() {
-    const id = readBatchJobId();
-    if (!id || !workerBase()) return;
-    if (!(window.Auth && window.Auth.enabled)) return;
-    // Wait for the saved session so the first poll carries a token.
-    try {
-      await window.Auth.getSession();
-    } catch {
-      /* ignore */
-    }
-    if (window.Auth.userId == null) return; // signed out; keep the id for later
-    batchJobId = id;
-    batchRunning = true;
-    if (batchResultEl) batchResultEl.hidden = false;
-    updateReady();
-    setStatus("Checking your last batch…");
-    startBatchPolling();
+  // A reload starts clean: drop any job id left over from a previous run so
+  // the ranked shortlist never reappears (or resumes polling) on refresh.
+  function discardBatchOnLoad() {
+    batchJobId = "";
+    clearBatchJobId();
   }
 
   // Limited-concurrency map that preserves order (mirrors the worker's helper).
@@ -3457,7 +3434,7 @@
   setResumeMode("one");
   updateCount();
   updateReady();
-  resumeBatchOnLoad();
+  discardBatchOnLoad();
   document.getElementById("btn-csv").addEventListener("click", () => {
     download("candidate-matches.csv", historyCsv(), "text/csv");
   });
