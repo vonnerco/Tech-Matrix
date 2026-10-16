@@ -199,7 +199,8 @@
                 padding-block: clamp(2.5rem, 7vw, 4rem);
             }
             .intro h1 {
-                margin: 0 0 1rem;
+                /* 1.5x the subheadline's line height: 1.25rem * 1.6 * 1.5 */
+                margin: 0 0 3rem;
                 max-width: 24ch;
                 font-size: clamp(1.9rem, 4.5vw, 3rem);
                 font-weight: 700;
@@ -218,6 +219,16 @@
                 display: flex;
                 flex-wrap: wrap;
                 gap: 0.75rem;
+            }
+            .btn-plus {
+                display: inline-flex;
+                align-items: center;
+                gap: 0.4rem;
+            }
+            .btn-plus svg {
+                flex: none;
+                width: 1em;
+                height: 1em;
             }
 
             .btn {
@@ -732,9 +743,19 @@
                     Paste a job description and resume to see the match score.
                 </p>
                 <div class="actions">
-                    <a class="btn btn-primary" href="#role"
-                        >Screen New Candidate</a
-                    >
+                    <a class="btn btn-primary btn-plus" href="#role">
+                        <svg
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2.2"
+                            stroke-linecap="round"
+                            aria-hidden="true"
+                        >
+                            <path d="M12 5v14M5 12h14"></path>
+                        </svg>
+                        Screen New Candidate
+                    </a>
                     <a class="btn btn-ghost" href="records.html"
                         >View Past Rankings</a
                     >
