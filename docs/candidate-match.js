@@ -469,45 +469,69 @@
     }
   }
 
-  // Fill the role box from a file the recruiter picked or dropped.
-  async function loadJobDescription(file) {
-    if (!file) return;
+  // Fill the role box from one or more files the recruiter picked, dropped or
+  // pasted. A PDF or DOCX is read as a document; images (a pasted screenshot, or
+  // several screenshots of one posting) are all read and joined in order.
+  async function loadJobDescription(input) {
+    const files = (Array.isArray(input) ? input : [input]).filter(Boolean);
+    if (!files.length) return;
+    const images = files.filter(isImageFile);
+    const doc = files.find((f) => !isImageFile(f)) || null;
+    const label = doc
+      ? doc.name
+      : files.length === 1
+        ? files[0].name
+        : files.length + " screenshots";
     if (
       roleEl.value.trim() &&
       !window.confirm(
         "Replace the job description you've already entered with the text from " +
-          file.name +
+          label +
           "?",
       )
     )
       return;
-    const image = isImageFile(file);
     const mayBeScanned =
-      !image &&
-      (/\.pdf$/i.test(file.name || "") || file.type === "application/pdf");
-    setBusyStatus(image ? "Reading image…" : "Reading job description…");
+      !!doc &&
+      (/\.pdf$/i.test(doc.name || "") || doc.type === "application/pdf");
+    setBusyStatus(
+      doc
+        ? "Reading job description…"
+        : images.length > 1
+          ? "Reading " + images.length + " screenshots…"
+          : "Reading image…",
+    );
     jdBusy = true;
     updateReady();
     try {
-      let text = image ? await ocrImage(file) : await readFile(file);
-      if (mayBeScanned && text.length < 40) {
-        // No text layer: an image-only PDF, so read the pages instead.
-        setBusyStatus("Reading scanned PDF…");
-        text = await ocrPdf(file);
+      let text;
+      if (doc) {
+        text = await readFile(doc);
+        if (mayBeScanned && text.length < 40) {
+          // No text layer: an image-only PDF, so read the pages instead.
+          setBusyStatus("Reading scanned PDF…");
+          text = await ocrPdf(doc);
+        }
+      } else {
+        const parts = [];
+        for (const img of images) parts.push(await ocrImage(img));
+        text = parts.filter(Boolean).join("\n\n").trim();
       }
       if (!text || text.length < 40)
         throw new Error(
-          image
-            ? "Couldn't read text from that image. Try a sharper screenshot."
-            : "Couldn't read text from that file. Try a different PDF or DOCX.",
+          doc
+            ? "Couldn't read text from that file. Try a different PDF or DOCX."
+            : images.length > 1
+              ? "Couldn't read text from those screenshots. Try sharper images."
+              : "Couldn't read text from that image. Try a sharper screenshot.",
         );
       roleEl.value = text.slice(0, MAX_ROLE);
       jdFileText = roleEl.value;
-      showChip(jdChipEl, jdChipNameEl, file, jdClearEl);
+      showChip(jdChipEl, jdChipNameEl, doc || { name: label }, jdClearEl);
       updateCount();
       // Show the text so the recruiter can check and edit what was read.
       setMode("paste");
-      setStatus("Job description loaded from " + file.name + ".");
+      setStatus("Job description loaded from " + label + ".");
     } catch (err) {
       setStatus(err && err.message ? err.message : String(err), "err");
     } finally {
@@ -641,6 +665,9 @@
   const AGENCY_KEY = "csm_agency_v1";
   const NOTES_KEY = "csm_notes_v1";
   const JOBORDER_KEY = "csm_joborder_v1";
+  // Bump when defaultNotes() wording changes, so an untouched saved draft can be
+  // refreshed to the new template while the recruiter's own edits are preserved.
+  const NOTES_TEMPLATE_VERSION = 2;
 
   function readJson(key, fallback) {
     try {
@@ -673,21 +700,93 @@
   function notesKey(cr) {
     return [cr && cr.role, cr && cr.name].join("|");
   }
-  function getNotes(cr) {
-    return readJson(NOTES_KEY, {})[notesKey(cr)] || "";
+
+  // Saved notes are records: `text` is what shows, `gen` is the exact text the
+  // generator last wrote, `v` the template version behind it, and `edited`
+  // whether the recruiter has changed it. A note still equal to `gen` (or, for a
+  // legacy plain-string note, equal to its old template) is an untouched draft
+  // and may be refreshed; anything else is the recruiter's own words.
+  function noteRecord(raw) {
+    if (!raw) return null;
+    if (typeof raw === "string")
+      return { text: raw, gen: "", v: 0, edited: false };
+    return {
+      text: String(raw.text || ""),
+      gen: String(raw.gen || ""),
+      v: Number(raw.v) || 0,
+      edited: !!raw.edited,
+    };
   }
-  function setNotes(cr, text) {
+
+  function getNoteRecord(cr) {
+    return noteRecord(readJson(NOTES_KEY, {})[notesKey(cr)]);
+  }
+
+  function setNoteRecord(cr, rec) {
     const all = readJson(NOTES_KEY, {});
     const k = notesKey(cr);
-    if (text && text.trim()) all[k] = text;
+    if (rec && rec.text && rec.text.trim()) all[k] = rec;
     else delete all[k];
     writeJson(NOTES_KEY, all);
+  }
+
+  // The note to show on open: the recruiter's edited text, or a fresh draft when
+  // what's saved is still an untouched auto-draft, possibly from an older
+  // template. This is what refreshes a stale draft without clobbering edits.
+  function resolveNotes(cr) {
+    const current = defaultNotes(cr);
+    const rec = getNoteRecord(cr);
+    if (!rec) {
+      setNoteRecord(cr, {
+        text: current,
+        gen: current,
+        v: NOTES_TEMPLATE_VERSION,
+        edited: false,
+      });
+      return current;
+    }
+    const untouched =
+      !rec.edited &&
+      (rec.gen
+        ? rec.text === rec.gen
+        : rec.text === defaultNotes(cr, rec.v || 1));
+    if (untouched) {
+      setNoteRecord(cr, {
+        text: current,
+        gen: current,
+        v: NOTES_TEMPLATE_VERSION,
+        edited: false,
+      });
+      return current;
+    }
+    // The recruiter's own words: keep them, just record the current version.
+    setNoteRecord(cr, {
+      text: rec.text,
+      gen: rec.gen,
+      v: NOTES_TEMPLATE_VERSION,
+      edited: true,
+    });
+    return rec.text;
+  }
+
+  // Persist the recruiter's current draft, keeping the generator's copy so a later
+  // template change can still tell an untouched draft from an edited one.
+  function saveNoteText(cr, text) {
+    const rec = getNoteRecord(cr);
+    const gen = (rec && rec.gen) || "";
+    setNoteRecord(cr, {
+      text,
+      gen,
+      v: NOTES_TEMPLATE_VERSION,
+      edited: !gen || text !== gen,
+    });
   }
 
   // A ready-to-send draft for the recruiter, built from the candidate's own
   // score so the submittal never ships blank. Bracketed parts are placeholders
   // meant to be edited before sending.
-  function defaultNotes(cr) {
+  function defaultNotes(cr, version) {
+    const v = version || NOTES_TEMPLATE_VERSION;
     const name = String((cr && cr.name) || "").trim();
     const first = name.split(/\s+/)[0] || "This candidate";
     const role = (cr && cr.role) || "the role";
@@ -711,9 +810,11 @@
     );
     if (strengths.length)
       lines.push(`Standout strengths: ${strengths.join("; ")}.`);
+    // v1 ended each line with a bare period; v2 flags both as pending.
+    const pending = v >= 2 ? " — pending confirmation" : "";
     lines.push(
-      "Availability: [start date / notice period].",
-      "Rate: [rate, currency, basis].",
+      "Availability: [start date / notice period]" + pending + ".",
+      "Rate: [rate, currency, basis]" + pending + ".",
       "Next step: [intro call / interview] — happy to set it up, just say when.",
     );
     return lines.join("\n");
@@ -821,11 +922,9 @@
     if (!cr || !submittalDlg) return;
     submittalTarget = cr;
     subAgencyInput.value = agency.name || "";
-    const saved = getNotes(cr);
-    subNotesInput.value = saved || defaultNotes(cr);
-    // Persist a generated draft on open so closing the dialog keeps it and the
-    // recruiter can refine it later instead of retyping from scratch.
-    if (!saved) setNotes(cr, subNotesInput.value);
+    // Shows the recruiter's edits, or a fresh draft; a stale untouched draft from
+    // an older template is refreshed here and re-saved.
+    subNotesInput.value = resolveNotes(cr);
     if (subNotesHintEl) subNotesHintEl.textContent = "";
     // Always start unchecked: including contact details is a deliberate choice.
     subContactToggle.checked = false;
@@ -839,8 +938,15 @@
   // is in the box and the saved copy.
   function regenerateNotes() {
     if (!submittalTarget) return;
-    subNotesInput.value = defaultNotes(submittalTarget);
-    setNotes(submittalTarget, subNotesInput.value);
+    const draft = defaultNotes(submittalTarget);
+    subNotesInput.value = draft;
+    // An explicit regenerate replaces the note with a fresh, untouched draft.
+    setNoteRecord(submittalTarget, {
+      text: draft,
+      gen: draft,
+      v: NOTES_TEMPLATE_VERSION,
+      edited: false,
+    });
     if (subNotesHintEl) {
       subNotesHintEl.textContent = "Notes regenerated.";
       // Clear the confirmation unless a newer one replaces it first.
@@ -860,7 +966,7 @@
   function printSubmittal() {
     if (!submittalTarget) return;
     saveAgency();
-    setNotes(submittalTarget, subNotesInput.value);
+    saveNoteText(submittalTarget, subNotesInput.value);
     buildSubmittal(submittalTarget, {
       includeContact: subContactToggle.checked,
       notes: subNotesInput.value,
@@ -2957,7 +3063,7 @@
       zone.addEventListener("drop", () => zone.classList.remove("is-over"));
     });
   }
-  wireStep(fieldJdEl, [dropJdEl], (files) => loadJobDescription(files[0]));
+  wireStep(fieldJdEl, [dropJdEl], (files) => loadJobDescription(files));
   wireStep(fieldResumeEl, [dropResumeEl, dropResumeManyEl], (files) => {
     if (resumeMode === "many") {
       addBatchFiles(files);
@@ -2977,6 +3083,55 @@
       if (!e.target.closest("#field-jd, #field-resume")) e.preventDefault();
     }),
   );
+
+  // ---- paste: drop a screenshot straight into a step ----
+  // A screenshot on the clipboard arrives as an unnamed image file, so name it and
+  // route it to the focused step. The job description step reads images with OCR;
+  // the resume step takes a PDF or DOCX, not a screenshot.
+  function pastedImageFiles(dt) {
+    const items = (dt && dt.items) || [];
+    const out = [];
+    for (let i = 0; i < items.length; i++) {
+      const it = items[i];
+      if (it.kind !== "file" || !/^image\//.test(it.type || "")) continue;
+      const blob = it.getAsFile();
+      if (!blob) continue;
+      const ext = (it.type.split("/")[1] || "png").replace("jpeg", "jpg");
+      out.push(
+        new File([blob], "screenshot-" + Date.now() + "-" + i + "." + ext, {
+          type: it.type,
+        }),
+      );
+    }
+    return out;
+  }
+
+  document.addEventListener("paste", (e) => {
+    if (!e.clipboardData) return;
+    const files = pastedImageFiles(e.clipboardData);
+    if (!files.length) return; // leave text pastes untouched
+    const active = document.activeElement;
+    // Don't hijack a paste into some other text field on the page.
+    if (
+      active &&
+      active !== roleEl &&
+      /^(input|textarea)$/i.test(active.tagName)
+    )
+      return;
+    e.preventDefault();
+    const step =
+      active && active.closest
+        ? active.closest("#field-jd, #field-resume")
+        : null;
+    if (step && step.id === "field-resume") {
+      setStatus(
+        "Resume drops take a PDF or DOCX — a screenshot can't be scored.",
+        "err",
+      );
+      return;
+    }
+    loadJobDescription(files);
+  });
 
   // ---- textarea ----
   roleEl.addEventListener("input", () => {
