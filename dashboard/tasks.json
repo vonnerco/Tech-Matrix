@@ -1,0 +1,264 @@
+{
+  "project": "Candidate Score — Wedge Strategy",
+  "lastUpdated": "2026-10-17T23:38:33.253Z",
+  "updatedBy": "sync",
+  "phases": [
+    {
+      "id": "0",
+      "name": "Phase 0 — Decision Gate",
+      "owner": "you",
+      "tasks": [
+        {
+          "id": "T-0.1",
+          "title": "Record the §11 decision: are Phase 2/3 in or out?",
+          "status": "todo",
+          "by": null,
+          "date": null
+        },
+        {
+          "id": "T-0.2",
+          "title": "If in, write the trigger criteria that justify each phase (e.g. N agencies ask to drop their ATS)",
+          "status": "todo",
+          "by": null,
+          "date": null
+        },
+        {
+          "id": "T-0.3",
+          "title": "Accept the added scope and compliance surface (run-time candidate DB, retention, EU AI Act / NYC LL144 — research §7–§8)",
+          "status": "todo",
+          "by": null,
+          "date": null
+        },
+        {
+          "id": "T-0.4",
+          "title": "Reconcile §10's \"never an ATS\" stance to a Phase-1-only boundary",
+          "status": "todo",
+          "by": null,
+          "date": null
+        },
+        {
+          "id": "T-0.5",
+          "title": "Verify each claimed precedent (Calendly, Gem, Goodly, Dover) before citing it",
+          "status": "todo",
+          "by": null,
+          "date": null
+        }
+      ]
+    },
+    {
+      "id": "1",
+      "name": "Phase 1 — Wedge",
+      "owner": "you",
+      "tasks": [
+        {
+          "id": "T-1.1",
+          "title": "Pick the one painful problem and make it better than anyone (submittal + scoring)",
+          "status": "todo",
+          "by": null,
+          "date": null
+        },
+        {
+          "id": "T-1.2",
+          "title": "Connect 2–3 ATSs, starting from the lowest-friction connect (§9 ranking)",
+          "status": "todo",
+          "by": null,
+          "date": null
+        },
+        {
+          "id": "T-1.3",
+          "title": "Prove the shared adapter pattern on the lowest-friction ATS (§6/§8 sequencing)",
+          "status": "todo",
+          "by": null,
+          "date": null
+        },
+        {
+          "id": "T-1.4",
+          "title": "Add the highest-adoption vendor adapter second (§8)",
+          "status": "todo",
+          "by": null,
+          "date": null
+        },
+        {
+          "id": "T-1.5",
+          "title": "Ship metering and entitlements (§3)",
+          "status": "todo",
+          "by": null,
+          "date": null
+        },
+        {
+          "id": "T-1.6",
+          "title": "Price at $20–50/user/mo",
+          "status": "todo",
+          "by": null,
+          "date": null
+        },
+        {
+          "id": "T-1.7",
+          "title": "Land the first 50–100 paying agencies",
+          "status": "todo",
+          "by": null,
+          "date": null
+        },
+        {
+          "id": "T-1.8",
+          "title": "Hold the §10 boundary for Phase 1: no pipelines, scheduling, or offers",
+          "status": "todo",
+          "by": null,
+          "date": null
+        }
+      ]
+    },
+    {
+      "id": "2",
+      "name": "Phase 2 — Expand",
+      "owner": "you",
+      "tasks": [
+        {
+          "id": "T-2.1",
+          "title": "Ship adjacent features on top of the wedge",
+          "status": "todo",
+          "by": null,
+          "date": null
+        },
+        {
+          "id": "T-2.2",
+          "title": "Build a lightweight owned candidate DB",
+          "status": "todo",
+          "by": null,
+          "date": null
+        },
+        {
+          "id": "T-2.3",
+          "title": "Offer a standalone mode (usable without an ATS)",
+          "status": "todo",
+          "by": null,
+          "date": null
+        },
+        {
+          "id": "T-2.4",
+          "title": "Measure retention and \"when are you the ATS?\" asks",
+          "status": "todo",
+          "by": null,
+          "date": null
+        },
+        {
+          "id": "T-2.5",
+          "title": "Confirm the Phase-3 trigger criteria are met before starting",
+          "status": "todo",
+          "by": null,
+          "date": null
+        }
+      ]
+    },
+    {
+      "id": "3",
+      "name": "Phase 3 — Platform",
+      "owner": "you",
+      "tasks": [
+        {
+          "id": "T-3.1",
+          "title": "Build the full ATS for small agencies",
+          "status": "todo",
+          "by": null,
+          "date": null
+        },
+        {
+          "id": "T-3.2",
+          "title": "Keep integrations for larger accounts intact (do not force migration)",
+          "status": "todo",
+          "by": null,
+          "date": null
+        },
+        {
+          "id": "T-3.3",
+          "title": "Ship tiered pricing $29 / $99 / $199",
+          "status": "todo",
+          "by": null,
+          "date": null
+        },
+        {
+          "id": "T-3.4",
+          "title": "Stand up compliance for the run-time candidate DB (retention, EU AI Act, NYC LL144)",
+          "status": "todo",
+          "by": null,
+          "date": null
+        }
+      ]
+    }
+  ],
+  "zoho": {
+    "substeps": {
+      "zoho-a1-1": true,
+      "zoho-a1-2": true,
+      "zoho-a1-3": true,
+      "zoho-a1-4": true,
+      "zoho-a1-5": true,
+      "zoho-a1-6": true,
+      "zoho-a2-1": true,
+      "zoho-a2-2": true,
+      "zoho-a2-3": true,
+      "zoho-a2-4": true,
+      "zoho-a3-1": true,
+      "zoho-a3-2": false,
+      "zoho-a3-3": true,
+      "zoho-a3-4": true,
+      "zoho-a4-1": true,
+      "zoho-a4-2": true,
+      "zoho-a4-3": true,
+      "zoho-a4-4": true,
+      "zoho-a4-5": true,
+      "zoho-a4-6": true,
+      "zoho-a4-7": true,
+      "zoho-b1-1": true,
+      "zoho-b1-2": true,
+      "zoho-b2-1": true,
+      "zoho-b2-2": true,
+      "zoho-b3-1": true,
+      "zoho-c1-1": true,
+      "zoho-c1-2": true,
+      "zoho-c1-3": true,
+      "zoho-c2-1": false,
+      "zoho-c2-2": false,
+      "zoho-c2-3": false,
+      "zoho-c3-1": false,
+      "zoho-c3-2": false,
+      "zoho-c3-3": false,
+      "zoho-c4-1": false,
+      "zoho-c4-2": false,
+      "zoho-c4-3": false,
+      "zoho-d1-1": true,
+      "zoho-d1-2": false,
+      "zoho-d1-3": false,
+      "zoho-d1-4": false,
+      "zoho-d1-5": false,
+      "zoho-d1-6": false,
+      "zoho-d1-7": false,
+      "zoho-d2-1": false,
+      "zoho-d2-2": false,
+      "zoho-d2-3": false,
+      "zoho-d3-1": false,
+      "zoho-d3-2": false,
+      "zoho-e1-1": false,
+      "zoho-e1-2": false,
+      "zoho-e1-3": false,
+      "zoho-e2-1": false,
+      "zoho-e2-2": false,
+      "zoho-e2-3": false,
+      "zoho-e2-4": false,
+      "zoho-f1-1": false,
+      "zoho-f1-2": false,
+      "zoho-f1-3": false,
+      "zoho-g1-1": false,
+      "zoho-g1-2": false,
+      "zoho-g1-3": false,
+      "zoho-g1-4": false,
+      "zoho-g2-1": false,
+      "zoho-g2-2": false,
+      "zoho-g3-1": false,
+      "zoho-g3-2": false,
+      "zoho-g4-1": false,
+      "zoho-g4-2": false,
+      "zoho-g4-3": false
+    }
+  }
+}

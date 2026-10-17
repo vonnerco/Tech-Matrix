@@ -20,6 +20,9 @@ This plan covers four workstreams, sequenced so a solo agency gets value early:
 - **Loxo integration** — personal-access-token agency API, create candidate +
   attach submittal PDF.
 
+See §8 for the short cross-vendor ATS plan (Bullhorn → Loxo → Crelate → Manatal,
+ordered by adoption); §4/§5 hold the full Bullhorn/Loxo detail.
+
 Factual basis (verified in-repo): static site `docs/` on GitHub Pages; Worker
 `worker/src/index.js` (routes `POST /`, `POST /score`, `/batch*`, `/records`);
 Durable Object `worker/src/batch.js` (SQLite `job` + `items` tables);
@@ -74,7 +77,7 @@ create table if not exists public.job_orders (
 ```
 
 Call out the model choice: **extend `matches`** (single source of truth for a
-screen) rather than a parallel `screens` table. A screen *is* the existing
+screen) rather than a parallel `screens` table. A screen _is_ the existing
 `matches` row, now attached to a job order.
 
 ```sql
@@ -84,7 +87,7 @@ alter table public.matches
   add column if not exists job_order_id  uuid references public.job_orders (id) on delete set null;
 ```
 
-Assumption: `matches.user_id` stays as the *author* of the screen; `org_id`
+Assumption: `matches.user_id` stays as the _author_ of the screen; `org_id`
 carries workspace scope. A screen row is visible to the whole org; `user_id`
 records who ran it.
 
@@ -126,6 +129,7 @@ create policy "matches_select_org" on public.matches
 ```
 
 Notes:
+
 - No UPDATE policy on `matches` today — keep it that way (a saved score is
   immutable from the client; workspace moves happen in `job_orders`, not by
   rewriting `matches`).
@@ -138,7 +142,7 @@ Notes:
 - A single screen (`POST /score`) already produces one `matches` row
   (`worker/src/index.js` → `recordMatch`); add `job_order_id`/`client_id`/
   `org_id` to the insert when the client sends them in the body.
-- A batch of resumes scored against one job order is *N* screens. The DO `job`
+- A batch of resumes scored against one job order is _N_ screens. The DO `job`
   row is the job order run; each `items` row becomes one `matches` row on
   `recordPendingBatch` (`docs/candidate-match.js`). One batch = one job order =
   one `job_order_id` for every item.
@@ -178,11 +182,11 @@ async start({ jobId, userId, role, total, orgId, clientId, jobOrderId }) { /* ..
 
 Count **server-side, in the Worker** — never in the browser. Options weighed:
 
-| Option | Verdict |
-| --- | --- |
-| Count `matches` rows per month | Fragile: deletes are allowed, batches land as many rows, and rows are PII-heavy. Rejected as the source of truth. |
-| Dedicated `usage_counters` (org, period, screens_used) | **Recommended.** Atomic increment, cheap to check, survives deletes. |
-| Append-only `usage_events` (org, user, kind, job_order_id, created_at) | Recommended **alongside** the counter for audit/billing disputes. |
+| Option                                                                 | Verdict                                                                                                           |
+| ---------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| Count `matches` rows per month                                         | Fragile: deletes are allowed, batches land as many rows, and rows are PII-heavy. Rejected as the source of truth. |
+| Dedicated `usage_counters` (org, period, screens_used)                 | **Recommended.** Atomic increment, cheap to check, survives deletes.                                              |
+| Append-only `usage_events` (org, user, kind, job_order_id, created_at) | Recommended **alongside** the counter for audit/billing disputes.                                                 |
 
 ```sql
 create table if not exists public.usage_counters (
@@ -224,14 +228,14 @@ Content-Type: application/json
 
 ### Entitlement matrix
 
-| Capability | Free $0 | Solo $49/mo | Team $99/seat/mo |
-| --- | --- | --- | --- |
-| Screens / month | 10 | Unlimited (fair-use) | Unlimited (fair-use) |
-| Submittal branding | Generic (watermark/plain) | Agency logo + name | Agency logo + name |
-| Batch scoring | No | Yes | Yes |
-| Workspaces (clients/job orders) | No (Unassigned only) | Yes | Yes |
-| Integrations (Bullhorn/Loxo) | No | Yes | Yes |
-| Seats | 1 | 1 | N (per seat) |
+| Capability                      | Free $0                   | Solo $49/mo          | Team $99/seat/mo     |
+| ------------------------------- | ------------------------- | -------------------- | -------------------- |
+| Screens / month                 | 10                        | Unlimited (fair-use) | Unlimited (fair-use) |
+| Submittal branding              | Generic (watermark/plain) | Agency logo + name   | Agency logo + name   |
+| Batch scoring                   | No                        | Yes                  | Yes                  |
+| Workspaces (clients/job orders) | No (Unassigned only)      | Yes                  | Yes                  |
+| Integrations (Bullhorn/Loxo)    | No                        | Yes                  | Yes                  |
+| Seats                           | 1                         | 1                    | N (per seat)         |
 
 Assumption: "unlimited" is fair-use; keep a hidden abuse ceiling. Confirm the
 Free tier really blocks workspaces vs. allowing one client.
@@ -265,17 +269,17 @@ GET https://rest.bullhornstaffing.com/rest-services/login
 
 ### Field mapping (our → Bullhorn; verify names against vendor docs)
 
-| Ours | Bullhorn entity.field | Direction |
-| --- | --- | --- |
-| `clients.name` | `ClientCorporation.name` | pull (seed) / push (create) |
-| `clients.external_ref.bullhorn` | `ClientCorporation.id` | both (dedupe key) |
-| `job_orders.title` | `JobOrder.title` | pull / push |
-| `job_orders.description` | `JobOrder.description` | pull / push |
-| `job_orders.status` | `JobOrder.status` | pull |
-| `job_orders.external_ref.bullhorn` | `JobOrder.id` | both |
-| screen candidate name | `Candidate.*` (name fields — to verify) | push on submit |
-| submittal (score, verdict, strengths, gaps, PDF) | `Submission.*` (comment/file — to verify) | push |
-| `job_orders.external_ref.bullhorn` (on submittal) | `Submission.jobOrder.id` | push |
+| Ours                                              | Bullhorn entity.field                     | Direction                   |
+| ------------------------------------------------- | ----------------------------------------- | --------------------------- |
+| `clients.name`                                    | `ClientCorporation.name`                  | pull (seed) / push (create) |
+| `clients.external_ref.bullhorn`                   | `ClientCorporation.id`                    | both (dedupe key)           |
+| `job_orders.title`                                | `JobOrder.title`                          | pull / push                 |
+| `job_orders.description`                          | `JobOrder.description`                    | pull / push                 |
+| `job_orders.status`                               | `JobOrder.status`                         | pull                        |
+| `job_orders.external_ref.bullhorn`                | `JobOrder.id`                             | both                        |
+| screen candidate name                             | `Candidate.*` (name fields — to verify)   | push on submit              |
+| submittal (score, verdict, strengths, gaps, PDF)  | `Submission.*` (comment/file — to verify) | push                        |
+| `job_orders.external_ref.bullhorn` (on submittal) | `Submission.jobOrder.id`                  | push                        |
 
 Every field on the Bullhorn side is marked **to verify against the vendor
 docs** — do not hardcode names until confirmed.
@@ -306,12 +310,12 @@ docs** — do not hardcode names until confirmed.
 
 ### Read vs write summary
 
-| Operation | Type |
-| --- | --- |
-| Pull job orders + clients (seed workspace) | read |
-| Create/patch `Candidate` | write |
-| Create `Submission` + attach submittal | write |
-| OAuth login / token refresh | both (auth) |
+| Operation                                  | Type        |
+| ------------------------------------------ | ----------- |
+| Pull job orders + clients (seed workspace) | read        |
+| Create/patch `Candidate`                   | write       |
+| Create `Submission` + attach submittal     | write       |
+| OAuth login / token refresh                | both (auth) |
 
 ## 5. Loxo integration plan
 
@@ -337,12 +341,12 @@ header per request.
 
 ### How it differs from Bullhorn
 
-| | Bullhorn | Loxo |
-| --- | --- | --- |
-| Auth | OAuth 2.0 + REST login (`BhRestToken`/`restUrl`) | Personal access token (static) |
-| Tenancy | Multi-tenant, session-token lifecycle | Single-tenant per agency |
-| Setup cost | Higher (app registration, token refresh) | Lower (paste a token) |
-| Payload model | `Submission` entity | pipelines/submissions |
+|               | Bullhorn                                         | Loxo                           |
+| ------------- | ------------------------------------------------ | ------------------------------ |
+| Auth          | OAuth 2.0 + REST login (`BhRestToken`/`restUrl`) | Personal access token (static) |
+| Tenancy       | Multi-tenant, session-token lifecycle            | Single-tenant per agency       |
+| Setup cost    | Higher (app registration, token refresh)         | Lower (paste a token)          |
+| Payload model | `Submission` entity                              | pipelines/submissions          |
 
 Assumption: Loxo is the faster integration to ship; consider it first if a
 design-partner agency is already on it.
@@ -352,15 +356,16 @@ design-partner agency is already on it.
 Ordered so a solo agency gets value before workspaces, and workspaces before
 integrations.
 
-| Milestone | Outcome (one line) | Depends on | Est. (eng days) |
-| --- | --- | --- | --- |
-| **M1 — Submittal + job orders** | Score against a named job order and export a client-ready submittal (PDF, basic branding). | — | 4–6 |
-| **M2 — Workspaces** | Organize screens as client → job order → screen, org-scoped with RLS. | M1 (job-order model) | 6–8 |
-| **M3 — Metering & entitlements** | Server-enforced free-tier limit + upgrade prompt at the limit. | M2 (org/plan) | 4–6 |
-| **M4 — Bullhorn** | Connect an agency; pull job orders, push submittals as Submissions. | M2, M3 | 8–12 |
-| **M5 — Loxo** | Connect an agency; create candidate + attach submittal PDF. | M2, M1 | 5–8 |
+| Milestone                        | Outcome (one line)                                                                         | Depends on           | Est. (eng days) |
+| -------------------------------- | ------------------------------------------------------------------------------------------ | -------------------- | --------------- |
+| **M1 — Submittal + job orders**  | Score against a named job order and export a client-ready submittal (PDF, basic branding). | —                    | 4–6             |
+| **M2 — Workspaces**              | Organize screens as client → job order → screen, org-scoped with RLS.                      | M1 (job-order model) | 6–8             |
+| **M3 — Metering & entitlements** | Server-enforced free-tier limit + upgrade prompt at the limit.                             | M2 (org/plan)        | 4–6             |
+| **M4 — Bullhorn**                | Connect an agency; pull job orders, push submittals as Submissions.                        | M2, M3               | 8–12            |
+| **M5 — Loxo**                    | Connect an agency; create candidate + attach submittal PDF.                                | M2, M1               | 5–8             |
 
 Notes:
+
 - M1 is deliberately independent of workspaces: a solo agency can screen +
   submit before the org model exists (single implicit client).
 - Keep M3 after M2 so the plan/org field exists to enforce against.
@@ -412,3 +417,170 @@ Notes:
 - One batch = one job order; `usage_counters` keyed by UTC billing month.
 - Null `org_id`/`client_id` on legacy rows = "Unassigned" (no forced backfill).
 - Loxo uses a static bearer token; all vendor endpoints/fields are **to verify**.
+
+## 8. ATS integration plan — ordered by adoption
+
+Order is a **judgment to verify in-repo**: Bullhorn (largest staffing install base)
+→ Loxo → Crelate → Manatal (SMB, smallest footprint). Confirm against a market
+source before publishing a ranked claim. §4/§5 keep the Bullhorn/Loxo detail; this
+section is the short cross-vendor view.
+
+All four expose a REST API that can do the three operations the product needs:
+**list jobs**, **create candidate**, **attach the submittal PDF (submission/matching)**.
+Same shape as §5 — one adapter interface, one implementation per vendor.
+
+| #   | ATS          | Auth                                     | Base (to verify)                 | Create candidate  | Attach PDF                | Tier/paywall risk                           | Est. |
+| --- | ------------ | ---------------------------------------- | -------------------------------- | ----------------- | ------------------------- | ------------------------------------------- | ---- |
+| 1   | **Bullhorn** | OAuth 2.0 + `BhRestToken`/`restUrl` (§4) | `rest.bullhornstaffing.com`      | yes (`Candidate`) | yes (`Submission` + file) | app registration; partnership for directory | 8–12 |
+| 2   | **Loxo**     | agency bearer token (static)             | `app.loxo.co/api/<agency-slug>/` | yes               | yes                       | low — token paste-in                        | 5–8  |
+| 3   | **Crelate**  | API key (header/param)                   | `api.crelate.com/api3/`          | yes               | yes                       | **check** — API may be plan-gated           | 5–8  |
+| 4   | **Manatal**  | API token header                         | `api.manatal.com/open/v3/`       | yes               | yes                       | ~30 req/min throttle → queue                | 5–8  |
+
+### Shared adapter interface
+
+One module per vendor, behind a common contract so the Worker never branches on
+vendor name:
+
+- `listJobs(orgId) -> JobOrder[]` (seeds a workspace; dedupe by `external_ref.<vendor>`).
+- `createCandidate(orgId, screen) -> externalId`.
+- `attachSubmittal(orgId, externalId, pdf)`.
+- `verifyToken(orgId) -> ok | error` (surfaced in the connect UI).
+
+Reuse across all four: token store (Worker secret per `org_id`, §7), retry/backoff
+(§7), idempotency key `hash(org_id, job_order_id, screen_id)` (§4), and field
+mapping tables like §4's.
+
+### Sequencing note
+
+This ordering is **market-driven, not engineering-driven.** §6 sequences by effort
+(Loxo before Bullhorn). Pick one: ship Loxo first as the cheap proof of the adapter
+pattern, then Bullhorn for reach — or honor adoption order if a design partner is
+already on Bullhorn. Per-vendor endpoints, fields, and tier limits are **to verify
+against vendor docs** before implementation.
+
+## 9. Connection ranking — which ATS lets the app connect, easiest first
+
+Two rankings, do not conflate them:
+
+- **Adoption (§8)** — who has the users: Bullhorn → Loxo → Crelate → Manatal.
+- **Connectability (this section)** — who lets a third-party app in with the least
+  friction: **Loxo → Manatal → Crelate → Bullhorn.**
+
+| Rank | ATS          | Connect path                                               | Gate                                                | Verdict                           |
+| ---- | ------------ | ---------------------------------------------------------- | --------------------------------------------------- | --------------------------------- |
+| 1    | **Loxo**     | Self-serve agency bearer token; REST + webhooks            | none — token paste-in                               | **Best.** Ranked #1 to connect.   |
+| 2    | **Manatal**  | Self-serve API token; documented `/open/v3/` REST          | sandbox on request; ~30 req/min                     | Strong; throttle obliges a queue. |
+| 3    | **Crelate**  | API key                                                    | **check** — API may be plan-gated / support-enabled | Medium; verify first.             |
+| 4    | **Bullhorn** | OAuth app registration + `BhRestToken`/`restUrl` lifecycle | app review; partner/marketplace approval            | Most reach, slowest to connect.   |
+
+**Ranked #1 to allow a connection: Loxo** — static agency token, self-serve, no
+app registration or partner approval, and the REST surface already covers the three
+operations (§5). Manatal is a close #2 on the same token model. Bullhorn ranks last
+for _connectability_ even though it ranks first for _adoption_ — so if a design
+partner is already a Bullhorn shop, connect Bullhorn anyway and accept the hire
+(§8 sequencing note; §7 open question 3). All vendor details **to verify**.
+
+### Why connecting helps the recruiter (keep their ATS, don't replace it)
+
+The app plugs **into** the ATS they already open every morning; the ATS stays the
+system of record. Value is measured in removed steps, not new software:
+
+- **No double entry.** Job orders are pulled from their ATS, so a req appears in
+  the app automatically; the submittal is pushed back, so no candidate is re-typed.
+- **One source of truth.** The ATS keeps the pipeline; the app stores no parallel
+  pipeline and links each screen by `external_ref.<vendor>` (§2, §4) — no fork to
+  reconcile.
+- **Decision support in place.** The recruiter scores and shortlists inside the
+  flow they already use, and the score + branded submittal land on the right
+  job/candidate — not in a separate tool.
+- **Faster client turnaround.** The branded submittal is attached as the ATS's own
+  submission object, so it is sent from the ATS with the rest of their process.
+- **Zero-migration adoption.** No data migration, no new login, no training on a
+  new ATS — the lowest-possible switching cost to sell to an agency already on Loxo
+  or Bullhorn.
+- **Visible in existing reporting.** Activity is recorded in their ATS, so managers
+  see it in the dashboards and audits they already run.
+
+Boundary (from the two-sided research): the app is **decision support + submittal
+generator**, not an ATS replacement — no pipelines, scheduling, offers, or
+requisitions. Staying inside the recruiter's ATS is the point.
+
+## 10. Integrate vs. compete (strategic decision)
+
+External input, folded in here for the record; vendor claims are **unverified** and
+annotated against §8/§9.
+
+**Decision: start with integration, not replacement** — same conclusion as §9.
+
+| Advantage                 | Why it matters                                                             | Consistent with           |
+| ------------------------- | -------------------------------------------------------------------------- | ------------------------- |
+| Zero switching cost       | Recruiters hate migrating data; "replace your ATS" is the #1 deal-killer   | §9 recruiter value        |
+| Faster sales cycle        | "Works with your tools" ≫ "rip and replace"                                | §9 zero-migration         |
+| Smaller build scope       | Spend effort on the differentiator, not a candidate DB/pipeline/email sync | §9 boundary; research §15 |
+| Distribution leverage     | ATS marketplaces (Bullhorn, JobAdder) drive inbound                        | not in-repo — **verify**  |
+| Higher willingness to pay | Making a $119/mo Loxo seat more valuable makes $29–49/mo trivial           | **verify** pricing        |
+
+### Risks / gotchas
+
+| Risk                     | Details                                                                                     | Note vs. §9                                                                                                                      |
+| ------------------------ | ------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| API limitations          | Manatal/Zoho open; Bullhorn/Loxo _"notoriously restrictive, may need partnership approval"_ | **Conflicts** with §9 (#1 Loxo = self-serve token). Likely the claim means _marketplace listing_, not raw API access. **Verify** |
+| Platform dependency      | Vendor can change terms, deprecate endpoints, or ship the feature natively                  | §7 risks                                                                                                                         |
+| "Feature, not a company" | Acquirers may see a plugin, not a standalone business                                       | mitigate: own the submittal + data layer + adapter moat                                                                          |
+| Revenue ceiling          | ~$15–50/user/mo as an add-on vs $100+ as a full ATS                                         | accepted tradeoff; **verify**                                                                                                    |
+
+### Reconciliation (the one thing to resolve)
+
+The pasted claim that **Loxo is "notoriously restrictive"** contradicts §9, which
+ranks Loxo **#1 for connectability** (self-serve agency token, no app review). Three
+ways both can be true: (a) raw API access is self-serve, but _directory/marketplace_
+listing needs partner approval; (b) rates/quotas are tight; (c) the claim is stale or
+conflates Loxo with Bullhorn. Resolve by checking Loxo's current API + partner docs
+before trusting either ranking (§7 open question 3).
+
+### Positioning to keep
+
+- Integration-first, **not** an ATS: no pipelines, scheduling, offers (§9 boundary).
+- The moat is the **submittal + scoring + adapter layer**, not a candidate database.
+- Sequence per §6/§8: prove the adapter pattern on the lowest-friction connect (§9 #1),
+  then add the highest-adoption vendor.
+
+## 11. Wedge strategy (phased) — external input
+
+Another external block, folded in for the record; company claims **unverified**. This
+**supersedes §10's "never an ATS" stance with a deliberate "eventually an ATS" arc**,
+so §10's boundary holds for Phase 1 only. Decision needed (§7).
+
+| Phase            | Months | Move                                                                               | Goal                        |
+| ---------------- | ------ | ---------------------------------------------------------------------------------- | --------------------------- |
+| **1 — Wedge**    | 1–12   | One painful problem, better than anyone; connect 2–3 ATSs; $20–50/user/mo          | 50–100 paying agencies      |
+| **2 — Expand**   | 12–24  | Adjacent features; own lightweight candidate DB; offer "standalone"                | Some use it as primary tool |
+| **3 — Platform** | 24–36+ | Full ATS for small agencies; keep integrations for larger; tiered $29 / $99 / $199 | You ARE the ATS for a niche |
+
+### Claimed precedents (verify each)
+
+| Company  | Wedge                       | Became                                 |
+| -------- | --------------------------- | -------------------------------------- |
+| Calendly | Scheduling links            | Full scheduling platform               |
+| Gem      | Recruiter email sequences   | Recruiting CRM (now competes with ATS) |
+| Goodly   | Background-check automation | Broader hiring-workflow tool           |
+| Dover    | Automated outreach          | Recruiting OS for startups             |
+
+### Reconciliation with §9/§10 and the research doc
+
+- §9/§10 and research §15 say **do not build ATS features** (pipelines, scheduling,
+  offers). §11 says build them by Phase 3. Both hold only if the no-ATS rule is a
+  **Phase-1 constraint, revisitable on evidence** (retention, "when are you the ATS?"
+  asks) — not a permanent vow.
+- §11 Phase 1 matches §6/§8 sequencing and §9's connect ranking; no change to
+  engineering order.
+- The precedent list is motivating but **not evidence of success probability**. Treat
+  it as pattern-matching, not proof; verify each company's actual wedge/became path
+  before citing it to anyone.
+
+### Decision to record
+
+State explicitly in the plan: **is Phase 2/3 in or out?** If out, keep §10's single-
+product boundary. If in, add the trigger criteria that justify each phase (e.g. "N
+agencies ask to drop their ATS") and accept the added scope + compliance surface
+(run-time candidate DB, retention, EU AI Act / NYC LL144 — research §7–§8).

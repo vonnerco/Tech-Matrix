@@ -13,6 +13,9 @@
 //   GET /health   unauthenticated liveness + deployed-version probe.
 //   GET /records  lists saved fit records (requires RECORDS_TOKEN).
 //   DELETE /records?id=  removes one saved record (requires RECORDS_TOKEN).
+//   GET  /ats                 lists ATS adapters and whether each is configured.
+//   POST /ats/:id/score       scores every candidate on one ATS job and writes
+//                             the scores back (body: { jobId }).
 // The DeepSeek API key and the records token live only in the Worker secret
 // store (DEEPSEEK_API_KEY, RECORDS_TOKEN) and never reach the browser.
 //
@@ -29,6 +32,12 @@ import {
   scoreWithRetry,
 } from "./scoring.js";
 import { BatchJob } from "./batch.js";
+import {
+  getAdapter,
+  isConfigured,
+  listAdapters,
+  scoreJob,
+} from "./ats/index.js";
 
 export { BatchJob };
 
@@ -703,6 +712,63 @@ export default {
       return handleRecords(request, env, url, headers);
     }
 
+    // ATS adapters: list what is configured, or score one job end-to-end.
+    if (/\/ats(\/|$)/.test(path)) {
+      if (request.method === "GET") {
+        return jsonResponse(
+          {
+            adapters: listAdapters().map((a) => ({
+              ...a,
+              configured: isConfigured(a, env),
+            })),
+          },
+          200,
+          headers,
+        );
+      }
+      if (request.method !== "POST") {
+        return jsonResponse({ error: "method_not_allowed" }, 405, headers);
+      }
+      // Scoring writes into a customer's ATS, so it always requires a login.
+      const user = await verifySupabaseUser(request, env);
+      if (!user) return jsonResponse({ error: "unauthorized" }, 401, headers);
+      if (!env.DEEPSEEK_API_KEY) {
+        return jsonResponse({ error: "server_misconfigured" }, 500, headers);
+      }
+      const parts = path.split("/").filter(Boolean);
+      const at = parts.indexOf("ats");
+      const adapter = getAdapter(parts[at + 1]);
+      if (!adapter) return jsonResponse({ error: "unknown_ats" }, 404, headers);
+      if (!isConfigured(adapter, env)) {
+        return jsonResponse({ error: "ats_not_configured" }, 501, headers);
+      }
+      let body;
+      try {
+        body = await request.json();
+      } catch {
+        return jsonResponse({ error: "invalid_json" }, 400, headers);
+      }
+      const jobId = String(body.jobId ?? "")
+        .trim()
+        .slice(0, 100);
+      if (!jobId)
+        return jsonResponse({ error: "missing_job_id" }, 400, headers);
+      try {
+        const summary = await scoreJob(
+          adapter,
+          { env, accountId: user.id },
+          jobId,
+        );
+        return jsonResponse(summary, 200, headers);
+      } catch (err) {
+        return jsonResponse(
+          { error: "ats_failed", detail: String(err?.message ?? err) },
+          502,
+          headers,
+        );
+      }
+    }
+
     // Durable batch jobs: start, poll, cancel. Always requires a login, since
     // the job is keyed to the user. 501 tells the client to score locally.
     if (/\/batch(\/|$)/.test(path)) {
@@ -725,7 +791,8 @@ export default {
       const isApiRoute =
         path.endsWith("/score") ||
         path.endsWith("/records") ||
-        /\/batch(\/|$)/.test(path);
+        /\/batch(\/|$)/.test(path) ||
+        /\/ats(\/|$)/.test(path);
       return isApiRoute
         ? jsonResponse({ error: "method_not_allowed" }, 405, headers)
         : jsonResponse({ error: "not_found" }, 404, headers);
