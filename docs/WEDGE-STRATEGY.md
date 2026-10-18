@@ -8,7 +8,7 @@
 ██████░░░░░░░░░░░░░░  31%   —   29 / 93 items complete
 ```
 
-> **Last updated:** 2026-10-17 — updated by sync
+> **Last updated:** 2026-10-18 — updated by sync
 
 ---
 

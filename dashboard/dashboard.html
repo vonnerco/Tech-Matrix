@@ -1,4 +1,19 @@
 <!doctype html>
+<!--
+  Candidate Score — Wedge Strategy dashboard
+
+  Sections:
+    - Header / theme toggle
+    - Progress summary
+    - Strategy and guide panels (collapsible)
+    - Phase and task tracker
+    - Zoho migration checklist
+
+  Notes:
+    - Theme is stored in localStorage as "wedge-theme".
+    - Task changes are saved to the local dashboard server (POST /api/tasks).
+    - This is a standalone static file; no build step required.
+-->
 <html lang="en">
     <head>
         <meta charset="utf-8" />
@@ -8401,7 +8416,7 @@ scoreAllCandidatesForJob('YOUR_JOB_ID').then(console.log);
             // Keep this IDENTICAL to dashboard/tasks.json whenever you update status.
             const EMBEDDED = {
   "project": "Candidate Score — Wedge Strategy",
-  "lastUpdated": "2026-10-17T23:38:33.253Z",
+  "lastUpdated": "2026-10-18T00:07:23.580Z",
   "updatedBy": "sync",
   "phases": [
     {
