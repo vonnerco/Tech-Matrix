@@ -11,7 +11,7 @@
 **Full task list (tasks + build steps)**
 
 ```text
-████████░░░░░░░░░░░░  39%   —   36 / 93 items complete
+████████░░░░░░░░░░░░  41%   —   38 / 93 items complete
 ```
 
 > **Last updated:** 2026-10-18 — updated by sync
