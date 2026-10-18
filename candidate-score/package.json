@@ -5,7 +5,12 @@
   "description": "Candidate Score — Zoho Recruit read-flow integration",
   "main": "src/integration.js",
   "scripts": {
-    "start": "node src/integration.js"
+    "start": "node src/integration.js",
+    "auth:check": "node src/auth.js",
+    "test": "node scripts/test-scoring-input.js",
+    "test:fuzz": "node scripts/fuzz-scoring-input.js",
+    "inspect:candidate": "node scripts/inspect-candidate.js",
+    "smoke": "node scripts/smoke.js"
   },
   "dependencies": {
     "axios": "^1.20.0",

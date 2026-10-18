@@ -586,7 +586,50 @@
                 content: "▾";
             }
             .guide-step > summary.guide-step-head h5 {
+                flex: 1 1 auto;
+                min-width: 0;
                 margin: 0;
+            }
+            .guide-step-progress {
+                position: relative;
+                flex: 0 0 96px;
+                height: 16px;
+                border: 1px solid var(--line);
+                border-radius: 999px;
+                background: var(--track);
+                overflow: hidden;
+            }
+            .guide-step-progress .fill {
+                position: absolute;
+                inset: 0 auto 0 0;
+                width: 0;
+                border-radius: 999px;
+                background: linear-gradient(90deg, #15803d, #22c55e);
+                transition: width 0.3s ease;
+            }
+            .guide-step-progress .pct {
+                position: absolute;
+                inset: 0;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 11px;
+                font-weight: 700;
+                color: var(--pct);
+                letter-spacing: 0.04em;
+                text-shadow: var(--pct-shadow);
+            }
+            .guide-step-progress.complete .fill {
+                box-shadow: 0 0 10px rgba(34, 197, 94, 0.6);
+            }
+            @media (max-width: 620px) {
+                .guide-step > summary.guide-step-head {
+                    flex-wrap: wrap;
+                }
+                .guide-step-progress {
+                    flex: 1 0 100%;
+                    margin-left: 20px;
+                }
             }
             .guide-step-body {
                 padding: 0 0 12px;
@@ -953,6 +996,42 @@
                 font-size: 13.5px;
                 color: var(--muted);
                 font-variant-numeric: tabular-nums;
+            }
+            .row-progress {
+                position: relative;
+                flex: 0 0 84px;
+                height: 14px;
+                border: 1px solid var(--line);
+                border-radius: 999px;
+                background: var(--track);
+                overflow: hidden;
+            }
+            .phase-head .row-progress {
+                flex-basis: 110px;
+                height: 16px;
+            }
+            .row-progress .fill {
+                position: absolute;
+                inset: 0 auto 0 0;
+                width: 0;
+                border-radius: 999px;
+                background: linear-gradient(90deg, #15803d, #22c55e);
+                transition: width 0.3s ease;
+            }
+            .row-progress .pct {
+                position: absolute;
+                inset: 0;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 10px;
+                font-weight: 700;
+                color: var(--pct);
+                letter-spacing: 0.03em;
+                text-shadow: var(--pct-shadow);
+            }
+            .row-progress.complete .fill {
+                box-shadow: 0 0 10px rgba(34, 197, 94, 0.6);
             }
 
             /* collapsible Full Task List: phase → task/step → subtask */
@@ -5821,6 +5900,18 @@ Zoho Recruit (trigger: new candidate)
                         </button>
                     </h2>
                     <div class="panel-body" id="tasksBody">
+                        <div class="bar-block">
+                            <div class="bar-top">
+                                <span class="label"
+                                    >Full task list (tasks + build steps)</span
+                                >
+                                <span class="meta" id="taskListMeta">—</span>
+                            </div>
+                            <div class="bar green">
+                                <div class="fill" id="taskListFill"></div>
+                                <div class="pct" id="taskListPct"></div>
+                            </div>
+                        </div>
                         <div id="phases"></div>
 
                                         <!-- ZOHO BUILD -->
@@ -8416,7 +8507,7 @@ scoreAllCandidatesForJob('YOUR_JOB_ID').then(console.log);
             // Keep this IDENTICAL to dashboard/tasks.json whenever you update status.
             const EMBEDDED = {
   "project": "Candidate Score — Wedge Strategy",
-  "lastUpdated": "2026-10-18T00:07:23.580Z",
+  "lastUpdated": "2026-10-18T01:20:54.510Z",
   "updatedBy": "sync",
   "phases": [
     {
@@ -8615,7 +8706,7 @@ scoreAllCandidatesForJob('YOUR_JOB_ID').then(console.log);
       "zoho-a2-3": true,
       "zoho-a2-4": true,
       "zoho-a3-1": true,
-      "zoho-a3-2": false,
+      "zoho-a3-2": true,
       "zoho-a3-3": true,
       "zoho-a3-4": true,
       "zoho-a4-1": true,
@@ -8633,14 +8724,11 @@ scoreAllCandidatesForJob('YOUR_JOB_ID').then(console.log);
       "zoho-c1-1": true,
       "zoho-c1-2": true,
       "zoho-c1-3": true,
-      "zoho-c2-1": false,
-      "zoho-c2-2": false,
-      "zoho-c2-3": false,
-      "zoho-c3-1": false,
-      "zoho-c3-2": false,
-      "zoho-c3-3": false,
-      "zoho-c4-1": false,
-      "zoho-c4-2": false,
+      "zoho-c2-1": true,
+      "zoho-c2-2": true,
+      "zoho-c2-3": true,
+      "zoho-c3-1": true,
+      "zoho-c4-2": true,
       "zoho-c4-3": false,
       "zoho-d1-1": true,
       "zoho-d1-2": false,
@@ -8674,7 +8762,10 @@ scoreAllCandidatesForJob('YOUR_JOB_ID').then(console.log);
       "zoho-g3-2": false,
       "zoho-g4-1": false,
       "zoho-g4-2": false,
-      "zoho-g4-3": false
+      "zoho-g4-3": false,
+      "zoho-c3-2": true,
+      "zoho-c3-3": true,
+      "zoho-c4-1": true
     }
   }
 };
@@ -8759,11 +8850,25 @@ scoreAllCandidatesForJob('YOUR_JOB_ID').then(console.log);
                     s.total,
                     "item",
                 );
+                setBar(
+                    document.getElementById("taskListFill"),
+                    document.getElementById("taskListPct"),
+                    document.getElementById("taskListMeta"),
+                    s.done,
+                    s.total,
+                    "item",
+                );
             }
 
             function statusBadge(status) {
                 const label = status === "in-progress" ? "in-progress" : status;
                 return `<span class="status ${status}">${label}</span>`;
+            }
+
+            function rowBar(done, total) {
+                const pct = total ? Math.round((done / total) * 100) : 0;
+                const complete = total > 0 && done === total;
+                return `<span class="row-progress${complete ? " complete" : ""}" title="${done} of ${total} done"><span class="fill" style="width:${pct}%"></span><span class="pct">${pct}%</span></span>`;
             }
 
             function zohoTaskGroups(data) {
@@ -8863,6 +8968,7 @@ scoreAllCandidatesForJob('YOUR_JOB_ID').then(console.log);
       <summary class="phase-head">
         <span class="pname">${esc(g.name)}</span>
         <span class="owner">Zoho</span>
+        ${rowBar(done, all)}
         <span class="count">${done}/${all}</span>
       </summary>`;
                     const body = document.createElement("div");
@@ -8879,6 +8985,7 @@ scoreAllCandidatesForJob('YOUR_JOB_ID').then(console.log);
                             `<summary class="task-head">
         <span class="tid">${esc(step.label)}</span>
         <span class="ttext">${esc(step.name)}</span>
+        ${rowBar(sd, step.items.length)}
         <span class="count">${sd}/${step.items.length}</span>
       </summary>`,
                             "task-body",
@@ -8911,6 +9018,7 @@ scoreAllCandidatesForJob('YOUR_JOB_ID').then(console.log);
       <summary class="phase-head">
         <span class="pname">${esc(p.name)}</span>
         <span class="owner ${esc(p.owner)}">${esc(OWNERS[p.owner] || p.owner)}</span>
+        ${rowBar(d, p.tasks.length)}
         <span class="count">${d}/${p.tasks.length}</span>
       </summary>`;
                     const body = document.createElement("div");
@@ -9186,6 +9294,35 @@ scoreAllCandidatesForJob('YOUR_JOB_ID').then(console.log);
                     s.el.classList.toggle("complete", total > 0 && n === total);
                     s.el.title = `${n} of ${total} done`;
                 }
+
+                // Compact bars live in each step's (always visible) summary.
+                for (const el of document.querySelectorAll(
+                    "[data-step-head]",
+                )) {
+                    const key = el.dataset.stepHead;
+                    const own = boxes.filter((b) =>
+                        (b.dataset.sub || "").startsWith(key + "-"),
+                    );
+                    const total = own.length;
+                    const n = own.filter((b) => b.checked).length;
+                    const sp = total ? Math.round((n / total) * 100) : 0;
+                    const fillEl = el.querySelector(".fill");
+                    const pctEl = el.querySelector(".pct");
+                    if (fillEl) fillEl.style.width = sp + "%";
+                    if (pctEl) pctEl.textContent = sp + "%";
+                    el.classList.toggle("complete", total > 0 && n === total);
+                    const next = own.find((b) => !b.checked);
+                    const nextLabel = next
+                        ? next.dataset.title ||
+                          (next.getAttribute("aria-label") || "").replace(
+                              /\s*done$/,
+                              "",
+                          )
+                        : "";
+                    el.title = total
+                        ? `${n} of ${total} done${nextLabel ? ` — next: ${nextLabel}` : ""}`
+                        : "No substeps";
+                }
             }
 
             function renderZoho(data) {
@@ -9336,6 +9473,12 @@ scoreAllCandidatesForJob('YOUR_JOB_ID').then(console.log);
                     const summary = document.createElement("summary");
                     summary.className = "guide-step-head";
                     summary.appendChild(h5);
+                    const bar = document.createElement("span");
+                    bar.className = "guide-step-progress";
+                    bar.dataset.stepHead = det.id;
+                    bar.innerHTML =
+                        '<span class="fill"></span><span class="pct">0%</span>';
+                    summary.appendChild(bar);
                     det.appendChild(summary);
                     const body = document.createElement("div");
                     body.className = "guide-step-body";
@@ -9349,6 +9492,9 @@ scoreAllCandidatesForJob('YOUR_JOB_ID').then(console.log);
                         body.appendChild(node);
                         node = next;
                     }
+                    // The compact bar in the summary replaces the old in-body one.
+                    body.querySelectorAll(".step-progress").forEach((el) =>
+                        el.remove());
                 }
 
                 const openTarget = (hash) => openGuideTarget(hash);
@@ -9420,6 +9566,7 @@ scoreAllCandidatesForJob('YOUR_JOB_ID').then(console.log);
                         }
                     });
                 }
+                paintZoho();
             }
 
             function render(data) {

@@ -5,7 +5,13 @@
 **Overall (tasks + subtasks)**
 
 ```text
-██████░░░░░░░░░░░░░░  31%   —   29 / 93 items complete
+████████░░░░░░░░░░░░  41%   —   38 / 93 items complete
+```
+
+**Full task list (tasks + build steps)**
+
+```text
+████████░░░░░░░░░░░░  39%   —   36 / 93 items complete
 ```
 
 > **Last updated:** 2026-10-18 — updated by sync
@@ -1390,7 +1396,7 @@ This gets you to "working demo" in an afternoon. Then you replace the no-code la
 </details>
 
 <details>
-<summary><strong>Phase A — Account &amp; Environment Setup (30–60 minutes)</strong> — <code>[ ] 20/21</code></summary>
+<summary><strong>Phase A — Account &amp; Environment Setup (30–60 minutes)</strong> — <code>[x] 21/21</code></summary>
 
 <details>
 <summary><strong>A1 — Create a Zoho Account</strong> — <code>[x] 6/6</code></summary>
@@ -1423,14 +1429,14 @@ This gets you to "working demo" in an afternoon. Then you replace the no-code la
 </details>
 
 <details>
-<summary><strong>A3 — Register Your Application</strong> — <code>[ ] 3/4</code></summary>
+<summary><strong>A3 — Register Your Application</strong> — <code>[x] 4/4</code></summary>
 
 ```text
-███████████████░░░░░  75%   —   3 / 4 substeps complete
+████████████████████  100%   —   4 / 4 substeps complete
 ```
 
 - [x] **A3.1** Click "Self Client" — `done`
-- [ ] **A3.2** Fill in: Client Name Candidate Score Dev; Homepage URL https://candidatescore.com (or your actual domain); Authorized Redirect URI https://candidatescore.com/callback (placeholder for now) — `todo`
+- [x] **A3.2** Fill in: Client Name Candidate Score Dev; Homepage URL https://candidatescore.com (or your actual domain); Authorized Redirect URI https://candidatescore.com/callback (placeholder for now) — `done`
 - [x] **A3.3** Click "Create" — `done`
 - [x] **A3.4** You'll see your Client ID and Client Secret — copy both and store them securely (password manager, .env file, NOT in your code repo) — `done`
 
@@ -1496,7 +1502,7 @@ This gets you to "working demo" in an afternoon. Then you replace the no-code la
 </details>
 
 <details>
-<summary><strong>Phase C — Build the Read Flow (2–4 hours)</strong> — <code>[ ] 3/12</code></summary>
+<summary><strong>Phase C — Build the Read Flow (2–4 hours)</strong> — <code>[ ] 11/12</code></summary>
 
 <details>
 <summary><strong>C1 — Set Up Your Project Structure</strong> — <code>[x] 3/3</code></summary>
@@ -1512,40 +1518,40 @@ This gets you to "working demo" in an afternoon. Then you replace the no-code la
 </details>
 
 <details>
-<summary><strong>C2 — Implement Token Management (auth.js)</strong> — <code>[ ] 0/3</code></summary>
+<summary><strong>C2 — Implement Token Management (auth.js)</strong> — <code>[x] 3/3</code></summary>
 
 ```text
-░░░░░░░░░░░░░░░░░░░░  0%   —   0 / 3 substeps complete
+████████████████████  100%   —   3 / 3 substeps complete
 ```
 
-- [ ] **C2.1** Write getAccessToken() that exchanges the refresh token for an access token — `todo`
-- [ ] **C2.2** Cache the token in memory with a 5-minute expiry buffer so it refreshes automatically — `todo`
-- [ ] **C2.3** Run it once and confirm a fresh access token comes back without manual steps — `todo`
+- [x] **C2.1** Write getAccessToken() that exchanges the refresh token for an access token — `done`
+- [x] **C2.2** Cache the token in memory with a 5-minute expiry buffer so it refreshes automatically — `done`
+- [x] **C2.3** Run it once and confirm a fresh access token comes back without manual steps — `done`
 
 </details>
 
 <details>
-<summary><strong>C3 — Build the Zoho API Client (zoho-client.js)</strong> — <code>[ ] 0/3</code></summary>
+<summary><strong>C3 — Build the Zoho API Client (zoho-client.js)</strong> — <code>[x] 3/3</code></summary>
 
 ```text
-░░░░░░░░░░░░░░░░░░░░  0%   —   0 / 3 substeps complete
+████████████████████  100%   —   3 / 3 substeps complete
 ```
 
-- [ ] **C3.1** Write makeRequest() that adds the Zoho-oauthtoken header and calls the correct regional API domain — `todo`
-- [ ] **C3.2** Add 429 handling that waits for retry-after and retries the request — `todo`
-- [ ] **C3.3** Add getCandidatesForJob(), getCandidate() and updateCandidate() helpers — `todo`
+- [x] **C3.1** Write makeRequest() that adds the Zoho-oauthtoken header and calls the correct regional API domain — `done`
+- [x] **C3.2** Add 429 handling that waits for retry-after and retries the request — `done`
+- [x] **C3.3** Add getCandidatesForJob(), getCandidate() and updateCandidate() helpers — `done`
 
 </details>
 
 <details>
-<summary><strong>C4 — Extract Scoring Inputs from Candidate Data</strong> — <code>[ ] 0/3</code></summary>
+<summary><strong>C4 — Extract Scoring Inputs from Candidate Data</strong> — <code>[ ] 2/3</code></summary>
 
 ```text
-░░░░░░░░░░░░░░░░░░░░  0%   —   0 / 3 substeps complete
+█████████████░░░░░░░  67%   —   2 / 3 substeps complete
 ```
 
-- [ ] **C4.1** Write extractScoringInput() mapping Zoho fields to your scoring input (skills split on commas, experience parsed to a number) — `todo`
-- [ ] **C4.2** Handle empty or missing fields (no Skill_Set, no Years_of_Experience) without throwing — `todo`
+- [x] **C4.1** Write extractScoringInput() mapping Zoho fields to your scoring input (skills split on commas, experience parsed to a number) — `done`
+- [x] **C4.2** Handle empty or missing fields (no Skill_Set, no Years_of_Experience) without throwing — `done`
 - [ ] **C4.3** Run it against one real candidate and confirm the output matches your scoring engine's expected shape — `todo`
 
 </details>
@@ -1729,14 +1735,14 @@ Before touching any code, understand why this specific ATS:
 
 Zoho wins on speed and risk. You can go from zero to a working integration in a single afternoon without spending a dollar or talking to a human. That matters because your goal right now is proof, not perfection.
 
-**Build progress** — `[ ] 29/71 substeps`
+**Build progress** — `[ ] 38/71 substeps`
 
 ```text
-████████░░░░░░░░░░░░  41%   —   29 / 71 substeps complete
+███████████░░░░░░░░░  54%   —   38 / 71 substeps complete
 ```
 
 <details>
-<summary><strong>Phase A — Account &amp; Environment Setup (30–60 minutes)</strong> — <code>[ ] 20/21</code></summary>
+<summary><strong>Phase A — Account &amp; Environment Setup (30–60 minutes)</strong> — <code>[x] 21/21</code></summary>
 
 <details>
 <summary><strong>A1 — Create a Zoho Account</strong> — <code>[x] 6/6</code></summary>
@@ -1769,14 +1775,14 @@ Zoho wins on speed and risk. You can go from zero to a working integration in a 
 </details>
 
 <details>
-<summary><strong>A3 — Register Your Application</strong> — <code>[ ] 3/4</code></summary>
+<summary><strong>A3 — Register Your Application</strong> — <code>[x] 4/4</code></summary>
 
 ```text
-███████████████░░░░░  75%   —   3 / 4 substeps complete
+████████████████████  100%   —   4 / 4 substeps complete
 ```
 
 - [x] **A3.1** Click "Self Client" — `done`
-- [ ] **A3.2** Fill in: Client Name Candidate Score Dev; Homepage URL https://candidatescore.com (or your actual domain); Authorized Redirect URI https://candidatescore.com/callback (placeholder for now) — `todo`
+- [x] **A3.2** Fill in: Client Name Candidate Score Dev; Homepage URL https://candidatescore.com (or your actual domain); Authorized Redirect URI https://candidatescore.com/callback (placeholder for now) — `done`
 - [x] **A3.3** Click "Create" — `done`
 - [x] **A3.4** You'll see your Client ID and Client Secret — copy both and store them securely (password manager, .env file, NOT in your code repo) — `done`
 
@@ -1842,7 +1848,7 @@ Zoho wins on speed and risk. You can go from zero to a working integration in a 
 </details>
 
 <details>
-<summary><strong>Phase C — Build the Read Flow (2–4 hours)</strong> — <code>[ ] 3/12</code></summary>
+<summary><strong>Phase C — Build the Read Flow (2–4 hours)</strong> — <code>[ ] 11/12</code></summary>
 
 <details>
 <summary><strong>C1 — Set Up Your Project Structure</strong> — <code>[x] 3/3</code></summary>
@@ -1858,40 +1864,40 @@ Zoho wins on speed and risk. You can go from zero to a working integration in a 
 </details>
 
 <details>
-<summary><strong>C2 — Implement Token Management (auth.js)</strong> — <code>[ ] 0/3</code></summary>
+<summary><strong>C2 — Implement Token Management (auth.js)</strong> — <code>[x] 3/3</code></summary>
 
 ```text
-░░░░░░░░░░░░░░░░░░░░  0%   —   0 / 3 substeps complete
+████████████████████  100%   —   3 / 3 substeps complete
 ```
 
-- [ ] **C2.1** Write getAccessToken() that exchanges the refresh token for an access token — `todo`
-- [ ] **C2.2** Cache the token in memory with a 5-minute expiry buffer so it refreshes automatically — `todo`
-- [ ] **C2.3** Run it once and confirm a fresh access token comes back without manual steps — `todo`
+- [x] **C2.1** Write getAccessToken() that exchanges the refresh token for an access token — `done`
+- [x] **C2.2** Cache the token in memory with a 5-minute expiry buffer so it refreshes automatically — `done`
+- [x] **C2.3** Run it once and confirm a fresh access token comes back without manual steps — `done`
 
 </details>
 
 <details>
-<summary><strong>C3 — Build the Zoho API Client (zoho-client.js)</strong> — <code>[ ] 0/3</code></summary>
+<summary><strong>C3 — Build the Zoho API Client (zoho-client.js)</strong> — <code>[x] 3/3</code></summary>
 
 ```text
-░░░░░░░░░░░░░░░░░░░░  0%   —   0 / 3 substeps complete
+████████████████████  100%   —   3 / 3 substeps complete
 ```
 
-- [ ] **C3.1** Write makeRequest() that adds the Zoho-oauthtoken header and calls the correct regional API domain — `todo`
-- [ ] **C3.2** Add 429 handling that waits for retry-after and retries the request — `todo`
-- [ ] **C3.3** Add getCandidatesForJob(), getCandidate() and updateCandidate() helpers — `todo`
+- [x] **C3.1** Write makeRequest() that adds the Zoho-oauthtoken header and calls the correct regional API domain — `done`
+- [x] **C3.2** Add 429 handling that waits for retry-after and retries the request — `done`
+- [x] **C3.3** Add getCandidatesForJob(), getCandidate() and updateCandidate() helpers — `done`
 
 </details>
 
 <details>
-<summary><strong>C4 — Extract Scoring Inputs from Candidate Data</strong> — <code>[ ] 0/3</code></summary>
+<summary><strong>C4 — Extract Scoring Inputs from Candidate Data</strong> — <code>[ ] 2/3</code></summary>
 
 ```text
-░░░░░░░░░░░░░░░░░░░░  0%   —   0 / 3 substeps complete
+█████████████░░░░░░░  67%   —   2 / 3 substeps complete
 ```
 
-- [ ] **C4.1** Write extractScoringInput() mapping Zoho fields to your scoring input (skills split on commas, experience parsed to a number) — `todo`
-- [ ] **C4.2** Handle empty or missing fields (no Skill_Set, no Years_of_Experience) without throwing — `todo`
+- [x] **C4.1** Write extractScoringInput() mapping Zoho fields to your scoring input (skills split on commas, experience parsed to a number) — `done`
+- [x] **C4.2** Handle empty or missing fields (no Skill_Set, no Years_of_Experience) without throwing — `done`
 - [ ] **C4.3** Run it against one real candidate and confirm the output matches your scoring engine's expected shape — `todo`
 
 </details>

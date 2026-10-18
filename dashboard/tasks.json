@@ -1,6 +1,6 @@
 {
   "project": "Candidate Score — Wedge Strategy",
-  "lastUpdated": "2026-10-18T00:07:23.580Z",
+  "lastUpdated": "2026-10-18T01:20:54.510Z",
   "updatedBy": "sync",
   "phases": [
     {
@@ -199,7 +199,7 @@
       "zoho-a2-3": true,
       "zoho-a2-4": true,
       "zoho-a3-1": true,
-      "zoho-a3-2": false,
+      "zoho-a3-2": true,
       "zoho-a3-3": true,
       "zoho-a3-4": true,
       "zoho-a4-1": true,
@@ -217,14 +217,11 @@
       "zoho-c1-1": true,
       "zoho-c1-2": true,
       "zoho-c1-3": true,
-      "zoho-c2-1": false,
-      "zoho-c2-2": false,
-      "zoho-c2-3": false,
-      "zoho-c3-1": false,
-      "zoho-c3-2": false,
-      "zoho-c3-3": false,
-      "zoho-c4-1": false,
-      "zoho-c4-2": false,
+      "zoho-c2-1": true,
+      "zoho-c2-2": true,
+      "zoho-c2-3": true,
+      "zoho-c3-1": true,
+      "zoho-c4-2": true,
       "zoho-c4-3": false,
       "zoho-d1-1": true,
       "zoho-d1-2": false,
@@ -258,7 +255,10 @@
       "zoho-g3-2": false,
       "zoho-g4-1": false,
       "zoho-g4-2": false,
-      "zoho-g4-3": false
+      "zoho-g4-3": false,
+      "zoho-c3-2": true,
+      "zoho-c3-3": true,
+      "zoho-c4-1": true
     }
   }
 }

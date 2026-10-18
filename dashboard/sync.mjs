@@ -315,12 +315,23 @@ async function writeMarkdown(data) {
   };
 
   const barIdxs = [];
-  for (let i = 0; i < lines.length; i++) {
+  for (let i = 0; i < lines.length && barIdxs.length < 2; i++) {
     if (/^[█░]{20}\s+\d+%/.test(lines[i])) barIdxs.push(i);
-    if (barIdxs.length === 1) break;
   }
   if (barIdxs.length >= 1) {
     lines[barIdxs[0]] =
+      bar(overallPct) +
+      "  " +
+      overallPct +
+      "%   —   " +
+      done +
+      " / " +
+      total +
+      " items complete";
+  }
+  // The second top-level bar mirrors the full task list, including build steps.
+  if (barIdxs.length >= 2) {
+    lines[barIdxs[1]] =
       bar(overallPct) +
       "  " +
       overallPct +
