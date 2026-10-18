@@ -2,6 +2,7 @@
 
 // Read-only inspector: fetch one Zoho candidate and show extractScoringInput() output.
 // Usage: npm run inspect:candidate -- <numeric-candidate-id>
+//        npm run inspect:candidate -- --first
 //        npm run inspect:candidate -- --list [count]
 
 const { getCandidate, makeRequest } = require('../src/zoho-client');
@@ -34,8 +35,43 @@ function show(label, value) {
 function usage() {
     console.error('Usage:');
     console.error('  npm run inspect:candidate -- <numeric-candidate-id>');
+    console.error('  npm run inspect:candidate -- --first');
     console.error('  npm run inspect:candidate -- --list [count]');
     process.exitCode = 1;
+}
+
+function renderCandidate(candidate, fallbackId) {
+    console.log(`Candidate ${candidate.id || fallbackId}\n`);
+    console.log('Raw Zoho fields:');
+    for (const field of FIELDS) {
+        show(field, candidate[field]);
+    }
+
+    const input = extractScoringInput(candidate);
+    console.log('\nMapped scoring input:');
+    console.log(JSON.stringify(input, null, 2));
+
+    const warnings = [];
+    if (input.skills.length === 0) {
+        warnings.push('no skills extracted — check Skill_Set');
+    }
+    if (input.yearsExperience === 0) {
+        warnings.push('yearsExperience is 0 — check Years_of_Experience');
+    }
+    if (warnings.length) {
+        console.log(`\nWARN\n- ${warnings.join('\n- ')}`);
+    }
+}
+
+async function firstCandidate() {
+    const body = await makeRequest('GET', '/Candidates', {
+        params: { per_page: 1 }
+    });
+    const row = body && Array.isArray(body.data) ? body.data[0] : null;
+    if (!row) {
+        throw new Error('No candidates found in this org.');
+    }
+    return getCandidate(row.id);
 }
 
 async function listCandidates(limit) {
@@ -75,28 +111,14 @@ async function main() {
         return;
     }
 
+    if (first === '--first' || first === '-f') {
+        const candidate = await firstCandidate();
+        renderCandidate(candidate, 'first');
+        return;
+    }
+
     const candidate = await getCandidate(first);
-
-    console.log(`Candidate ${candidate.id || first}\n`);
-    console.log('Raw Zoho fields:');
-    for (const field of FIELDS) {
-        show(field, candidate[field]);
-    }
-
-    const input = extractScoringInput(candidate);
-    console.log('\nMapped scoring input:');
-    console.log(JSON.stringify(input, null, 2));
-
-    const warnings = [];
-    if (input.skills.length === 0) {
-        warnings.push('no skills extracted — check Skill_Set');
-    }
-    if (input.yearsExperience === 0) {
-        warnings.push('yearsExperience is 0 — check Years_of_Experience');
-    }
-    if (warnings.length) {
-        console.log(`\nWARN\n- ${warnings.join('\n- ')}`);
-    }
+    renderCandidate(candidate, first);
 }
 
 main().catch((error) => {

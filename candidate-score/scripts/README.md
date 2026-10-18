@@ -1,6 +1,18 @@
 # Scripts
 
-## `test-scoring-input.js` — C4.1 unit tests
+## `test-all.js` — manual test runner
+
+Run from `candidate-score/`:
+
+```sh
+npm run test:all
+npm run test:all -- --live
+npm run test:all -- --live --iterations 20000 --seed 12345
+```
+
+Default runs the unit and fuzz suites. `--live` adds the read-only Zoho smoke test and maps the first candidate in the org (requires `.env`). Prints a final `PASS` or `FAIL` summary and sets exit code `1` if any suite fails.
+
+## `test-scoring-input.js` — C4.1/C4.2 unit tests
 
 Run from `candidate-score/`:
 
@@ -30,11 +42,12 @@ Run from `candidate-score/`:
 ```sh
 npm run inspect:candidate -- --list
 npm run inspect:candidate -- --list 25
+npm run inspect:candidate -- --first
 npm run inspect:candidate -- 879320000000594001   # sandbox test candidate
 npm run inspect:candidate -- <numeric-candidate-id>
 ```
 
-Read-only: `--list [count]` lists up to 10 candidates by default (capped at 200) with their numeric `id`, `Candidate_ID`, name, and email. With an id, it fetches one candidate and prints `Candidate_ID`, name, email, title, `Skill_Set`, and `Years_of_Experience` with their types, then prints the mapped scoring input. Warns when no skills or zero experience are extracted. Requires `.env` credentials.
+Read-only: `--list [count]` lists up to 10 candidates by default (capped at 200) with their numeric `id`, `Candidate_ID`, name, and email. `--first` fetches and maps the first candidate in the org. With an id, it fetches one candidate and prints `Candidate_ID`, name, email, title, `Skill_Set`, and `Years_of_Experience` with their types, then prints the mapped scoring input. Warns when no skills or zero experience are extracted. Requires `.env` credentials.
 
 ## `smoke.js` — read-only Zoho smoke test
 

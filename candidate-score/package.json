@@ -8,6 +8,7 @@
     "start": "node src/integration.js",
     "auth:check": "node src/auth.js",
     "test": "node scripts/test-scoring-input.js",
+    "test:all": "node scripts/test-all.js",
     "test:fuzz": "node scripts/fuzz-scoring-input.js",
     "inspect:candidate": "node scripts/inspect-candidate.js",
     "smoke": "node scripts/smoke.js"
